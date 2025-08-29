@@ -1,0 +1,52 @@
+.hero-container {
+  position: absolute;
+  top: 20%;
+  left: 10%;
+  z-index: 10;
+  color: white;
+}
+
+.hero-name {
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+.hero-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.role-group {
+  position: relative;
+  display: inline-block;
+}
+
+.role-text {
+  font-size: 20px;
+  font-weight: 300;
+  cursor: default;
+}
+
+.role-hover {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 4px;
+  font-size: 14px;
+  color: #aaa;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.role-group:hover .role-hover {
+  opacity: 1;
+  transform: translateY(0px);
+}
