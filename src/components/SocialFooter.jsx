@@ -1,17 +1,50 @@
-
-import React from 'react';
-import { FaInstagram, FaTelegramPlane } from 'react-icons/fa';
-import './SocialFooter.css';
+import React from "react";
+import "./SocialFooter.css";
 
 export default function SocialFooter() {
   return (
-    <div className="social-footer">
-      <a href="https://instagram.com/your_profile" target="_blank" rel="noopener noreferrer">
-        <FaInstagram className="social-icon" />
-      </a>
-      <a href="https://t.me/your_profile" target="_blank" rel="noopener noreferrer">
-        <FaTelegramPlane className="social-icon" />
-      </a>
+    <div className="social-footer-container">
+      <div className="social-footer-background">
+        {/* Instagram */}
+        <a
+          href="https://instagram.com/your_profile"
+          target="_blank"
+          rel="noreferrer"
+          className="social-icon"
+          aria-label="Instagram"
+        >
+          <img
+            src="/rustam-site/assents/icons/instagram-white.svg"
+            className="icon-img white"
+            alt="Instagram"
+          />
+          <img
+            src="/rustam-site/assents/icons/instagram-color.svg"
+            className="icon-img color"
+            alt="Instagram"
+          />
+        </a>
+
+        {/* Telegram */}
+        <a
+          href="https://t.me/your_profile"
+          target="_blank"
+          rel="noreferrer"
+          className="social-icon"
+          aria-label="Telegram"
+        >
+          <img
+            src="/rustam-site/assents/icons/telegram-white.svg"
+            className="icon-img white"
+            alt="Telegram"
+          />
+          <img
+            src="/rustam-site/assents/icons/telegram-color.svg"
+            className="icon-img color"
+            alt="Telegram"
+          />
+        </a>
+      </div>
     </div>
   );
 }

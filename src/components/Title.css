@@ -1,0 +1,34 @@
+/* Прямоугольная матовая плашка по центру */
+.rr-box {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  /* Матовый прозрачный фон */
+  background: rgba(255, 255, 255, 0.08); /* тонкая — при необходимости подкрутим */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  border-radius: 16px;          /* можно сделать 0, если нужен прямой угол */
+  box-sizing: border-box;
+  margin: 0 auto;
+  gap: 0.12em;                  /* расстояние между строками масштабируется с шрифтом */
+}
+
+/* Строки текста */
+.rr-title {
+  margin: 0;
+  white-space: nowrap;
+
+  font-family: "MontserratLocal", "Montserrat", sans-serif !important;
+  font-weight: 900 !important;
+  font-style: normal !important;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+
+  color: rgba(255, 255, 255, 0.95);
+
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}

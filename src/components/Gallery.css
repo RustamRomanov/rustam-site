@@ -1,0 +1,7 @@
+.gallery { position:relative; padding: 0 clamp(8px, 2vw, 28px) clamp(48px, 10vh, 120px); }
+.gallery__grid { display:grid; grid-template-columns: repeat(var(--cols,6), 1fr); gap: 6px; }
+.tile { position:relative; overflow:hidden; border-radius: 10px; background:#0c0c0c; aspect-ratio:1/1; }
+.tile img{ width:100%; height:100%; object-fit:cover; display:block; transition: filter .25s ease; }
+.tile:hover img{ filter:brightness(1.06); }
+.skeleton{ background:linear-gradient(90deg,#111 25%,#161616 37%,#111 63%); background-size:400% 100%; animation:skeleton 1.4s infinite; }
+@keyframes skeleton{ 0%{background-position:100% 0} 100%{background-position:0 0} }

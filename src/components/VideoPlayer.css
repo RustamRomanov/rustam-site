@@ -1,0 +1,4 @@
+.vp__backdrop{ position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.66); backdrop-filter:blur(4px); display:grid; place-items:center; padding:clamp(8px,3vw,24px); }
+.vp__dialog{ position:relative; width:min(1200px,92vw); aspect-ratio:16/9; border-radius:16px; overflow:hidden; background:#000; border:1px solid rgba(255,255,255,.12); box-shadow:0 20px 70px rgba(0,0,0,.6); }
+.vp__close{ position:absolute; right:10px; top:8px; z-index:2; background:rgba(255,255,255,.08); color:#fff; border:0; border-radius:10px; width:36px; height:36px; cursor:pointer; }
+.vp__wrap{ width:100%; height:100%; }

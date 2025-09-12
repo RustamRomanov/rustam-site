@@ -2,28 +2,115 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@200;400;700&display=swap');
+@font-face {
+  font-family: "UniSans-Heavy";
+  src: url("/rustam-site/assents/fonts/Uni%20Sans%20Heavy.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "UniSans-Heavy";
+  src: url("/rustam-site/assents/fonts/Uni%20Sans%20Heavy%20Italic.otf") format("opentype");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
 
-body {
+/* Jura — плашки с фактами */
+@font-face {
+  font-family: "Jura-Ofont";
+  src: url("/rustam-site/assents/fonts/ofont.ru_Jura.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* (опционально) Uni Sans Thin — если где-то пригодится */
+@font-face {
+  font-family: "UniSans-Thin";
+  src: url("/rustam-site/assents/fonts/Uni%20Sans%20Thin.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "UniSans-Thin";
+  src: url("/rustam-site/assents/fonts/Uni%20Sans%20Thin%20Italic.otf") format("opentype");
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+
+/* ===== Базовые переменные/тема ===== */
+:root {
+  color-scheme: dark;
+  --bg: #000;
+  --fg: #fff;
+}
+
+/* ===== Нормализация/базовая типографика ===== */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+html, body {
   margin: 0;
   padding: 0;
-  font-family: 'Oswald', sans-serif;
-  background: #000;
-  color: white;
+  background: var(--bg);
+  color: var(--fg);
+  /* Глобальный дефолт — системный; нужные гарнитуры задаются локально в компонентах */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+}
+
+/* Медиа по умолчанию адаптивные */
+img, svg, video, canvas {
+  display: block;
+  max-width: 100%;
+}
+
+/* Ссылки без подчёркиваний/синих цветов (мы красим вручную) */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Формы наследуют шрифт */
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+}
+
+/* Доступность: видимый фокус */
+:focus-visible {
+  outline: 2px solid rgba(255,255,255,0.35);
+  outline-offset: 2px;
+}
+
+/* Корневой контейнер приложения */
+.app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
+  background: var(--bg);
 }
 
-h1 {
-  font-size: 64px;
-  font-weight: 700;
-  text-align: center;
-  margin: 0;
-}
-
-h2 {
-  font-size: 24px;
-  font-weight: 200;
-  text-align: center;
-  margin-top: 10px;
-  letter-spacing: 2px;
-}
+/* === Вспомогательные утилити (если вдруг понадобятся) === */
+.font-uni-heavy { font-family: "UniSans-Heavy", "Uni Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.font-jura      { font-family: "Jura-Ofont", Jura, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.font-uni-thin  { font-family: "UniSans-Thin", "Uni Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }

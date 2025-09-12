@@ -1,0 +1,84 @@
+/* Центрируем плашку */
+.rr-hero-center {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5000;
+  pointer-events: none; /* кликабельны только иконки внутри */
+}
+
+/* Плашка 16:9 с матовым фоном */
+.rr-hero-box {
+  display: grid;
+  grid-template-rows: auto auto auto auto; /* роль, имя, пустая, иконки */
+  justify-items: center;
+  align-items: center;
+  gap: var(--v-gap, 14px);
+  box-sizing: border-box;
+
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px; /* если нужны прямые углы: 0 */
+  border: 1px solid rgba(255, 255, 255, 0.18);
+
+  pointer-events: auto; /* внутри можно кликать по ссылкам */
+}
+
+.rr-line {
+  margin: 0;
+  white-space: nowrap;
+  text-align: center;
+
+  font-family: "MontserratLocal", "Montserrat", sans-serif !important;
+  font-weight: 900 !important;
+  font-style: normal !important;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+
+  color: rgba(255, 255, 255, 0.95);
+
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+/* Третья строка — пустая (высоту задаём из JS) */
+.rr-line--empty {
+  width: 100%;
+  height: 1em; /* перезаписывается из JS точным значением */
+}
+
+/* Иконки */
+.rr-hero-icons {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--icon-gap, 20px);
+  height: var(--icon-size, 36px);
+}
+
+.rr-hero-icon {
+  position: relative;
+  width: var(--icon-size, 36px);
+  height: var(--icon-size, 36px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.icon-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: opacity 0.25s ease, transform 0.3s ease;
+}
+
+.icon-img.white { opacity: 1; }
+.icon-img.color { opacity: 0; }
+
+.rr-hero-icon:hover .icon-img.white { opacity: 0; }
+.rr-hero-icon:hover .icon-img.color { opacity: 1; }
+.rr-hero-icon:hover .icon-img { transform: scale(1.12); }

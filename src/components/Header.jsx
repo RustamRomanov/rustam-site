@@ -1,25 +1,36 @@
-import './Header.css';
+import { useState } from "react";
 
-function Header() {
+const Role = ({ title, desc }) => {
+  const [hover, setHover] = useState(false);
   return (
-    <header className="fade-up delay-1">
-      <h1 className="header-title">РУСТАМ РОМАНОВ</h1>
-      <div className="roles fade-up delay-2">
-        <HoverRole label="Режиссер" tooltip="любовь" />
-        <HoverRole label="Продюсер" tooltip="предпродакшн – постпродакшн" />
-        <HoverRole label="Сценарист" tooltip="музыкальные клипы – документальное кино" />
+    <div
+      className="relative mx-4 uppercase text-sm font-semibold cursor-default select-none"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      {title}
+      <div
+        className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 text-xs px-4 py-2 rounded backdrop-blur
+                    transition-all duration-200 whitespace-nowrap
+                    ${hover ? "bg-white/14 opacity-100" : "bg-white/14 opacity-0 pointer-events-none"}`}
+      >
+        {desc}
       </div>
-    </header>
+    </div>
   );
-}
+};
 
-function HoverRole({ label, tooltip }) {
+export default function Header() {
   return (
-    <div className="role-item">
-      {label}
-      <div className="tooltip-box">{tooltip}</div>
+    <div className="absolute inset-0 z-[5] flex items-center justify-center">
+      <header className="text-center">
+        <h1 className="text-5xl font-extrabold tracking-wide fade-up">РУСТАМ РОМАНОВ</h1>
+        <div className="mt-6 flex justify-center fade-up">
+          <Role title="Режиссёр" desc="Любовь" />
+          <Role title="Продюсер" desc="Предпродакшн — Постпродакшн" />
+          <Role title="Сценарист" desc="Музыкальные клипы — Документальное кино" />
+        </div>
+      </header>
     </div>
   );
 }
-
-export default Header;
