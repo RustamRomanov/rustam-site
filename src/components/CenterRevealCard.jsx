@@ -1,6 +1,85 @@
 // src/components/CenterRevealCard.jsx
 import React, { useEffect, useRef, useState } from "react";
 
+/* === Прелоадер — гифка/спиннер поверх чёрного фона === */
+function PreloaderOverlay() {
+  const [visible, setVisible] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    let done = false;
+    const MIN_SHOW_MS = 600;   // минимум показываем 0.6с
+    const MAX_WAIT_MS = 8000;  // максимум ждём 8с
+    const tStart = performance.now();
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      const elapsed = performance.now() - tStart;
+      const rest = Math.max(0, MIN_SHOW_MS - elapsed);
+      setTimeout(() => setMounted(true), 16); // включить анимацию
+      setTimeout(() => setVisible(false), rest + 420); // +время на fadeout
+    };
+
+    const onLoad = () => finish();
+
+    if (document.readyState === "complete") {
+      setTimeout(onLoad, 0);
+    } else {
+      window.addEventListener("load", onLoad, { once: true });
+    }
+
+    const maxT = setTimeout(finish, MAX_WAIT_MS);
+
+    return () => {
+      window.removeEventListener("load", onLoad);
+      clearTimeout(maxT);
+    };
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div
+      aria-label="Loading"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 2147484000, // поверх всего
+        background: "#000",
+        display: "grid",
+        placeItems: "center",
+        opacity: mounted ? 0 : 1, // плавный fadeout
+        transition: "opacity 420ms ease",
+        pointerEvents: "none",
+      }}
+    >
+      {/* Гифка. Если её нет — включится CSS-спиннер ниже */}
+      <img
+        src="/rustam-site/assents/loader/loader.gif?v=1"
+        alt="Loading…"
+        onError={(e) => {
+          e.currentTarget.style.display = "none"; // если гифки нет
+        }}
+        style={{ width: 120, height: 120, objectFit: "contain" }}
+      />
+      {/* CSS-спиннер (резерв) */}
+      <div
+        style={{
+          width: 64,
+          height: 64,
+          borderRadius: "50%",
+          border: "3px solid rgba(255,255,255,0.18)",
+          borderTopColor: "#fff",
+          animation: "rr-spin 0.9s linear infinite",
+          position: "absolute",
+        }}
+      />
+      <style>{`@keyframes rr-spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
 /* === Соц-иконка с уведомлением (звук на hover) === */
 function IconLink({ href, whiteSrc, colorSrc, label, order = 0, open, onNotify, onPrime }) {
   const [hover, setHover] = useState(false);
@@ -62,22 +141,20 @@ function VideoOverlay({ open, onClose, vimeoId }) {
           background: "#000",
         }}
       >
-        {/* компактный крестик — выше на свою высоту и чуть правее */}
+        {/* крестик — меньше, выше и правее */}
         <button
           aria-label="Close"
           onClick={onClose}
           style={{
             position: "absolute",
-            top: -34,          // выше на высоту кнопки
-            right: -8,         // чуть правее
-            width: 34,
-            height: 34,
+            top: -34,
+            right: -8,
+            width: 34, height: 34,
             borderRadius: 999,
             background: "rgba(0,0,0,0.55)",
             border: "1px solid rgba(255,255,255,0.35)",
             cursor: "pointer",
-            display: "grid",
-            placeItems: "center",
+            display: "grid", placeItems: "center",
             boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
             transition: "transform 120ms ease, background 160ms ease",
           }}
@@ -265,7 +342,6 @@ export default function CenterRevealCard() {
   // кружочки
   const [showDots, setShowDots] = useState(false);
   const [dotsMounted, setDotsMounted] = useState(false);
-  const DOT_IDS = [1, 2, 3];
 
   const openVimeo = (n) => { const id = VIMEO_IDS[n]; if (id) { setVimeoId(id); setPlayerOpen(true); } };
 
@@ -346,7 +422,9 @@ export default function CenterRevealCard() {
       shuffledDeckRef.current = shuffle(FACTS_SOURCE);
       remainingRef.current = [...shuffledDeckRef.current];
     }
+
     const next = remainingRef.current.pop();
+    if (!next || !next.title) return; // страховка
 
     const w = clamp(Math.round(window.innerWidth * 0.18), FACT_MIN_W, 340);
     const h = Math.round((w * 9) / 16);
@@ -436,7 +514,7 @@ export default function CenterRevealCard() {
     cursor: clickable ? "pointer" : "default",
   });
 
-  /* --- Кружки --- */
+  /* --- Кружки: последовательная анимация --- */
   const showDotsSequenced = () => {
     setShowDots(true);
     setDotsMounted(false);
@@ -471,7 +549,7 @@ export default function CenterRevealCard() {
                     transition: "opacity 220ms ease",
                   }}
                 >
-                  {DOT_IDS.map((n, idx) => (
+                  {[1,2,3].map((n, idx) => (
                     <DotButton
                       key={n}
                       n={n}
@@ -524,15 +602,15 @@ export default function CenterRevealCard() {
               <IconLink
                 href="https://instagram.com/rustamromanov.ru"
                 label="Instagram"
-                whiteSrc="/rustam-site/assents/icons/instagram-white.svg"
-                colorSrc="/rustam-site/assents/icons/instagram-color.svg"
+                whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=1"
+                colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=1"
                 order={0} open={open} onNotify={playNotify} onPrime={primeSound}
               />
               <IconLink
                 href="https://t.me/rustamromanov"
                 label="Telegram"
-                whiteSrc="/rustam-site/assents/icons/telegram-white.svg"
-                colorSrc="/rustam-site/assents/icons/telegram-color.svg"
+                whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=1"
+                colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=1"
                 order={1} open={open} onNotify={playNotify} onPrime={primeSound}
               />
             </div>
@@ -592,6 +670,9 @@ export default function CenterRevealCard() {
         onClose={() => { setPlayerOpen(false); setVimeoId(null); }}
         vimeoId={vimeoId}
       />
+
+      {/* Прелоадер поверх всего (рендерим последним) */}
+      <PreloaderOverlay />
     </>
   );
 }
@@ -636,12 +717,12 @@ function DotButton({ n, onClick, onHover, order = 0, active = false }) {
   );
 }
 
-/* === helpers === */
+/* === helpers — фиксированный shuffle === */
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j]];
+    [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 }
