@@ -39,107 +39,66 @@ function IconLink({ href, whiteSrc, colorSrc, label, order = 0, open, onNotify, 
   );
 }
 
-/* === Видеоплеер === */
-function VideoOverlay({ open, onClose, srcList }) {
-  const videoRef = useRef(null);
-  const [i, setI] = useState(0);
-  const [err, setErr] = useState("");
-
-  useEffect(() => { if (open) { setI(0); setErr(""); } }, [open, srcList]);
-  useEffect(() => {
-    if (!open) return;
-    const v = videoRef.current; if (!v) return;
-    const t = setTimeout(() => v.play?.().catch(() => {}), 0);
-    return () => clearTimeout(t);
-  }, [i, open]);
-
+/* === Оверлей-плеер — Vimeo со звуком === */
+function VideoOverlay({ open, onClose, vimeoId }) {
   if (!open) return null;
-  const src = srcList?.[i];
-  const tryNext = () => {
-    if (!srcList || i >= srcList.length - 1) setErr("Не удалось проиграть видео.");
-    else setI(i + 1);
-  };
-
   return (
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)",
-        zIndex: 2147483647, display: "flex", alignItems: "center",
-        justifyContent: "center", padding: "3vw",
+        position: "fixed", inset: 0,
+        background: "rgba(0,0,0,0.96)",
+        zIndex: 2147483647, display: "flex",
+        alignItems: "center", justifyContent: "center", padding: "3vw",
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "relative",
-          width: "60vw", maxWidth: 1200,
-          height: "auto", maxHeight: "60vh",
+          width: "60vw", maxWidth: 1200, maxHeight: "60vh",
           borderRadius: 12, overflow: "hidden",
           boxShadow: "0 20px 60px rgba(0,0,0,0.55)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: "black",
+          background: "#000",
         }}
       >
+        {/* компактный крестик — выше на свою высоту и чуть правее */}
         <button
-  aria-label="Close"
-  onClick={onClose}
-  style={{
-    position: "absolute",
-    top: 8, right: 8,
-    width: 42, height: 42,
-    borderRadius: 999,
-    background: "rgba(0,0,0,0.55)",
-    border: "1px solid rgba(255,255,255,0.35)",
-    cursor: "pointer",
-    boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
-    /* идеальное центрирование */
-    display: "grid",
-    placeItems: "center",
-    /* чуть приятнее на hover/focus */
-    transition: "transform 120ms ease, background 160ms ease",
-  }}
-  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.7)")}
-  onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.55)")}
->
-  {/* крест как SVG — всегда строго по центру */}
-  <svg
-    width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"
-    style={{ display: "block" }}
-  >
-    <path d="M6 6l12 12M18 6l-12 12"
-          stroke="white" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-</button>
-
-
-        <video
-          ref={videoRef}
-          key={src || "fallback"}
-          src={src || "/rustam-site/assents/video/1.mp4"}
-          style={{ width: "100%", height: "100%", maxHeight: "60vh", outline: "none", display: "block", background: "black" }}
-          controls autoPlay playsInline preload="metadata" onError={tryNext}
-        />
-      </div>
-
-      {err && (
-        <div
+          aria-label="Close"
+          onClick={onClose}
           style={{
             position: "absolute",
-            bottom: 16,
-            left: "50%", transform: "translateX(-50%)",
-            background: "rgba(255,77,77,0.12)",
-            border: "1px solid rgba(255,77,77,0.35)",
-            color: "#fff",
-            padding: "10px 14px",
-            borderRadius: 10,
-            fontSize: 13,
-            backdropFilter: "blur(6px)",
+            top: -34,          // выше на высоту кнопки
+            right: -8,         // чуть правее
+            width: 34,
+            height: 34,
+            borderRadius: 999,
+            background: "rgba(0,0,0,0.55)",
+            border: "1px solid rgba(255,255,255,0.35)",
+            cursor: "pointer",
+            display: "grid",
+            placeItems: "center",
+            boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+            transition: "transform 120ms ease, background 160ms ease",
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.7)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.55)")}
         >
-          {err}
-        </div>
-      )}
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block" }}>
+            <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+
+        <iframe
+          src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=0&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1`}
+          title="Vimeo player"
+          frameBorder="0"
+          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+          allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade"
+          style={{ width: "60vw", maxWidth: 1200, height: "60vh", display: "block", background: "#000" }}
+        />
+      </div>
     </div>
   );
 }
@@ -194,13 +153,15 @@ export default function CenterRevealCard() {
   useEffect(() => {
     const onMove = (e) => {
       const { clientX: x, clientY: y } = e;
-      setOpen(isInRect(x, y, rectRef.current) || isInTrigger(x, y) || isInSocialHotzone(x, y));
+      const o = isInRect(x, y, rectRef.current) || isInTrigger(x, y) || isInSocialHotzone(x, y);
+      setOpen(o);
+      if (!o) setShowDots(false);
     };
     document.addEventListener("mousemove", onMove);
     return () => document.removeEventListener("mousemove", onMove);
   }, []);
 
-  /* === АУДИО === */
+  /* === АУДИО для hover-эффектов === */
   const audioCtxRef = useRef(null);
   const soundReadyRef = useRef(false);
 
@@ -228,26 +189,21 @@ export default function CenterRevealCard() {
     } catch { return false; }
   };
 
-  // гарантия, что звук разрешён
+  useEffect(() => {
+    const onPointer = () => { primeSound(); };
+    window.addEventListener("pointerdown", onPointer, { once: true });
+    window.addEventListener("keydown", onPointer, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", onPointer);
+      window.removeEventListener("keydown", onPointer);
+    };
+  }, []);
+
   const ensureAudio = async () => {
     if (soundReadyRef.current) return true;
     const ok = await primeSound();
     return !!ok;
   };
-
-  // праймим звук только на реальном «жесте»
-  useEffect(() => {
-    const onPointer = () => { primeSound(); };
-    const onKey = () => { primeSound(); };
-    window.addEventListener("pointerdown", onPointer, { once: true });
-    window.addEventListener("touchstart", onPointer, { once: true, passive: true });
-    window.addEventListener("keydown", onKey, { once: true });
-    return () => {
-      window.removeEventListener("pointerdown", onPointer);
-      window.removeEventListener("touchstart", onPointer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, []);
 
   const playLetterClick = async () => {
     const ctx = await getCtx(); if (!ctx) return;
@@ -300,23 +256,26 @@ export default function CenterRevealCard() {
   const [nameScale, setNameScale]   = useState(Array.from(nameStr).map(() => false));
   const [dirScale,  setDirScale]    = useState(Array.from(dirStr).map(() => false));
 
-  const pickVideoNumberForLetter = (index) => (index % 2 === 0 ? 1 : 2);
+  // Vimeo IDs
+  const VIMEO_IDS = { 1: "1118465522", 2: "1118467509", 3: "1001147905" };
 
   const [playerOpen, setPlayerOpen] = useState(false);
-  const [playerSources, setPlayerSources] = useState([]);
-  const openVideoByNumber = (n) => {
-    setPlayerSources([`/rustam-site/assents/video/${n}.mp4`, `/rustam-site/assents/video/${n}.MP4`]);
-    setPlayerOpen(true);
-  };
+  const [vimeoId, setVimeoId] = useState(null);
+
+  // кружочки
+  const [showDots, setShowDots] = useState(false);
+  const [dotsMounted, setDotsMounted] = useState(false);
+  const DOT_IDS = [1, 2, 3];
+
+  const openVimeo = (n) => { const id = VIMEO_IDS[n]; if (id) { setVimeoId(id); setPlayerOpen(true); } };
 
   const onNameLeaveAll = () => { setNameColors(Array.from(nameStr).map(() => "#fff")); setNameScale(Array.from(nameStr).map(() => false)); };
-  const onDirLeaveAll = () => { setDirColors(Array.from(dirStr).map(() => "#fff")); setDirScale(Array.from(dirStr).map(() => false)); };
+  const onDirLeaveAll  = () => { setDirColors(Array.from(dirStr).map(() => "#fff"));  setDirScale(Array.from(dirStr).map(() => false)); };
 
-  // — ТЕКСТ ВЫХОДИТ ЧУТЬ РАНЬШЕ —
   const titleFont    = clamp(Math.round(window.innerWidth * 0.024), 18, 26);
   const directedFont = Math.round(titleFont / 1.5);
-  const revealDelaySmall = 160; // было ~300
-  const revealDelayBig   = 220; // было ~380
+  const revealDelaySmall = 160;
+  const revealDelayBig   = 220;
 
   /* === ФАКТЫ === */
   const FACTS_SOURCE = [
@@ -339,68 +298,40 @@ export default function CenterRevealCard() {
   const [bios, setBios] = useState([]);
   const mainCardRef = useRef(null);
 
-  // размеры/отступы
-  const FACT_MIN_W = 220, FACT_MIN_H = 120;
+  const FACT_MIN_W = 200, FACT_MIN_H = 110;
   const SAFE_PAD = 12, GAP_HERO = 12;
   const FACT_FADE_MS = 320;
 
-  // плавное удаление
   const removeBioSoft = (id) => {
     setBios((prev) => prev.map(b => b.id === id ? { ...b, visible: false } : b));
     setTimeout(() => setBios((prev) => prev.filter(b => b.id !== id)), FACT_FADE_MS);
   };
 
-  const intersects = (a, b) =>
-    !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
-
+  const intersects = (a, b) => !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
   const containsPoint = (b, x, y) => x >= b.left && x <= b.left + b.w && y >= b.top && y <= b.top + b.h;
 
   const placeNearClick = (x, y, w, h) => {
     const vw = window.innerWidth, vh = window.innerHeight;
     const hero = rectRef.current;
-
-    // стартовая позиция — у клика
     let left = clamp(x - w / 2, SAFE_PAD, vw - w - SAFE_PAD);
     let top  = clamp(y - h / 2, SAFE_PAD, vh - h - SAFE_PAD);
     const tryCard = { left, top, right: left + w, bottom: top + h };
-
     if (!intersects(tryCard, hero)) return { left, top };
 
-    const cx = (hero.left + hero.right) / 2;
-    const cy = (hero.top + hero.bottom) / 2;
-    const vx = Math.sign(x - cx) || 1;
-    const vy = Math.sign(y - cy) || 1;
+    const cx = (hero.left + hero.right) / 2, cy = (hero.top + hero.bottom) / 2;
+    const vx = Math.sign(x - cx) || 1, vy = Math.sign(y - cy) || 1;
 
     const candidates = [
       { left: vx < 0 ? hero.left - GAP_HERO - w : hero.right + GAP_HERO, top: clamp(y - h / 2, SAFE_PAD, vh - h - SAFE_PAD) },
       { left: clamp(x - w / 2, SAFE_PAD, vw - w - SAFE_PAD), top: vy < 0 ? hero.top - GAP_HERO - h : hero.bottom + GAP_HERO },
       { left: vx < 0 ? hero.left - GAP_HERO - w : hero.right + GAP_HERO, top: vy < 0 ? hero.top - GAP_HERO - h : hero.bottom + GAP_HERO },
     ]
-      .map(p => ({
-        left: clamp(p.left, SAFE_PAD, vw - w - SAFE_PAD),
-        top:  clamp(p.top,  SAFE_PAD, vh - h - SAFE_PAD)
-      }))
+      .map(p => ({ left: clamp(p.left, SAFE_PAD, vw - w - SAFE_PAD), top: clamp(p.top, SAFE_PAD, vh - h - SAFE_PAD) }))
       .filter(p => !intersects({ left: p.left, top: p.top, right: p.left + w, bottom: p.top + h }, hero))
-      .sort((a, b) => {
-        const da = (a.left + w/2 - x)**2 + (a.top + h/2 - y)**2;
-        const db = (b.left + w/2 - x)**2 + (b.top + h/2 - y)**2;
-        return da - db;
-      });
+      .sort((a,b) => ((a.left + w/2 - x)**2 + (a.top + h/2 - y)**2) - ((b.left + w/2 - x)**2 + (b.top + h/2 - y)**2));
 
     if (candidates[0]) return candidates[0];
-
-    const spaces = [
-      { left: SAFE_PAD, top: SAFE_PAD,                    w: (hero.left - GAP_HERO) - SAFE_PAD, h: (hero.top - GAP_HERO) - SAFE_PAD },
-      { left: hero.right + GAP_HERO, top: SAFE_PAD,       w: vw - (hero.right + GAP_HERO) - SAFE_PAD, h: (hero.top - GAP_HERO) - SAFE_PAD },
-      { left: SAFE_PAD, top: hero.bottom + GAP_HERO,      w: (hero.left - GAP_HERO) - SAFE_PAD, h: vh - (hero.bottom + GAP_HERO) - SAFE_PAD },
-      { left: hero.right + GAP_HERO, top: hero.bottom + GAP_HERO, w: vw - (hero.right + GAP_HERO) - SAFE_PAD, h: vh - (hero.bottom + GAP_HERO) - SAFE_PAD },
-    ]
-      .map(s => ({ ...s, w: Math.max(0, s.w), h: Math.max(0, s.h), area: Math.max(0, s.w) * Math.max(0, s.h) }))
-      .sort((a,b) => b.area - a.area)
-      .find(s => s.w >= w && s.h >= h);
-
-    if (!spaces) return null;
-    return { left: Math.round(spaces.left + (spaces.w - w) / 2), top: Math.round(spaces.top + (spaces.h - h) / 2) };
+    return null;
   };
 
   // Спавн факт-плашки
@@ -417,7 +348,7 @@ export default function CenterRevealCard() {
     }
     const next = remainingRef.current.pop();
 
-    const w = clamp(Math.round(window.innerWidth * 0.20), FACT_MIN_W, 360);
+    const w = clamp(Math.round(window.innerWidth * 0.18), FACT_MIN_W, 340);
     const h = Math.round((w * 9) / 16);
     if (window.innerWidth < w + SAFE_PAD * 2 || window.innerHeight < h + SAFE_PAD * 2) return;
 
@@ -432,57 +363,18 @@ export default function CenterRevealCard() {
     shownCountRef.current += 1;
     setBios((prev) => [...prev, {
       id, left, top, w, h, originX, originY, visible: false,
-      seenInside,
-      title: next.title, text: next.text,
+      seenInside, title: next.title, text: next.text,
     }]);
     requestAnimationFrame(() => {
       setBios((prev) => prev.map((b) => (b.id === id ? { ...b, visible: true } : b)));
     });
   };
 
-  // Клик — создаём факт + праймим звук (любой клик разблокирует)
+  // Клик — создаём факт
   useEffect(() => {
-    const onClick = (e) => {
-      primeSound();
-      spawnNextFact(e.clientX, e.clientY, e.target);
-    };
+    const onClick = (e) => { primeSound(); spawnNextFact(e.clientX, e.clientY, e.target); };
     document.addEventListener("click", onClick);
     return () => document.removeEventListener("click", onClick);
-  }, []);
-
-  // Глобальный fallback закрытия
-  useEffect(() => {
-    const onMove = (e) => {
-      const x = e.clientX, y = e.clientY;
-      setBios((prev) => prev.map((b) => {
-        const inside = containsPoint(b, x, y);
-        if (inside) return b.seenInside ? b : { ...b, seenInside: true };
-        if (b.seenInside && !inside) { removeBioSoft(b.id); }
-        return b;
-      }));
-    };
-    document.addEventListener("mousemove", onMove);
-    return () => document.removeEventListener("mousemove", onMove);
-  }, []);
-
-  // Ресайз — подвинуть/удалить, если не помещается
-  useEffect(() => {
-    const onResize = () => {
-      setBios((prev) => {
-        const hero = rectRef.current, vw = window.innerWidth, vh = window.innerHeight;
-        const out = [];
-        for (const b of prev) {
-          if (vw < FACT_MIN_W + SAFE_PAD * 2 || vh < FACT_MIN_H + SAFE_PAD * 2) continue;
-          const p = placeNearClick(b.left + b.w / 2, b.top + b.h / 2, b.w, b.h) || { left: b.left, top: b.top };
-          const card = { left: p.left, top: p.top, right: p.left + b.w, bottom: p.top + b.h };
-          if (intersects(card, hero)) continue;
-          out.push({ ...b, left: p.left, top: p.top });
-        }
-        return out;
-      });
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   /* --- Стили главной плашки --- */
@@ -507,9 +399,11 @@ export default function CenterRevealCard() {
     fontFamily: "UniSans-Heavy, 'Uni Sans', system-ui, -apple-system, Segoe UI, Roboto, Arial",
     fontWeight: 500,
   };
+
   const contentBox = { position: "relative", flex: 1, padding: "16px 24px 26px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "space-between" };
-  const headerWrap = { display: "inline-block", lineHeight: 1.5, marginTop: Math.round(directedFont * 1.5) };
+  const headerWrap = { position: "relative", display: "inline-block", lineHeight: 1.5, marginTop: Math.round(directedFont * 1.5) + 14 };
   const centerRow  = { display: "flex", alignItems: "center", justifyContent: "center", height: "100%" };
+
   const directedStyle = {
     margin: 0, fontWeight: 500, fontSize: directedFont, letterSpacing: "0.08em",
     color: "#fff", whiteSpace: "nowrap", userSelect: "none",
@@ -520,6 +414,7 @@ export default function CenterRevealCard() {
       ? `opacity 600ms ease ${revealDelaySmall}ms, filter 700ms ease ${revealDelaySmall}ms, translate 600ms ease ${revealDelaySmall}ms`
       : "opacity 220ms ease, filter 240ms ease, translate 220ms ease",
   };
+
   const titleStyle = {
     margin: 0, fontWeight: 500, fontSize: Math.max(directedFont * 1.5, 18),
     letterSpacing: "0.02em", color: "#fff", whiteSpace: "nowrap", userSelect: "none",
@@ -530,14 +425,24 @@ export default function CenterRevealCard() {
       ? `opacity 700ms ease ${revealDelayBig}ms, filter 800ms ease ${revealDelayBig}ms, translate 700ms ease ${revealDelayBig}ms`
       : "opacity 240ms ease, filter 260ms ease, translate 240ms ease",
   };
-  const letterStyle = (colored, scaled, clickable) => ({
+
+  const letterStyle = (colored, scaled, clickable = false) => ({
     display: "inline-block",
     color: colored,
     transform: scaled ? "scale(1.2)" : "scale(1)",
     transition: "color 160ms ease, transform 120ms ease, text-shadow 160ms ease",
+    textShadow: "0 1px 2px rgba(0,0,0,0.25)",
+    userSelect: "none",
     cursor: clickable ? "pointer" : "default",
-    textShadow: clickable ? "0 0 12px rgba(255,255,255,0.35)" : "0 1px 2px rgba(0,0,0,0.25)",
   });
+
+  /* --- Кружки --- */
+  const showDotsSequenced = () => {
+    setShowDots(true);
+    setDotsMounted(false);
+    requestAnimationFrame(() => setDotsMounted(true));
+  };
+
   const iconsRowStyle = { display: "flex", gap: 14, justifyContent: "center", alignItems: "center", marginTop: 6 };
 
   return (
@@ -548,8 +453,39 @@ export default function CenterRevealCard() {
           <div style={contentBox}>
             <div style={centerRow}>
               <div style={headerWrap}>
-                <h2 onMouseLeave={onDirLeaveAll} style={directedStyle}>
-                  {Array.from("DIRECTOR'S SHOWREEL").map((ch, i) => (
+
+                {/* Кружки над текстом */}
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: -Math.max(60, Math.round(directedFont * 2.0)),
+                    transform: "translateX(-50%)",
+                    opacity: showDots ? 1 : 0,
+                    display: "flex",
+                    gap: 16,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 4,
+                    pointerEvents: showDots ? "auto" : "none",
+                    transition: "opacity 220ms ease",
+                  }}
+                >
+                  {DOT_IDS.map((n, idx) => (
+                    <DotButton
+                      key={n}
+                      n={n}
+                      order={idx}
+                      active={dotsMounted}
+                      onClick={() => { primeSound(); openVimeo(n); }}
+                      onHover={async () => { if (await ensureAudio()) playNotify(); }}
+                    />
+                  ))}
+                </div>
+
+                {/* DIRECTOR'S SHOWREEL — вызывает появление кружков */}
+                <h2 onMouseEnter={showDotsSequenced} onMouseLeaveCapture={onDirLeaveAll} style={directedStyle}>
+                  {Array.from(dirStr).map((ch, i) => (
                     <span
                       key={`d-${i}`}
                       onMouseEnter={async () => {
@@ -557,15 +493,16 @@ export default function CenterRevealCard() {
                         const ds = [...dirScale];  ds[i] = true;        setDirScale(ds);
                         if (await ensureAudio()) playLetterClick();
                       }}
-                      onClick={() => openVideoByNumber(pickVideoNumberForLetter(i))}
-                      style={letterStyle(dirColors[i], dirScale[i], true)}
+                      style={letterStyle(dirColors[i], dirScale[i], false)}
                     >
                       {ch === " " ? "\u00A0" : ch}
                     </span>
                   ))}
                 </h2>
+
+                {/* Имя — только hover-реакция */}
                 <h1 onMouseLeave={onNameLeaveAll} style={titleStyle}>
-                  {Array.from("RUSTAM ROMANOV").map((ch, i) => (
+                  {Array.from(nameStr).map((ch, i) => (
                     <span
                       key={`n-${i}`}
                       onMouseEnter={async () => {
@@ -573,8 +510,7 @@ export default function CenterRevealCard() {
                         const ns = [...nameScale];  ns[i] = true;        setNameScale(ns);
                         if (await ensureAudio()) playLetterClick();
                       }}
-                      onClick={() => openVideoByNumber(pickVideoNumberForLetter(i))}
-                      style={letterStyle(nameColors[i], nameScale[i], true)}
+                      style={letterStyle(nameColors[i], nameScale[i], false)}
                     >
                       {ch === " " ? "\u00A0" : ch}
                     </span>
@@ -623,23 +559,24 @@ export default function CenterRevealCard() {
               fontFamily: "Jura-Ofont, Jura, system-ui, -apple-system, Segoe UI, Roboto, Arial",
               fontWeight: 100,
               display: "flex", flexDirection: "column", gap: 8,
-              alignItems: "stretch", justifyContent: "flex-start",
+              alignItems: "center", justifyContent: "center",
               transformOrigin: `${b.originX}px ${b.originY}px`,
               transform: b.visible ? "scale(1)" : "scale(0.6)",
               opacity: b.visible ? 1 : 0,
               transition: `transform 700ms cubic-bezier(0.16,1,0.3,1), opacity ${FACT_FADE_MS}ms ease`,
               overflow: "hidden",
+              textAlign: "center",
             }}
           >
             <div style={{
-              fontSize: 18, lineHeight: 1.15, letterSpacing: "0.02em", textAlign: "center",
+              fontSize: 18, lineHeight: 1.15, letterSpacing: "0.02em",
               overflow: "hidden", display: "-webkit-box", WebkitBoxOrient: "vertical",
               WebkitLineClamp: 2, wordBreak: "break-word", overflowWrap: "anywhere", hyphens: "auto",
             }}>
               {b.title}
             </div>
             <div style={{
-              fontSize: 14, lineHeight: 1.35, opacity: 0.9, textAlign: "center",
+              fontSize: 14, lineHeight: 1.35, opacity: 0.9,
               overflow: "hidden", display: "-webkit-box", WebkitBoxOrient: "vertical",
               WebkitLineClamp: 6, wordBreak: "break-word", overflowWrap: "anywhere", hyphens: "auto",
             }}>
@@ -649,9 +586,53 @@ export default function CenterRevealCard() {
         ))}
       </div>
 
-      {/* Плеер — по клику, живёт до крестика */}
-      <VideoOverlay open={playerOpen} onClose={() => setPlayerOpen(false)} srcList={playerSources} />
+      {/* Плеер — Vimeo */}
+      <VideoOverlay
+        open={playerOpen}
+        onClose={() => { setPlayerOpen(false); setVimeoId(null); }}
+        vimeoId={vimeoId}
+      />
     </>
+  );
+}
+
+/* === Матовый кружок с цифрой (поочередная анимация, звук на hover) === */
+function DotButton({ n, onClick, onHover, order = 0, active = false }) {
+  const [hover, setHover] = useState(false);
+  const [bg, setBg] = useState("rgba(255,255,255,0.08)");
+
+  useEffect(() => { if (hover) setBg(`hsla(${Math.floor(Math.random()*360)},80%,65%,0.35)`); }, [hover]);
+
+  const delay = `${order * 90}ms`;
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => { setHover(true); setBg(`hsla(${Math.floor(Math.random()*360)},80%,65%,0.35)`); onHover?.(); }}
+      onMouseLeave={() => { setHover(false); setBg("rgba(255,255,255,0.08)"); }}
+      style={{
+        width: 40, height: 40,
+        borderRadius: 999,
+        background: bg,
+        border: "1px solid rgba(255,255,255,0.28)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        color: "#fff",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 16,
+        cursor: "pointer",
+        transform: active ? (hover ? "translateY(0) scale(1.4)" : "translateY(0) scale(1)") : "translateY(14px) scale(0.88)",
+        opacity: active ? 1 : 0,
+        transitionProperty: "transform, opacity, background, box-shadow, border-color",
+        transitionTimingFunction: active ? "cubic-bezier(0.18,0.8,0.2,1)" : "cubic-bezier(0.3,0.7,0.4,1)",
+        transitionDuration: active ? "360ms" : "280ms",
+        transitionDelay: active ? delay : "0ms",
+        boxShadow: hover ? "0 8px 24px rgba(0,0,0,0.25)" : "none",
+      }}
+    >
+      {n}
+    </button>
   );
 }
 
@@ -660,7 +641,7 @@ function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+    [a[i], a[j]] = [a[j]];
   }
   return a;
 }
