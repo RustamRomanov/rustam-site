@@ -1,38 +1,44 @@
 // src/components/CenterRevealCard.jsx
 import React, { useEffect, useRef, useState } from "react";
 
-/* === Прелоадер — гифка/спиннер поверх чёрного фона === */
-function PreloaderOverlay() {
+/* === Лёгкая гифка-плейсхолдер (без фона, без перекрытий) === */
+function LoadingGifOnly() {
   const [visible, setVisible] = useState(true);
-  const [mounted, setMounted] = useState(false);
+  const [fade, setFade] = useState(false);
 
   useEffect(() => {
     let done = false;
-    const MIN_SHOW_MS = 600;   // минимум показываем 0.6с
-    const MAX_WAIT_MS = 8000;  // максимум ждём 8с
-    const tStart = performance.now();
+    const MIN_MS = 800;   // минимум показать
+    const MAX_MS = 8000;  // страховка
+    const t0 = performance.now();
 
     const finish = () => {
       if (done) return;
       done = true;
-      const elapsed = performance.now() - tStart;
-      const rest = Math.max(0, MIN_SHOW_MS - elapsed);
-      setTimeout(() => setMounted(true), 16); // включить анимацию
-      setTimeout(() => setVisible(false), rest + 420); // +время на fadeout
+      const dt = performance.now() - t0;
+      const rest = Math.max(0, MIN_MS - dt);
+      setTimeout(() => {
+        setFade(true);
+        setTimeout(() => setVisible(false), 360);
+      }, rest);
     };
 
     const onLoad = () => finish();
+    const onAppReady = () => finish();
 
     if (document.readyState === "complete") {
-      setTimeout(onLoad, 0);
+      // подождём MIN_MS — не убираем мгновенно
+      const id = setTimeout(finish, MIN_MS);
+      return () => clearTimeout(id);
     } else {
       window.addEventListener("load", onLoad, { once: true });
     }
-
-    const maxT = setTimeout(finish, MAX_WAIT_MS);
+    window.addEventListener("app:ready", onAppReady, { once: true });
+    const maxT = setTimeout(finish, MAX_MS);
 
     return () => {
       window.removeEventListener("load", onLoad);
+      window.removeEventListener("app:ready", onAppReady);
       clearTimeout(maxT);
     };
   }, []);
@@ -45,37 +51,20 @@ function PreloaderOverlay() {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 2147484000, // поверх всего
-        background: "#000",
+        zIndex: 2147485200, // выше всего
         display: "grid",
         placeItems: "center",
-        opacity: mounted ? 0 : 1, // плавный fadeout
-        transition: "opacity 420ms ease",
-        pointerEvents: "none",
+        pointerEvents: "none", // НЕ блокируем клики
+        opacity: fade ? 0 : 1,
+        transition: "opacity 360ms ease",
       }}
     >
-      {/* Гифка. Если её нет — включится CSS-спиннер ниже */}
       <img
-        src="/rustam-site/assents/loader/loader.gif?v=1"
+        src="/rustam-site/assents/loader/loader.gif?v=2"
         alt="Loading…"
-        onError={(e) => {
-          e.currentTarget.style.display = "none"; // если гифки нет
-        }}
-        style={{ width: 120, height: 120, objectFit: "contain" }}
+        onError={(e) => { e.currentTarget.style.display = "none"; }}
+        style={{ width: 140, height: 140, objectFit: "contain" }}
       />
-      {/* CSS-спиннер (резерв) */}
-      <div
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: "50%",
-          border: "3px solid rgba(255,255,255,0.18)",
-          borderTopColor: "#fff",
-          animation: "rr-spin 0.9s linear infinite",
-          position: "absolute",
-        }}
-      />
-      <style>{`@keyframes rr-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
@@ -90,7 +79,11 @@ function IconLink({ href, whiteSrc, colorSrc, label, order = 0, open, onNotify, 
       target="_blank"
       rel="noreferrer"
       aria-label={label}
-      onMouseEnter={async () => { setHover(true); await onPrime?.(); await onNotify?.(); }}
+      onMouseEnter={async () => {
+        setHover(true);
+        const primed = await onPrime?.();
+        if (primed) await onNotify?.();
+      }}
       onMouseLeave={() => setHover(false)}
       style={{
         position: "relative",
@@ -127,7 +120,7 @@ function VideoOverlay({ open, onClose, vimeoId }) {
       style={{
         position: "fixed", inset: 0,
         background: "rgba(0,0,0,0.96)",
-        zIndex: 2147483647, display: "flex",
+        zIndex: 2147484500, display: "flex",
         alignItems: "center", justifyContent: "center", padding: "3vw",
       }}
     >
@@ -147,10 +140,8 @@ function VideoOverlay({ open, onClose, vimeoId }) {
           onClick={onClose}
           style={{
             position: "absolute",
-            top: -34,
-            right: -8,
-            width: 34, height: 34,
-            borderRadius: 999,
+            top: -34, right: -8,
+            width: 34, height: 34, borderRadius: 999,
             background: "rgba(0,0,0,0.55)",
             border: "1px solid rgba(255,255,255,0.35)",
             cursor: "pointer",
@@ -238,7 +229,7 @@ export default function CenterRevealCard() {
     return () => document.removeEventListener("mousemove", onMove);
   }, []);
 
-  /* === АУДИО для hover-эффектов === */
+  /* === АУДИО (починено): надёжный прайм + воспроизведение === */
   const audioCtxRef = useRef(null);
   const soundReadyRef = useRef(false);
 
@@ -258,6 +249,7 @@ export default function CenterRevealCard() {
     try {
       const ctx = await getCtx(); if (!ctx) return false;
       if (ctx.state !== "running") await ctx.resume().catch(() => {});
+      // короткий импульс — разблокирует звук
       const o = ctx.createOscillator(); const g = ctx.createGain();
       g.gain.setValueAtTime(0.00001, ctx.currentTime);
       o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.01);
@@ -266,63 +258,71 @@ export default function CenterRevealCard() {
     } catch { return false; }
   };
 
+  // Праймим на клике/таче и на первой клавише
   useEffect(() => {
     const onPointer = () => { primeSound(); };
-    window.addEventListener("pointerdown", onPointer, { once: true });
-    window.addEventListener("keydown", onPointer, { once: true });
+    const onKey = () => { primeSound(); };
+    window.addEventListener("pointerdown", onPointer);
+    window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("pointerdown", onPointer);
-      window.removeEventListener("keydown", onPointer);
+      window.removeEventListener("keydown", onKey);
     };
   }, []);
 
   const ensureAudio = async () => {
     if (soundReadyRef.current) return true;
-    const ok = await primeSound();
-    return !!ok;
+    return await primeSound();
   };
 
   const playLetterClick = async () => {
-    const ctx = await getCtx(); if (!ctx) return;
-    const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.type = "square"; osc.frequency.setValueAtTime(900 + Math.random() * 500, now);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.006);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
-    osc.connect(gain).connect(ctx.destination); osc.start(now); osc.stop(now + 0.08);
+    const ok = await ensureAudio();
+    if (!ok) return;
+    try {
+      const ctx = await getCtx(); if (!ctx) return;
+      const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.type = "square"; osc.frequency.setValueAtTime(900 + Math.random() * 500, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.22, now + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+      osc.connect(gain).connect(ctx.destination); osc.start(now); osc.stop(now + 0.08);
+    } catch {}
   };
 
   const playNotify = async () => {
-    if (!soundReadyRef.current) { const ok = await primeSound(); if (!ok) return; }
-    const ctx = await getCtx(); if (!ctx) return;
-    const now = ctx.currentTime;
+    const ok = await ensureAudio();
+    if (!ok) return;
+    try {
+      const ctx = await getCtx(); if (!ctx) return;
+      const now = ctx.currentTime;
 
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(0.0001, now);
-    master.gain.exponentialRampToValueAtTime(0.28, now + 0.02);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-    master.connect(ctx.destination);
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.28, now + 0.02);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      master.connect(ctx.destination);
 
-    const main = ctx.createOscillator();
-    const g1 = ctx.createGain();
-    main.type = "sine";
-    main.frequency.setValueAtTime(720, now);
-    main.frequency.exponentialRampToValueAtTime(980, now + 0.12);
-    g1.gain.setValueAtTime(0.0001, now);
-    g1.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
-    g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
-    main.connect(g1).connect(master);
-    main.start(now); main.stop(now + 0.3);
+      const main = ctx.createOscillator();
+      const g1 = ctx.createGain();
+      main.type = "sine";
+      main.frequency.setValueAtTime(720, now);
+      main.frequency.exponentialRampToValueAtTime(980, now + 0.12);
+      g1.gain.setValueAtTime(0.0001, now);
+      g1.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
+      g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+      main.connect(g1).connect(master);
+      main.start(now); main.stop(now + 0.3);
 
-    const sparkle = ctx.createOscillator();
-    const g2 = ctx.createGain();
-    sparkle.type = "triangle";
-    sparkle.frequency.setValueAtTime(1320, now + 0.06);
-    g2.gain.setValueAtTime(0.0001, now + 0.06);
-    g2.gain.exponentialRampToValueAtTime(0.12, now + 0.08);
-    g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
-    sparkle.connect(g2).connect(master);
-    sparkle.start(now + 0.06); sparkle.stop(now + 0.26);
+      const sparkle = ctx.createOscillator();
+      const g2 = ctx.createGain();
+      sparkle.type = "triangle";
+      sparkle.frequency.setValueAtTime(1320, now + 0.06);
+      g2.gain.setValueAtTime(0.0001, now + 0.06);
+      g2.gain.exponentialRampToValueAtTime(0.12, now + 0.08);
+      g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+      sparkle.connect(g2).connect(master);
+      sparkle.start(now + 0.06); sparkle.stop(now + 0.26);
+    } catch {}
   };
 
   /* --- Главная плашка — тексты/стили --- */
@@ -333,13 +333,11 @@ export default function CenterRevealCard() {
   const [nameScale, setNameScale]   = useState(Array.from(nameStr).map(() => false));
   const [dirScale,  setDirScale]    = useState(Array.from(dirStr).map(() => false));
 
-  // Vimeo IDs
   const VIMEO_IDS = { 1: "1118465522", 2: "1118467509", 3: "1001147905" };
 
   const [playerOpen, setPlayerOpen] = useState(false);
   const [vimeoId, setVimeoId] = useState(null);
 
-  // кружочки
   const [showDots, setShowDots] = useState(false);
   const [dotsMounted, setDotsMounted] = useState(false);
 
@@ -514,8 +512,9 @@ export default function CenterRevealCard() {
     cursor: clickable ? "pointer" : "default",
   });
 
-  /* --- Кружки: последовательная анимация --- */
-  const showDotsSequenced = () => {
+  /* --- Кружочки над DIRECTOR'S SHOWREEL --- */
+  const showDotsSequenced = async () => {
+    await primeSound(); // попробуем праймить и на hover
     setShowDots(true);
     setDotsMounted(false);
     requestAnimationFrame(() => setDotsMounted(true));
@@ -556,12 +555,12 @@ export default function CenterRevealCard() {
                       order={idx}
                       active={dotsMounted}
                       onClick={() => { primeSound(); openVimeo(n); }}
-                      onHover={async () => { if (await ensureAudio()) playNotify(); }}
+                      onHover={playNotify}
                     />
                   ))}
                 </div>
 
-                {/* DIRECTOR'S SHOWREEL — вызывает появление кружков */}
+                {/* DIRECTOR'S SHOWREEL */}
                 <h2 onMouseEnter={showDotsSequenced} onMouseLeaveCapture={onDirLeaveAll} style={directedStyle}>
                   {Array.from(dirStr).map((ch, i) => (
                     <span
@@ -569,7 +568,7 @@ export default function CenterRevealCard() {
                       onMouseEnter={async () => {
                         const dc = [...dirColors]; dc[i] = randColor(); setDirColors(dc);
                         const ds = [...dirScale];  ds[i] = true;        setDirScale(ds);
-                        if (await ensureAudio()) playLetterClick();
+                        await playLetterClick();
                       }}
                       style={letterStyle(dirColors[i], dirScale[i], false)}
                     >
@@ -578,7 +577,7 @@ export default function CenterRevealCard() {
                   ))}
                 </h2>
 
-                {/* Имя — только hover-реакция */}
+                {/* Имя */}
                 <h1 onMouseLeave={onNameLeaveAll} style={titleStyle}>
                   {Array.from(nameStr).map((ch, i) => (
                     <span
@@ -586,7 +585,7 @@ export default function CenterRevealCard() {
                       onMouseEnter={async () => {
                         const nc = [...nameColors]; nc[i] = randColor(); setNameColors(nc);
                         const ns = [...nameScale];  ns[i] = true;        setNameScale(ns);
-                        if (await ensureAudio()) playLetterClick();
+                        await playLetterClick();
                       }}
                       style={letterStyle(nameColors[i], nameScale[i], false)}
                     >
@@ -602,15 +601,15 @@ export default function CenterRevealCard() {
               <IconLink
                 href="https://instagram.com/rustamromanov.ru"
                 label="Instagram"
-                whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=1"
-                colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=1"
+                whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=2"
+                colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=2"
                 order={0} open={open} onNotify={playNotify} onPrime={primeSound}
               />
               <IconLink
                 href="https://t.me/rustamromanov"
                 label="Telegram"
-                whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=1"
-                colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=1"
+                whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=2"
+                colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=2"
                 order={1} open={open} onNotify={playNotify} onPrime={primeSound}
               />
             </div>
@@ -671,13 +670,13 @@ export default function CenterRevealCard() {
         vimeoId={vimeoId}
       />
 
-      {/* Прелоадер поверх всего (рендерим последним) */}
-      <PreloaderOverlay />
+      {/* Только гифка (поверх всего), без подложки/оверлея */}
+      <LoadingGifOnly />
     </>
   );
 }
 
-/* === Матовый кружок с цифрой (поочередная анимация, звук на hover) === */
+/* === Матовый кружок с цифрой (анимация + звук на hover) === */
 function DotButton({ n, onClick, onHover, order = 0, active = false }) {
   const [hover, setHover] = useState(false);
   const [bg, setBg] = useState("rgba(255,255,255,0.08)");
@@ -717,7 +716,7 @@ function DotButton({ n, onClick, onHover, order = 0, active = false }) {
   );
 }
 
-/* === helpers — фиксированный shuffle === */
+/* === helpers — исправленный shuffle === */
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
