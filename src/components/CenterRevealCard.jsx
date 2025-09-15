@@ -5,15 +5,15 @@ import React, { useEffect, useRef, useState } from "react";
 function OverlayLoader() {
   const [visible, setVisible] = useState(true);
   const [fade, setFade] = useState(false);
-  const needHeroToo = false; // если хочешь ждать ещё и плашку — поставь true
+  const needHeroToo = false;
 
   useEffect(() => {
     let finished = false;
-    const MIN_MS = 900;     // минимум показывать, чтобы не мигал
-    const MAX_MS = 20000;   // хард-таймаут (на всякий случай)
+    const MIN_MS = 900;
+    const MAX_MS = 20000;
     const t0 = performance.now();
 
-    let mosaicReady = !!window.__mosaic_ready; // вдруг уже пришёл
+    let mosaicReady = !!window.__mosaic_ready;
     let heroReady   = !!window.__hero_ready;
 
     const tryFinish = () => {
@@ -31,7 +31,7 @@ function OverlayLoader() {
     };
 
     const onMosaicReady = () => { mosaicReady = true; window.__mosaic_ready = true; tryFinish(); };
-    const onHeroReady   = () => { heroReady = true;   window.__hero_ready   = true; tryFinish(); };
+    const onHeroReady   = () => { heroReady   = true; window.__hero_ready   = true; tryFinish(); };
 
     window.addEventListener("mosaic:ready", onMosaicReady, { once: true });
     if (needHeroToo) window.addEventListener("hero:ready", onHeroReady, { once: true });
@@ -173,10 +173,203 @@ function VideoOverlay({ open, onClose, vimeoId }) {
   );
 }
 
+/* === BIO Overlay — фото + вкладки === */
+function BioOverlay({ open, onClose, imageSrc, onAfterOpen, onBeforeClose }) {
+  const [tab, setTab] = useState("bio"); // hover меняет: 'bio' | 'char'
+  useEffect(() => {
+    if (open) onAfterOpen?.();
+    return () => { onBeforeClose?.(); };
+  }, [open]);
+
+  if (!open) return null;
+
+  const textBio = `Я родился 4 декабря 1980 года в Ульяновске.
+В конце 90-х я сделал свой первый клип. Камера Hi8, магнитофон вместо аудиоплеера, видеомагнитофон — как монтажный стол. Пара секунд видео, «склейка» на кассете — и я получал свой первый музыкальный монтаж. Это была настоящая магия без компьютера.
+
+В 2009-м я переехал в Москву. Снимал рэп-клипы на «зеркалку» с горящими глазами и верой, что всё получится. Получилось. 
+В 2010 году я оказался в команде Gazgolder, а в 2011-м отправился с Бастой в мировой тур. 
+В 2012-м я снял первый документальный фильм о Тимати. Так началась большая глава с Black Star, а вместе с ней и десятки громких клипов.
+2014 год стал переломным — клип L’One — «Океан» открыл для меня новые горизонты. А в 2015-м работа Doni feat. Натали — «Ты такой» побила все рекорды, став первым клипом в России преодолевшим отметку в 100 миллионов просмотров на YouTube.
+Дальше — сотни проектов, работа с артистами разных жанров и масштабов: от Макса Коржа, Iowa, Pizza до Стаса Михайлова, Николая Баскова и Филиппа Киркорова. 
+Сегодня мой багаж — 200+ проектов, 2+ миллиарда просмотров и более сотни артистов.`;
+
+  const textChar = `Я считаю, что успешный проект зависит не только от визуального воплощения идеи, но и от глубокого понимания потребностей и ожиданий клиента. 
+
+Руководство творческой командой - это прежде всего способности направлять и мотивировать людей для достижения общей цели. В своей карьере я приобрел значительный опыт работы с звездами и селебрити блогерами, что позволило мне развить уникальные навыки в области коммуникации и взаимодействия с высокопрофильными личностями, работа с которыми требует уникального подхода. 
+Я умею находить общий язык с каждым из них, понимая их индивидуальные нужды и преобразуя их через призму видения заказчика в реальность на экране.`;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0,
+        background: "rgba(0,0,0,0.82)",
+        zIndex: 2147485200,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "3vw",
+        cursor: "default",
+        animation: "bioFade 180ms ease",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onMouseLeave={onClose}
+        style={{
+          position: "relative",
+          /* масштаб блока через vw, чтобы текст и фото уменьшались вместе */
+          width: "min(44vw, 60vh)",
+          /* приблизительные пропорции фото сохраняются за счёт cover */
+          borderRadius: 12, overflow: "hidden",
+          background: "#000",
+          boxShadow: "0 30px 80px rgba(0,0,0,0.55)",
+          transform: "scale(0.7)",
+          animation: "bioPop 280ms cubic-bezier(0.18,0.8,0.2,1) forwards",
+        }}
+      >
+        <img
+          src={imageSrc}
+          alt="bio"
+          style={{
+            display: "block",
+            width: "100%",
+            height: "100%",
+            maxHeight: "60vh",
+            objectFit: "cover",
+            background: "#000",
+            userSelect: "none",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Правые 2/3. Текст — масштабируемые отступы и шрифты */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "stretch",
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: "60%",
+              maxWidth: "60%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-start",
+              alignItems: "stretch",
+              textAlign: "left",
+              /* компактнее, единая левая линия для вкладок и текста */
+             padding: "clamp(6px, 0.9vw, 16px) clamp(8px, 1vw, 16px) clamp(6px, 0.9vw, 16px) clamp(10px, 1.2vw, 18px)",
+             gap: "clamp(4px, 0.6vw, 10px)",
+
+              pointerEvents: "auto",
+              color: "#000",
+            }}
+          >
+            {/* Вкладки — активная красная и чуть крупнее */}
+            <div
+              style={{
+                position: "sticky",
+                top: 0,
+                display: "flex",
+                gap: "clamp(8px, 0.8vw, 14px)",
+                alignItems: "center",
+                justifyContent: "flex-start",
+                paddingBottom: "clamp(2px, 0.4vw, 6px)",
+                zIndex: 2,
+                /* слева без доп. смещения — вровень с текстом */
+                paddingLeft: 0,
+
+              }}
+            >
+              {[
+                { k: "bio",  label: "БИОГРАФИЯ" },
+                { k: "char", label: "ХАРАКТЕРИСТИКА" },
+              ].map(({ k, label }) => {
+                const active = tab === k;
+                return (
+                  <span
+                    key={k}
+                    onMouseEnter={() => setTab(k)}
+                    style={{
+  fontFamily: "UniSans-Heavy, 'Uni Sans', system-ui, -apple-system, Segoe UI, Roboto, Arial",
+  fontWeight: 800,
+  letterSpacing: "0.05em",
+  cursor: "pointer",
+  userSelect: "none",
+  transition: "color 140ms ease, transform 180ms cubic-bezier(.18,.9,.2,1.2)",
+  color: active ? "#E53935" : "#000",
+  transform: active ? "scale(1.04)" : "scale(1.0)",
+  /* меньше размер */
+  fontSize: "clamp(11px, 0.9vw, 16px)",
+}}
+onMouseOver={(e) => (e.currentTarget.style.color = "#C62828")}
+onMouseOut={(e) => (e.currentTarget.style.color = active ? "#E53935" : "#000")}
+
+                    title={label}
+                  >
+                    {label}
+                  </span>
+                );
+              })}
+            </div>
+
+            {/* Текст — без фона, масштабируемый шрифт */}
+            <div
+              style={{
+                position: "relative",
+                zIndex: 1,
+                color: "#000",
+                fontFamily: "Jura-Ofont, Jura, system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                fontWeight: 400,
+                fontSize: "clamp(12px, 0.9vw, 16px)",
+                lineHeight: 1.35,
+                whiteSpace: "pre-wrap",
+                overflow: "auto",
+                paddingRight: "clamp(2px, 0.4vw, 8px)",
+              }}
+            >
+              {tab === "bio" ? textBio : textChar}
+            </div>
+          </div>
+        </div>
+
+        {/* Крестик */}
+        <button
+          aria-label="Close"
+          onClick={onClose}
+          style={{
+            position: "absolute", top: -34, right: -8,
+            width: 34, height: 34, borderRadius: 999,
+            background: "rgba(0,0,0,0.55)",
+            border: "1px solid rgba(255,255,255,0.35)",
+            cursor: "pointer", display: "grid", placeItems: "center",
+            boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block" }}>
+            <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      <style>{`
+        @keyframes bioFade { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes bioPop  { to { transform: scale(1) } }
+      `}</style>
+    </div>
+  );
+}
+
+/* === Главный компонент === */
 export default function CenterRevealCard() {
   const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
   const randColor = () => `hsl(${Math.floor(Math.random() * 360)}, 86%, 60%)`;
-  const uuid = () => (window.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 
   /* --- Размеры главной плашки --- */
   const [width, setWidth] = useState(420);
@@ -230,15 +423,15 @@ export default function CenterRevealCard() {
       const { clientX: x, clientY: y } = e;
       const o = isInRect(x, y, rectRef.current) || isInTrigger(x, y) || isInSocialHotzone(x, y);
       setOpen(o);
-      if (!o) setShowDots(false);
     };
     document.addEventListener("mousemove", onMove);
     return () => document.removeEventListener("mousemove", onMove);
   }, []);
 
-  /* === АУДИО — «рабочий» фрагмент === */
+  /* === АУДИО (WebAudio прайм для коротких звуков) + фоновая mp3 для BIO === */
   const audioCtxRef = useRef(null);
   const soundReadyRef = useRef(false);
+  const bioAudioRef = useRef(null); // HTMLAudioElement для bio.mp3
 
   const getCtx = async () => {
     try {
@@ -247,13 +440,9 @@ export default function CenterRevealCard() {
         if (!Ctx) return null;
         audioCtxRef.current = new Ctx();
       }
-      if (audioCtxRef.current.state === "suspended") {
-        await audioCtxRef.current.resume().catch(() => {});
-      }
+      if (audioCtxRef.current.state === "suspended") await audioCtxRef.current.resume().catch(() => {});
       return audioCtxRef.current;
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   };
 
   const primeSound = async () => {
@@ -275,27 +464,35 @@ export default function CenterRevealCard() {
       const ok = await primeSound();
       if (ok) {
         armed = false;
+        window.removeEventListener("click", tryPrime, true);
         window.removeEventListener("pointerdown", tryPrime, true);
         window.removeEventListener("touchstart", tryPrime, true);
-        window.removeEventListener("click", tryPrime, true);
         window.removeEventListener("keydown", tryPrime, true);
       }
     };
+    window.addEventListener("click", tryPrime, true);
     window.addEventListener("pointerdown", tryPrime, true);
     window.addEventListener("touchstart", tryPrime, true);
-    window.addEventListener("click", tryPrime, true);
     window.addEventListener("keydown", tryPrime, true);
 
-    const onVis = () => { if (!document.hidden) primeSound(); };
-    document.addEventListener("visibilitychange", onVis);
-
+    const onVisibility = () => { if (!document.hidden) primeSound(); };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      window.removeEventListener("click", tryPrime, true);
       window.removeEventListener("pointerdown", tryPrime, true);
       window.removeEventListener("touchstart", tryPrime, true);
-      window.removeEventListener("click", tryPrime, true);
       window.removeEventListener("keydown", tryPrime, true);
-      document.removeEventListener("visibilitychange", onVis);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
+  }, []);
+
+  useEffect(() => {
+    const onFirstMove = async () => {
+      await primeSound();
+      document.removeEventListener("mousemove", onFirstMove, true);
+    };
+    document.addEventListener("mousemove", onFirstMove, true);
+    return () => document.removeEventListener("mousemove", onFirstMove, true);
   }, []);
 
   const ensureAudio = async () => {
@@ -350,23 +547,22 @@ export default function CenterRevealCard() {
     } catch {}
   };
 
-  /* --- Главная плашка — тексты/стили --- */
+  /* --- Имя/тексты --- */
   const nameStr = "RUSTAM ROMANOV";
   const dirStr  = "DIRECTOR'S SHOWREEL";
-  const [nameColors, setNameColors] = useState(Array.from(nameStr).map(() => "#fff"));
-  const [dirColors,  setDirColors]  = useState(Array.from(dirStr).map(() => "#fff"));
-  const [nameScale, setNameScale]   = useState(Array.from(nameStr).map(() => false));
-  const [dirScale,  setDirScale]    = useState(Array.from(dirStr).map(() => false));
 
-  // === Маппинг латиница → кириллица для имени ===
-  const RU_MAP = {
-    "R": "Р", "U": "У", "S": "С", "T": "Т", "A": "А", "M": "М",
-    "O": "О", "N": "Н", "V": "В",
-    "r": "р", "u": "у", "s": "с", "t": "т", "a": "а", "m": "м",
-    "o": "о", "n": "н", "v": "в",
+  // Маппинг EN->RU для замены на ховере
+  const mapEnToRu = {
+    R: "Р", U: "У", S: "С", T: "Т", A: "А", M: "М",
+    O: "О", N: "Н", V: "В", " ": " "
   };
-  // какие буквы сейчас русские
-  const [nameRuActive, setNameRuActive] = useState(Array.from(nameStr).map(() => false));
+
+  const [nameColors, setNameColors] = useState(Array.from(nameStr).map(() => "#fff"));
+  const [nameScale,  setNameScale]  = useState(Array.from(nameStr).map(() => false));
+  const [nameChars,  setNameChars]  = useState(Array.from(nameStr)); // текущие буквы (EN/RU)
+
+  const [dirColors,  setDirColors]  = useState(Array.from(dirStr).map(() => "#fff"));
+  const [dirScale,   setDirScale]   = useState(Array.from(dirStr).map(() => false));
 
   // Vimeo IDs
   const VIMEO_IDS = { 1: "1118465522", 2: "1118467509", 3: "1001147905" };
@@ -374,9 +570,8 @@ export default function CenterRevealCard() {
   const [playerOpen, setPlayerOpen] = useState(false);
   const [vimeoId, setVimeoId] = useState(null);
 
-  // кружочки
-  const [showDots, setShowDots] = useState(false);
-  const [dotsMounted, setDotsMounted] = useState(false);
+  // BIO overlay
+  const [bioOpen, setBioOpen] = useState(false);
 
   const openVimeo = (n) => {
     const id = VIMEO_IDS[n];
@@ -386,7 +581,7 @@ export default function CenterRevealCard() {
   const onNameLeaveAll = () => {
     setNameColors(Array.from(nameStr).map(() => "#fff"));
     setNameScale(Array.from(nameStr).map(() => false));
-    setNameRuActive(Array.from(nameStr).map(() => false)); // сброс русификации
+    setNameChars(Array.from(nameStr)); // вернуть EN
   };
   const onDirLeaveAll  = () => {
     setDirColors(Array.from(dirStr).map(() => "#fff"));
@@ -398,109 +593,6 @@ export default function CenterRevealCard() {
   const revealDelaySmall = 160;
   const revealDelayBig   = 220;
 
-  /* === ФАКТЫ === */
-  const FACTS_SOURCE = [
-    { title: "2000 УЛЬЯНОВСК", text: "Вооружённый vhs видеокамерой я начинаю свой путь. Снимаю всё, что вижу, превращая обыденное в увлекательное." },
-    { title: "2009 МОСКВА", text: "Новая жизнь и вызовы. С горящими глазами и смелостью снимаю рэп-клипы на «зеркалку»." },
-    { title: "2010 GAZGOLDER", text: "От Касты до Басты. Лейблы приглашают работать." },
-    { title: "2011 GAZGOLDER", text: "Мировые туры с Бастой и первые большые клипы. Здесь даже солнца не видно" },
-    { title: "2012 TIMATI", text: "Первый документальный фильм о Тимати. Начало большого сотрудничества с Black Star" },
-    { title: "2014 КЛИПМЕЙКЕР", text: "Timati, Макс Корж, Iowa, Pizza, Мот, Джиган и др. Клип L'One - Океан, становится карьерным бустом" },
-    { title: "2015 YOUTUBE", text: "Doni feat. Натали - Ты такой, становится первым клипом, преодолевшим отметку в 100 млн просмотров на YouTube" },
-    { title: "МАСШТАБ", text: "Реализовано 200+ проектов. Более 2-х млрд просмотров на YouTube. 100+ артистов" },
-    { title: "ПОДХОД", text: "Успех проекта — не только визуал, но и глубокое понимание потребностей и ожиданий клиента." },
-    { title: "СЕЛЕБРИТИ", text: "Опыт со звёздами и блогерами. Нахожу общий язык с каждым и перевожу видение в результат." },
-  ];
-
-  const shuffledDeckRef = useRef(shuffle(FACTS_SOURCE));
-  const remainingRef = useRef([...shuffledDeckRef.current]);
-  const shownCountRef = useRef(0);
-
-  const [bios, setBios] = useState([]);
-  const mainCardRef = useRef(null);
-
-  const FACT_MIN_W = 200, FACT_MIN_H = 110;
-  const SAFE_PAD = 12, GAP_HERO = 12;
-  const FACT_FADE_MS = 320;
-
-  const removeBioSoft = (id) => {
-    setBios((prev) => prev.map(b => b.id === id ? { ...b, visible: false } : b));
-    setTimeout(() => setBios((prev) => prev.filter(b => b.id !== id)), FACT_FADE_MS);
-  };
-
-  const intersects = (a, b) => !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
-  const containsPoint = (b, x, y) => x >= b.left && x <= b.left + b.w && y >= b.top && y <= b.top + b.h;
-
-  const placeNearClick = (x, y, w, h) => {
-    const vw = window.innerWidth, vh = window.innerHeight;
-    const hero = rectRef.current;
-    let left = clamp(x - w / 2, SAFE_PAD, vw - w - SAFE_PAD);
-    let top  = clamp(y - h / 2, SAFE_PAD, vh - h - SAFE_PAD);
-    const tryCard = { left, top, right: left + w, bottom: top + h };
-    if (!intersects(tryCard, hero)) return { left, top };
-
-    const cx = (hero.left + hero.right) / 2, cy = (hero.top + hero.bottom) / 2;
-    const vx = Math.sign(x - cx) || 1, vy = Math.sign(y - cy) || 1;
-
-    const candidates = [
-      { left: vx < 0 ? hero.left - GAP_HERO - w : hero.right + GAP_HERO, top: clamp(y - h / 2, SAFE_PAD, vh - h - SAFE_PAD) },
-      { left: clamp(x - w / 2, SAFE_PAD, vw - w - SAFE_PAD), top: vy < 0 ? hero.top - GAP_HERO - h : hero.bottom + GAP_HERO },
-      { left: vx < 0 ? hero.left - GAP_HERO - w : hero.right + GAP_HERO, top: vy < 0 ? hero.top - GAP_HERO - h : hero.bottom + GAP_HERO },
-    ]
-      .map(p => ({ left: clamp(p.left, SAFE_PAD, vw - w - SAFE_PAD), top: clamp(p.top, SAFE_PAD, vh - h - SAFE_PAD) }))
-      .filter(p => !intersects({ left: p.left, top: p.top, right: p.left + w, bottom: p.top + h }, hero))
-      .sort((a,b) => ((a.left + w/2 - x)**2 + (a.top + h/2 - y)**2) - ((b.left + w/2 - x)**2 + (b.top + h/2 - y)**2));
-
-    if (candidates[0]) return candidates[0];
-    return null;
-  };
-
-  // Спавн факт-плашки
-  const spawnNextFact = (x, y, target) => {
-    if (shownCountRef.current >= 100) return;
-    if (mainCardRef.current?.contains(target)) return;
-    const social = document.getElementById("social-hotzone");
-    if (social?.contains(target)) return;
-    if (target?.closest?.("[data-bio-card]")) return;
-
-    if (remainingRef.current.length === 0) {
-      shuffledDeckRef.current = shuffle(FACTS_SOURCE);
-      remainingRef.current = [...shuffledDeckRef.current];
-    }
-
-    const next = remainingRef.current.pop();
-    if (!next || !next.title) return;
-
-    const w = clamp(Math.round(window.innerWidth * 0.18), FACT_MIN_W, 340);
-    const h = Math.round((w * 9) / 16);
-    if (window.innerWidth < w + SAFE_PAD * 2 || window.innerHeight < h + SAFE_PAD * 2) return;
-
-    const pos = placeNearClick(x, y, w, h);
-    if (!pos) return;
-
-    const { left, top } = pos;
-    const originX = x - left, originY = y - top;
-    const id = uuid();
-    const seenInside = containsPoint({ left, top, w, h }, x, y);
-
-    shownCountRef.current += 1;
-    setBios((prev) => [...prev, {
-      id, left, top, w, h, originX, originY, visible: false,
-      seenInside, title: next.title, text: next.text,
-    }]);
-    requestAnimationFrame(() => {
-      setBios((prev) => prev.map((b) => (b.id === id ? { ...b, visible: true } : b)));
-    });
-  };
-
-  // Клик — создаём факт
-  useEffect(() => {
-    const onClick = (e) => { primeSound(); spawnNextFact(e.clientX, e.clientY, e.target); };
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
-  }, []);
-
-  /* --- Стили главной плашки --- */
   const wrapperStyle = { position: "fixed", inset: 0, zIndex: 2147483600, pointerEvents: "none" };
   const cardStyle = {
     position: "fixed",
@@ -528,28 +620,29 @@ export default function CenterRevealCard() {
   const centerRow  = { display: "flex", alignItems: "center", justifyContent: "center", height: "100%" };
 
   const directedStyle = {
-    margin: 0, fontWeight: 500, fontSize: Math.round(titleFont / 1.5), letterSpacing: "0.08em",
+    margin: 0, fontWeight: 500, fontSize: directedFont, letterSpacing: "0.08em",
     color: "#fff", whiteSpace: "nowrap", userSelect: "none",
     textShadow: "0 1px 2px rgba(0,0,0,0.25)",
     opacity: open ? 1 : 0, filter: open ? "blur(0px)" : "blur(10px)",
     translate: open ? "0 0" : "0 4px",
     transition: open
-      ? `opacity 600ms ease ${160}ms, filter 700ms ease ${160}ms, translate 600ms ease ${160}ms`
+      ? `opacity 600ms ease ${revealDelaySmall}ms, filter 700ms ease ${revealDelaySmall}ms, translate 600ms ease ${revealDelaySmall}ms`
       : "opacity 220ms ease, filter 240ms ease, translate 220ms ease",
   };
 
   const titleStyle = {
-    margin: 0, fontWeight: 500, fontSize: Math.max(Math.round(titleFont / 1.5) * 1.5, 18),
+    margin: 0, fontWeight: 500, fontSize: Math.max(directedFont * 1.5, 18),
     letterSpacing: "0.02em", color: "#fff", whiteSpace: "nowrap", userSelect: "none",
     textShadow: "0 1px 2px rgba(0,0,0,0.25)",
     opacity: open ? 1 : 0, filter: open ? "blur(0px)" : "blur(10px)",
     translate: open ? "0 0" : "0 4px",
     transition: open
-      ? `opacity 700ms ease ${220}ms, filter 800ms ease ${220}ms, translate 700ms ease ${220}ms`
+      ? `opacity 700ms ease ${revealDelayBig}ms, filter 800ms ease ${revealDelayBig}ms, translate 700ms ease ${revealDelayBig}ms`
       : "opacity 240ms ease, filter 260ms ease, translate 240ms ease",
+    cursor: "pointer",
   };
 
-  const letterStyle = (colored, scaled, clickable = false) => ({
+  const letterStyle = (colored, scaled, clickable = false, animate = false) => ({
     display: "inline-block",
     color: colored,
     transform: scaled ? "scale(1.2)" : "scale(1)",
@@ -557,44 +650,55 @@ export default function CenterRevealCard() {
     textShadow: "0 1px 2px rgba(0,0,0,0.25)",
     userSelect: "none",
     cursor: clickable ? "pointer" : "default",
+    animation: animate ? "springPop 220ms cubic-bezier(0.2,0.9,0.2,1)" : "none",
   });
 
-  /* === Кружочки над DIRECTOR'S SHOWREEL === */
+  /* --- Кружочки над DIRECTOR'S SHOWREEL --- */
+  const [showDots, setShowDots] = useState(false);
+  const [dotsMounted, setDotsMounted] = useState(false);
   const showDotsSequenced = async () => {
     await primeSound();
     setShowDots(true);
     setDotsMounted(false);
     requestAnimationFrame(() => setDotsMounted(true));
   };
-
   const iconsRowStyle = { display: "flex", gap: 14, justifyContent: "center", alignItems: "center", marginTop: 6 };
 
-  // -- Вставим keyframes для spring-анимации один раз
-  const SpringKeyframes = () => (
-    <style>{`
-      @keyframes rr-ru-spring {
-        0%   { transform: scale(1); }
-        30%  { transform: scale(1.18); }
-        70%  { transform: scale(0.965); }
-        100% { transform: scale(1); }
+  // BIO музыка
+  const startBioMusic = () => {
+    try {
+      if (bioAudioRef.current) {
+        bioAudioRef.current.pause();
+        bioAudioRef.current = null;
       }
-    `}</style>
-  );
+      const a = new Audio("/rustam-site/assents/music/bio.mp3");
+      a.loop = true;
+      a.volume = 0.7;
+      bioAudioRef.current = a;
+      a.play().catch(() => {});
+    } catch {}
+  };
+  const stopBioMusic = () => {
+    try {
+      bioAudioRef.current?.pause();
+      if (bioAudioRef.current) bioAudioRef.current.currentTime = 0;
+      bioAudioRef.current = null;
+    } catch {}
+  };
 
-  // Сообщаем, что плашка «готова»
   useEffect(() => {
     requestAnimationFrame(() => {
       window.__hero_ready = true;
       window.dispatchEvent(new Event("hero:ready"));
     });
+    return () => stopBioMusic();
   }, []);
 
   return (
     <>
-      <SpringKeyframes />
       <div style={wrapperStyle}>
         {/* Главная центральная плашка */}
-        <div id="hero-card" ref={mainCardRef} style={cardStyle}>
+        <div id="hero-card" style={cardStyle}>
           <div style={contentBox}>
             <div style={centerRow}>
               <div style={headerWrap}>
@@ -604,7 +708,7 @@ export default function CenterRevealCard() {
                   style={{
                     position: "absolute",
                     left: "50%",
-                    top: -Math.max(76, Math.round(Math.round(titleFont / 1.5) * 2.2)),
+                    top: -Math.max(76, Math.round(directedFont * 2.2)),
                     transform: "translateX(-50%)",
                     opacity: showDots ? 1 : 0,
                     display: "flex",
@@ -645,38 +749,45 @@ export default function CenterRevealCard() {
                   ))}
                 </h2>
 
-                {/* Имя: латиница → кириллица на наведении конкретной буквы + spring */}
-                <h1 onMouseLeave={onNameLeaveAll} style={titleStyle}>
-                  {Array.from("RUSTAM ROMANOV").map((ch, i) => {
-                    const isRu = nameRuActive[i];
-                    const displayCh = isRu ? (RU_MAP[ch] ?? ch) : ch;
-                    return (
-                      <span
-                        key={`n-${i}`}
-                        onMouseEnter={async () => {
-                          const nc = [...nameColors]; nc[i] = randColor(); setNameColors(nc);
-                          const ns = [...nameScale];  ns[i] = true;        setNameScale(ns);
-                          const nr = [...nameRuActive]; nr[i] = true;       setNameRuActive(nr);
-                          await playLetterClick();
-                        }}
-                        onMouseLeave={() => {
-                          const nr = [...nameRuActive]; nr[i] = false; setNameRuActive(nr);
-                        }}
-                        style={letterStyle(nameColors[i], nameScale[i], false)}
-                      >
-                        {/* внутренний слой отвечает за spring при смене алфавита */}
-                        <span
-                          style={{
-                            display: "inline-block",
-                            animation: isRu ? "rr-ru-spring 320ms cubic-bezier(0.2,0.8,0.2,1)" : "none",
-                          }}
-                        >
-                          {displayCh === " " ? "\u00A0" : displayCh}
-                        </span>
-                      </span>
-                    );
-                  })}
+                {/* Имя — кликабельно + замена на RU при ховере каждой буквы */}
+                <h1
+                  onMouseLeave={onNameLeaveAll}
+                  onClick={() => setBioOpen(true)}
+                  style={titleStyle}
+                  title="Открыть биографию"
+                >
+                  {nameChars.map((ch, i) => (
+                    <span
+                      key={`n-${i}`}
+                      onMouseEnter={async () => {
+                        const nc = [...nameColors]; nc[i] = randColor(); setNameColors(nc);
+                        const ns = [...nameScale];  ns[i] = true;        setNameScale(ns);
+
+                        // смена на русскую букву с лёгким spring
+                        setNameChars(prev => {
+                          const arr = [...prev];
+                          const base = nameStr[i] || ch;
+                          arr[i] = mapEnToRu[base] ?? base;
+                          return arr;
+                        });
+
+                        await playLetterClick();
+                      }}
+                      style={letterStyle(nameColors[i], nameScale[i], true, true)}
+                    >
+                      {ch === " " ? "\u00A0" : ch}
+                    </span>
+                  ))}
                 </h1>
+
+                {/* spring keyframes */}
+                <style>{`
+                  @keyframes springPop {
+                    0% { transform: scale(0.9); }
+                    60% { transform: scale(1.15); }
+                    100% { transform: scale(1); }
+                  }
+                `}</style>
               </div>
             </div>
 
@@ -699,62 +810,25 @@ export default function CenterRevealCard() {
             </div>
           </div>
         </div>
-
-        {/* Факт-плашки */}
-        {bios.map((b) => (
-          <div
-            key={b.id}
-            data-bio-card
-            onPointerLeave={() => removeBioSoft(b.id)}
-            onMouseLeave={() => removeBioSoft(b.id)}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: "fixed",
-              left: b.left, top: b.top, width: b.w, height: b.h,
-              padding: 14, pointerEvents: "auto",
-              background: "rgba(255,255,255,0.06)",
-              WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)",
-              borderRadius: 16, border: "none",
-              boxShadow: "0 12px 28px rgba(0,0,0,0.22)",
-              color: "#fff",
-              fontFamily: "Jura-Ofont, Jura, system-ui, -apple-system, Segoe UI, Roboto, Arial",
-              fontWeight: 100,
-              display: "flex", flexDirection: "column", gap: 8,
-              alignItems: "center", justifyContent: "center",
-              transformOrigin: `${b.originX}px ${b.originY}px`,
-              transform: b.visible ? "scale(1)" : "scale(0.6)",
-              opacity: b.visible ? 1 : 0,
-              transition: `transform 700ms cubic-bezier(0.16,1,0.3,1), opacity ${FACT_FADE_MS}ms ease`,
-              overflow: "hidden",
-              textAlign: "center",
-            }}
-          >
-            <div style={{
-              fontSize: 18, lineHeight: 1.15, letterSpacing: "0.02em",
-              overflow: "hidden", display: "-webkit-box", WebkitBoxOrient: "vertical",
-              WebkitLineClamp: 2, wordBreak: "break-word", overflowWrap: "anywhere", hyphens: "auto",
-            }}>
-              {b.title}
-            </div>
-            <div style={{
-              fontSize: 14, lineHeight: 1.35, opacity: 0.9,
-              overflow: "hidden", display: "-webkit-box", WebkitBoxOrient: "vertical",
-              WebkitLineClamp: 6, wordBreak: "break-word", overflowWrap: "anywhere", hyphens: "auto",
-            }}>
-              {b.text}
-            </div>
-          </div>
-        ))}
       </div>
 
-      {/* Плеер — Vimeo */}
+      {/* Vimeo плеер */}
       <VideoOverlay
         open={playerOpen}
         onClose={() => { setPlayerOpen(false); setVimeoId(null); }}
         vimeoId={vimeoId}
       />
 
-      {/* ЛОАДЕР ДОЛЖЕН БЫТЬ ПОСЛЕДНИМ — ВСЕГДА СВЕРХУ */}
+      {/* BIO: фото + вкладки + звук */}
+      <BioOverlay
+        open={bioOpen}
+        onClose={() => { setBioOpen(false); stopBioMusic(); }}
+        imageSrc="/rustam-site/assents/foto/bio.jpg"
+        onAfterOpen={startBioMusic}
+        onBeforeClose={stopBioMusic}
+      />
+
+      {/* ЛОАДЕР */}
       <OverlayLoader />
     </>
   );
@@ -798,14 +872,4 @@ function DotButton({ n, onClick, onHover, order = 0, active = false }) {
       {n}
     </button>
   );
-}
-
-/* === helpers === */
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
 }
