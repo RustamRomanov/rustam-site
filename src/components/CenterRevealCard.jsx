@@ -1,44 +1,46 @@
 // src/components/CenterRevealCard.jsx
 import React, { useEffect, useRef, useState } from "react";
 
-/* === Лёгкая гифка-плейсхолдер (без фона, без перекрытий) === */
-function LoadingGifOnly() {
+/* === Лоадер-оверлей: чёрный фон + гифка, поверх всего, пока не готова мозаика === */
+function OverlayLoader() {
   const [visible, setVisible] = useState(true);
   const [fade, setFade] = useState(false);
+  const needHeroToo = false; // если хочешь ждать ещё и плашку — поставь true
 
   useEffect(() => {
-    let done = false;
-    const MIN_MS = 800;   // минимум показать
-    const MAX_MS = 8000;  // страховка
+    let finished = false;
+    const MIN_MS = 900;     // минимум показывать, чтобы не мигал
+    const MAX_MS = 20000;   // хард-таймаут (на всякий случай)
     const t0 = performance.now();
 
-    const finish = () => {
-      if (done) return;
-      done = true;
+    let mosaicReady = !!window.__mosaic_ready; // вдруг уже пришёл
+    let heroReady   = !!window.__hero_ready;
+
+    const tryFinish = () => {
+      if (finished) return;
+      if (!mosaicReady) return;
+      if (needHeroToo && !heroReady) return;
+
+      finished = true;
       const dt = performance.now() - t0;
       const rest = Math.max(0, MIN_MS - dt);
       setTimeout(() => {
         setFade(true);
-        setTimeout(() => setVisible(false), 360);
+        setTimeout(() => setVisible(false), 420);
       }, rest);
     };
 
-    const onLoad = () => finish();
-    const onAppReady = () => finish();
+    const onMosaicReady = () => { mosaicReady = true; window.__mosaic_ready = true; tryFinish(); };
+    const onHeroReady   = () => { heroReady = true;   window.__hero_ready   = true; tryFinish(); };
 
-    if (document.readyState === "complete") {
-      // подождём MIN_MS — не убираем мгновенно
-      const id = setTimeout(finish, MIN_MS);
-      return () => clearTimeout(id);
-    } else {
-      window.addEventListener("load", onLoad, { once: true });
-    }
-    window.addEventListener("app:ready", onAppReady, { once: true });
-    const maxT = setTimeout(finish, MAX_MS);
+    window.addEventListener("mosaic:ready", onMosaicReady, { once: true });
+    if (needHeroToo) window.addEventListener("hero:ready", onHeroReady, { once: true });
+
+    const maxT = setTimeout(() => { onMosaicReady(); onHeroReady(); }, MAX_MS);
 
     return () => {
-      window.removeEventListener("load", onLoad);
-      window.removeEventListener("app:ready", onAppReady);
+      window.removeEventListener("mosaic:ready", onMosaicReady);
+      if (needHeroToo) window.removeEventListener("hero:ready", onHeroReady);
       clearTimeout(maxT);
     };
   }, []);
@@ -51,16 +53,17 @@ function LoadingGifOnly() {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 2147485200, // выше всего
+        zIndex: 2147486000,
+        background: "#000",
         display: "grid",
         placeItems: "center",
-        pointerEvents: "none", // НЕ блокируем клики
+        pointerEvents: "none",
         opacity: fade ? 0 : 1,
-        transition: "opacity 360ms ease",
+        transition: "opacity 420ms ease",
       }}
     >
       <img
-        src="/rustam-site/assents/loader/loader.gif?v=2"
+        src="/rustam-site/assents/loader/loader.gif?v=3"
         alt="Loading…"
         onError={(e) => { e.currentTarget.style.display = "none"; }}
         style={{ width: 140, height: 140, objectFit: "contain" }}
@@ -134,7 +137,6 @@ function VideoOverlay({ open, onClose, vimeoId }) {
           background: "#000",
         }}
       >
-        {/* крестик — меньше, выше и правее */}
         <button
           aria-label="Close"
           onClick={onClose}
@@ -186,7 +188,8 @@ export default function CenterRevealCard() {
       const h = Math.round(w / 2);
       setWidth(w); setHeight(Math.min(h, Math.round(vh * 0.55)));
     };
-    recalc(); window.addEventListener("resize", recalc);
+    recalc();
+    window.addEventListener("resize", recalc);
     return () => window.removeEventListener("resize", recalc);
   }, []);
 
@@ -199,7 +202,11 @@ export default function CenterRevealCard() {
     rectRef.current = { left, top, right: left + width, bottom: top + height, w: width, h: height };
   };
   useEffect(() => { updateRect(); }, [width, height]);
-  useEffect(() => { const h = () => updateRect(); window.addEventListener("resize", h); return () => window.removeEventListener("resize", h); }, []);
+  useEffect(() => {
+    const h = () => updateRect();
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
 
   /* --- Триггеры --- */
   const triggerRef = useRef({ w: 240, h: 150 });
@@ -229,7 +236,7 @@ export default function CenterRevealCard() {
     return () => document.removeEventListener("mousemove", onMove);
   }, []);
 
-  /* === АУДИО (починено): надёжный прайм + воспроизведение === */
+  /* === АУДИО — «рабочий» фрагмент === */
   const audioCtxRef = useRef(null);
   const soundReadyRef = useRef(false);
 
@@ -240,16 +247,19 @@ export default function CenterRevealCard() {
         if (!Ctx) return null;
         audioCtxRef.current = new Ctx();
       }
-      if (audioCtxRef.current.state === "suspended") await audioCtxRef.current.resume().catch(() => {});
+      if (audioCtxRef.current.state === "suspended") {
+        await audioCtxRef.current.resume().catch(() => {});
+      }
       return audioCtxRef.current;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   };
 
   const primeSound = async () => {
     try {
       const ctx = await getCtx(); if (!ctx) return false;
       if (ctx.state !== "running") await ctx.resume().catch(() => {});
-      // короткий импульс — разблокирует звук
       const o = ctx.createOscillator(); const g = ctx.createGain();
       g.gain.setValueAtTime(0.00001, ctx.currentTime);
       o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.01);
@@ -258,15 +268,33 @@ export default function CenterRevealCard() {
     } catch { return false; }
   };
 
-  // Праймим на клике/таче и на первой клавише
   useEffect(() => {
-    const onPointer = () => { primeSound(); };
-    const onKey = () => { primeSound(); };
-    window.addEventListener("pointerdown", onPointer);
-    window.addEventListener("keydown", onKey);
+    let armed = true;
+    const tryPrime = async () => {
+      if (!armed) return;
+      const ok = await primeSound();
+      if (ok) {
+        armed = false;
+        window.removeEventListener("pointerdown", tryPrime, true);
+        window.removeEventListener("touchstart", tryPrime, true);
+        window.removeEventListener("click", tryPrime, true);
+        window.removeEventListener("keydown", tryPrime, true);
+      }
+    };
+    window.addEventListener("pointerdown", tryPrime, true);
+    window.addEventListener("touchstart", tryPrime, true);
+    window.addEventListener("click", tryPrime, true);
+    window.addEventListener("keydown", tryPrime, true);
+
+    const onVis = () => { if (!document.hidden) primeSound(); };
+    document.addEventListener("visibilitychange", onVis);
+
     return () => {
-      window.removeEventListener("pointerdown", onPointer);
-      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", tryPrime, true);
+      window.removeEventListener("touchstart", tryPrime, true);
+      window.removeEventListener("click", tryPrime, true);
+      window.removeEventListener("keydown", tryPrime, true);
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, []);
 
@@ -295,15 +323,13 @@ export default function CenterRevealCard() {
     try {
       const ctx = await getCtx(); if (!ctx) return;
       const now = ctx.currentTime;
-
       const master = ctx.createGain();
       master.gain.setValueAtTime(0.0001, now);
       master.gain.exponentialRampToValueAtTime(0.28, now + 0.02);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
       master.connect(ctx.destination);
 
-      const main = ctx.createOscillator();
-      const g1 = ctx.createGain();
+      const main = ctx.createOscillator(); const g1 = ctx.createGain();
       main.type = "sine";
       main.frequency.setValueAtTime(720, now);
       main.frequency.exponentialRampToValueAtTime(980, now + 0.12);
@@ -313,8 +339,7 @@ export default function CenterRevealCard() {
       main.connect(g1).connect(master);
       main.start(now); main.stop(now + 0.3);
 
-      const sparkle = ctx.createOscillator();
-      const g2 = ctx.createGain();
+      const sparkle = ctx.createOscillator(); const g2 = ctx.createGain();
       sparkle.type = "triangle";
       sparkle.frequency.setValueAtTime(1320, now + 0.06);
       g2.gain.setValueAtTime(0.0001, now + 0.06);
@@ -333,18 +358,40 @@ export default function CenterRevealCard() {
   const [nameScale, setNameScale]   = useState(Array.from(nameStr).map(() => false));
   const [dirScale,  setDirScale]    = useState(Array.from(dirStr).map(() => false));
 
+  // === Маппинг латиница → кириллица для имени ===
+  const RU_MAP = {
+    "R": "Р", "U": "У", "S": "С", "T": "Т", "A": "А", "M": "М",
+    "O": "О", "N": "Н", "V": "В",
+    "r": "р", "u": "у", "s": "с", "t": "т", "a": "а", "m": "м",
+    "o": "о", "n": "н", "v": "в",
+  };
+  // какие буквы сейчас русские
+  const [nameRuActive, setNameRuActive] = useState(Array.from(nameStr).map(() => false));
+
+  // Vimeo IDs
   const VIMEO_IDS = { 1: "1118465522", 2: "1118467509", 3: "1001147905" };
 
   const [playerOpen, setPlayerOpen] = useState(false);
   const [vimeoId, setVimeoId] = useState(null);
 
+  // кружочки
   const [showDots, setShowDots] = useState(false);
   const [dotsMounted, setDotsMounted] = useState(false);
 
-  const openVimeo = (n) => { const id = VIMEO_IDS[n]; if (id) { setVimeoId(id); setPlayerOpen(true); } };
+  const openVimeo = (n) => {
+    const id = VIMEO_IDS[n];
+    if (id) { setVimeoId(id); setPlayerOpen(true); }
+  };
 
-  const onNameLeaveAll = () => { setNameColors(Array.from(nameStr).map(() => "#fff")); setNameScale(Array.from(nameStr).map(() => false)); };
-  const onDirLeaveAll  = () => { setDirColors(Array.from(dirStr).map(() => "#fff"));  setDirScale(Array.from(dirStr).map(() => false)); };
+  const onNameLeaveAll = () => {
+    setNameColors(Array.from(nameStr).map(() => "#fff"));
+    setNameScale(Array.from(nameStr).map(() => false));
+    setNameRuActive(Array.from(nameStr).map(() => false)); // сброс русификации
+  };
+  const onDirLeaveAll  = () => {
+    setDirColors(Array.from(dirStr).map(() => "#fff"));
+    setDirScale(Array.from(dirStr).map(() => false));
+  };
 
   const titleFont    = clamp(Math.round(window.innerWidth * 0.024), 18, 26);
   const directedFont = Math.round(titleFont / 1.5);
@@ -353,16 +400,16 @@ export default function CenterRevealCard() {
 
   /* === ФАКТЫ === */
   const FACTS_SOURCE = [
-    { title: "2000 год. Ульяновск", text: "Вооружённый vhs видеокамерой я начинаю свой путь. Снимаю всё, что вижу, превращая обыденное в увлекательное." },
-    { title: "2009 год. Москва", text: "Новая жизнь и вызовы. С горящими глазами и смелостью снимаю рэп-клипы на «зеркалку»." },
-    { title: "2010 год. Газгольдер", text: "От Касты до Басты. Лейблы приглашают работать." },
-    { title: "2011 год. Газгольдер", text: "Мировые туры с Бастой и первые большые клипы. Здесь даже солнца не видно" },
-    { title: "2012 год. Тимати", text: "Первый документальный фильм о Тимати. Начало большого сотрудничества с Black Star" },
-    { title: "2014 год. Клипмейкер", text: "Макс Корж, Iowa, Pizza, Мот, Джиган и др. Клип L'One - Океан, становится карьерным бустом" },
-    { title: "2015 год. Первый", text: "Doni feat. Натали - Ты такой, становится первым клипом, преодолевшим отметку в 100 млн просмотров на YouTube" },
-    { title: "Масштаб", text: "200+ проектов. 2+ млрд просмотров на YouTube. 100+ артистов" },
-    { title: "Подход", text: "Успех проекта — не только визуал, но и глубокое понимание потребностей и ожиданий клиента." },
-    { title: "Работа с селебрити", text: "Опыт со звёздами и блогерами. Нахожу общий язык с каждым и перевожу видение в результат." },
+    { title: "2000 УЛЬЯНОВСК", text: "Вооружённый vhs видеокамерой я начинаю свой путь. Снимаю всё, что вижу, превращая обыденное в увлекательное." },
+    { title: "2009 МОСКВА", text: "Новая жизнь и вызовы. С горящими глазами и смелостью снимаю рэп-клипы на «зеркалку»." },
+    { title: "2010 GAZGOLDER", text: "От Касты до Басты. Лейблы приглашают работать." },
+    { title: "2011 GAZGOLDER", text: "Мировые туры с Бастой и первые большые клипы. Здесь даже солнца не видно" },
+    { title: "2012 TIMATI", text: "Первый документальный фильм о Тимати. Начало большого сотрудничества с Black Star" },
+    { title: "2014 КЛИПМЕЙКЕР", text: "Макс Корж, Iowa, Pizza, Мот, Джиган и др. Клип L'One - Океан, становится карьерным бустом" },
+    { title: "2015 YOUTUBE", text: "Doni feat. Натали - Ты такой, становится первым клипом, преодолевшим отметку в 100 млн просмотров на YouTube" },
+    { title: "МАСШТАБ", text: "200+ проектов. 2+ млрд просмотров на YouTube. 100+ артистов" },
+    { title: "ПОДХОД", text: "Успех проекта — не только визуал, но и глубокое понимание потребностей и ожиданий клиента." },
+    { title: "СЕЛЕБРИТИ", text: "Опыт со звёздами и блогерами. Нахожу общий язык с каждым и перевожу видение в результат." },
   ];
 
   const shuffledDeckRef = useRef(shuffle(FACTS_SOURCE));
@@ -422,7 +469,7 @@ export default function CenterRevealCard() {
     }
 
     const next = remainingRef.current.pop();
-    if (!next || !next.title) return; // страховка
+    if (!next || !next.title) return;
 
     const w = clamp(Math.round(window.innerWidth * 0.18), FACT_MIN_W, 340);
     const h = Math.round((w * 9) / 16);
@@ -481,24 +528,24 @@ export default function CenterRevealCard() {
   const centerRow  = { display: "flex", alignItems: "center", justifyContent: "center", height: "100%" };
 
   const directedStyle = {
-    margin: 0, fontWeight: 500, fontSize: directedFont, letterSpacing: "0.08em",
+    margin: 0, fontWeight: 500, fontSize: Math.round(titleFont / 1.5), letterSpacing: "0.08em",
     color: "#fff", whiteSpace: "nowrap", userSelect: "none",
     textShadow: "0 1px 2px rgba(0,0,0,0.25)",
     opacity: open ? 1 : 0, filter: open ? "blur(0px)" : "blur(10px)",
     translate: open ? "0 0" : "0 4px",
     transition: open
-      ? `opacity 600ms ease ${revealDelaySmall}ms, filter 700ms ease ${revealDelaySmall}ms, translate 600ms ease ${revealDelaySmall}ms`
+      ? `opacity 600ms ease ${160}ms, filter 700ms ease ${160}ms, translate 600ms ease ${160}ms`
       : "opacity 220ms ease, filter 240ms ease, translate 220ms ease",
   };
 
   const titleStyle = {
-    margin: 0, fontWeight: 500, fontSize: Math.max(directedFont * 1.5, 18),
+    margin: 0, fontWeight: 500, fontSize: Math.max(Math.round(titleFont / 1.5) * 1.5, 18),
     letterSpacing: "0.02em", color: "#fff", whiteSpace: "nowrap", userSelect: "none",
     textShadow: "0 1px 2px rgba(0,0,0,0.25)",
     opacity: open ? 1 : 0, filter: open ? "blur(0px)" : "blur(10px)",
     translate: open ? "0 0" : "0 4px",
     transition: open
-      ? `opacity 700ms ease ${revealDelayBig}ms, filter 800ms ease ${revealDelayBig}ms, translate 700ms ease ${revealDelayBig}ms`
+      ? `opacity 700ms ease ${220}ms, filter 800ms ease ${220}ms, translate 700ms ease ${220}ms`
       : "opacity 240ms ease, filter 260ms ease, translate 240ms ease",
   };
 
@@ -512,9 +559,9 @@ export default function CenterRevealCard() {
     cursor: clickable ? "pointer" : "default",
   });
 
-  /* --- Кружочки над DIRECTOR'S SHOWREEL --- */
+  /* === Кружочки над DIRECTOR'S SHOWREEL === */
   const showDotsSequenced = async () => {
-    await primeSound(); // попробуем праймить и на hover
+    await primeSound();
     setShowDots(true);
     setDotsMounted(false);
     requestAnimationFrame(() => setDotsMounted(true));
@@ -522,8 +569,29 @@ export default function CenterRevealCard() {
 
   const iconsRowStyle = { display: "flex", gap: 14, justifyContent: "center", alignItems: "center", marginTop: 6 };
 
+  // -- Вставим keyframes для spring-анимации один раз
+  const SpringKeyframes = () => (
+    <style>{`
+      @keyframes rr-ru-spring {
+        0%   { transform: scale(1); }
+        30%  { transform: scale(1.18); }
+        70%  { transform: scale(0.965); }
+        100% { transform: scale(1); }
+      }
+    `}</style>
+  );
+
+  // Сообщаем, что плашка «готова»
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      window.__hero_ready = true;
+      window.dispatchEvent(new Event("hero:ready"));
+    });
+  }, []);
+
   return (
     <>
+      <SpringKeyframes />
       <div style={wrapperStyle}>
         {/* Главная центральная плашка */}
         <div id="hero-card" ref={mainCardRef} style={cardStyle}>
@@ -536,7 +604,7 @@ export default function CenterRevealCard() {
                   style={{
                     position: "absolute",
                     left: "50%",
-                    top: -Math.max(60, Math.round(directedFont * 2.0)),
+                    top: -Math.max(76, Math.round(Math.round(titleFont / 1.5) * 2.2)),
                     transform: "translateX(-50%)",
                     opacity: showDots ? 1 : 0,
                     display: "flex",
@@ -562,7 +630,7 @@ export default function CenterRevealCard() {
 
                 {/* DIRECTOR'S SHOWREEL */}
                 <h2 onMouseEnter={showDotsSequenced} onMouseLeaveCapture={onDirLeaveAll} style={directedStyle}>
-                  {Array.from(dirStr).map((ch, i) => (
+                  {Array.from("DIRECTOR'S SHOWREEL").map((ch, i) => (
                     <span
                       key={`d-${i}`}
                       onMouseEnter={async () => {
@@ -577,21 +645,37 @@ export default function CenterRevealCard() {
                   ))}
                 </h2>
 
-                {/* Имя */}
+                {/* Имя: латиница → кириллица на наведении конкретной буквы + spring */}
                 <h1 onMouseLeave={onNameLeaveAll} style={titleStyle}>
-                  {Array.from(nameStr).map((ch, i) => (
-                    <span
-                      key={`n-${i}`}
-                      onMouseEnter={async () => {
-                        const nc = [...nameColors]; nc[i] = randColor(); setNameColors(nc);
-                        const ns = [...nameScale];  ns[i] = true;        setNameScale(ns);
-                        await playLetterClick();
-                      }}
-                      style={letterStyle(nameColors[i], nameScale[i], false)}
-                    >
-                      {ch === " " ? "\u00A0" : ch}
-                    </span>
-                  ))}
+                  {Array.from("RUSTAM ROMANOV").map((ch, i) => {
+                    const isRu = nameRuActive[i];
+                    const displayCh = isRu ? (RU_MAP[ch] ?? ch) : ch;
+                    return (
+                      <span
+                        key={`n-${i}`}
+                        onMouseEnter={async () => {
+                          const nc = [...nameColors]; nc[i] = randColor(); setNameColors(nc);
+                          const ns = [...nameScale];  ns[i] = true;        setNameScale(ns);
+                          const nr = [...nameRuActive]; nr[i] = true;       setNameRuActive(nr);
+                          await playLetterClick();
+                        }}
+                        onMouseLeave={() => {
+                          const nr = [...nameRuActive]; nr[i] = false; setNameRuActive(nr);
+                        }}
+                        style={letterStyle(nameColors[i], nameScale[i], false)}
+                      >
+                        {/* внутренний слой отвечает за spring при смене алфавита */}
+                        <span
+                          style={{
+                            display: "inline-block",
+                            animation: isRu ? "rr-ru-spring 320ms cubic-bezier(0.2,0.8,0.2,1)" : "none",
+                          }}
+                        >
+                          {displayCh === " " ? "\u00A0" : displayCh}
+                        </span>
+                      </span>
+                    );
+                  })}
                 </h1>
               </div>
             </div>
@@ -601,15 +685,15 @@ export default function CenterRevealCard() {
               <IconLink
                 href="https://instagram.com/rustamromanov.ru"
                 label="Instagram"
-                whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=2"
-                colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=2"
+                whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
+                colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
                 order={0} open={open} onNotify={playNotify} onPrime={primeSound}
               />
               <IconLink
                 href="https://t.me/rustamromanov"
                 label="Telegram"
-                whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=2"
-                colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=2"
+                whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
+                colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3"
                 order={1} open={open} onNotify={playNotify} onPrime={primeSound}
               />
             </div>
@@ -670,8 +754,8 @@ export default function CenterRevealCard() {
         vimeoId={vimeoId}
       />
 
-      {/* Только гифка (поверх всего), без подложки/оверлея */}
-      <LoadingGifOnly />
+      {/* ЛОАДЕР ДОЛЖЕН БЫТЬ ПОСЛЕДНИМ — ВСЕГДА СВЕРХУ */}
+      <OverlayLoader />
     </>
   );
 }
@@ -716,7 +800,7 @@ function DotButton({ n, onClick, onHover, order = 0, active = false }) {
   );
 }
 
-/* === helpers — исправленный shuffle === */
+/* === helpers === */
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
