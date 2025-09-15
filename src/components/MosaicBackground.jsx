@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 const BASE_TILE_W = 80;
 const BASE_TILE_H = 45;
 
-/** Волна / кроссфейд / лупа */
+/** Волна / кроссфейд / зум */
 const WAVE_STEP = 90;
 const WAVE_PERIOD_MIN = 5000;
 const WAVE_PERIOD_MAX = 9000;
@@ -16,6 +16,18 @@ const HOVER_BOOST = 1.2;
 
 /** Путь к изображениям */
 const BASE = "/rustam-site/assents/images/";
+
+/** Если манифеста нет — используем фиксированное количество файлов img1..imgN */
+// <<< CHANGEME: поменяй число, когда добавишь/уберёшь файлы
+const STATIC_COUNT = 285;
+
+/** ------- АУДИО: «бульк» + реверберация -------- */
+const BUBBLE_COOLDOWN_MS = 120;     // защита от частых срабатываний
+const BUBBLE_DUR = 0.35;            // длительность «булька»
+const REVERB_SEC = 1.2;             // длина импульс-реверба
+const REVERB_DECAY = 2.5;           // спад реверба
+const MASTER_GAIN = 0.22;           // общий лимитер громкости
+const WET = 0.35;                   // доля реверба
 
 /** img123.jpg -> 123 */
 function parseSeq(url) {
@@ -38,34 +50,183 @@ export default function MosaicBackground() {
   const gridRef = useRef({ cols: 0, rows: 0, tileW: BASE_TILE_W, tileH: BASE_TILE_H });
   const mouseRef = useRef({ x: -1e6, y: -1e6 });
   const waveRef = useRef({ nextWaveAt: 0 });
-  const ptrRef  = useRef(0);    // циклический указатель
+  const ptrRef  = useRef(0);    // циклический указатель по пулу
 
   // Отправляем mosaic:ready ровно один раз
   const readySentRef = useRef(false);
+
+  /** --------- АУДИО КОНТЕКСТ + РЕВЕРБ --------- */
+  const audioRef = useRef({
+    ctx: null,
+    master: null,
+    wetGain: null,
+    dryGain: null,
+    convolver: null,
+  });
+
+  const getAudioContext = async () => {
+    try {
+      if (window.__rr_audio_ctx) {
+        if (window.__rr_audio_ctx.state === "suspended") await window.__rr_audio_ctx.resume().catch(() => {});
+        return window.__rr_audio_ctx;
+      }
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      const ctx = new Ctx();
+      window.__rr_audio_ctx = ctx;
+      if (ctx.state === "suspended") await ctx.resume().catch(() => {});
+      return ctx;
+    } catch { return null; }
+  };
+
+  const createImpulseResponse = (ctx, seconds = REVERB_SEC, decay = REVERB_DECAY) => {
+    const rate = ctx.sampleRate;
+    const length = Math.max(1, Math.floor(rate * seconds));
+    const impulse = ctx.createBuffer(2, length, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        // экспоненциальный спад, немного рандома
+        const t = i / length;
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, decay);
+      }
+    }
+    return impulse;
+    // лёгкий, «кинематографичный» хвост
+  };
+
+  const ensureAudio = async () => {
+    if (audioRef.current.ctx) return true;
+    const ctx = await getAudioContext(); if (!ctx) return false;
+
+    const master = ctx.createGain();
+    master.gain.value = MASTER_GAIN;
+    master.connect(ctx.destination);
+
+    const dryGain = ctx.createGain();
+    dryGain.gain.value = 1.0;
+    dryGain.connect(master);
+
+    const wetGain = ctx.createGain();
+    wetGain.gain.value = WET;
+    wetGain.connect(master);
+
+    const convolver = ctx.createConvolver();
+    convolver.buffer = createImpulseResponse(ctx);
+    convolver.connect(wetGain);
+
+    audioRef.current = { ctx, master, wetGain, dryGain, convolver };
+    return true;
+  };
+
+  // Праймим аудио по жесту (Safari)
+  useEffect(() => {
+    const prime = async () => { await ensureAudio(); };
+    window.addEventListener("pointerdown", prime, { once: true, capture: true });
+    window.addEventListener("touchstart", prime,  { once: true, capture: true });
+    window.addEventListener("keydown", prime,     { once: true, capture: true });
+    window.addEventListener("mousemove", prime,   { once: true, capture: true });
+    return () => {
+      window.removeEventListener("pointerdown", prime, true);
+      window.removeEventListener("touchstart", prime, true);
+      window.removeEventListener("keydown", prime, true);
+      window.removeEventListener("mousemove", prime, true);
+    };
+  }, []);
+
+  // «бульк» в позиции X (0..1 по ширине), Y не используем, но можно для будущего
+  const playBubble = async (xNorm = 0.5) => {
+    const ok = await ensureAudio(); if (!ok) return;
+    const { ctx, dryGain, convolver } = audioRef.current;
+    const now = ctx.currentTime;
+
+    // Пэн по горизонтали
+    let panner = null;
+    if (typeof ctx.createStereoPanner === "function") {
+      panner = ctx.createStereoPanner();
+      panner.pan.value = Math.max(-1, Math.min(1, xNorm * 2 - 1));
+    }
+
+    // Основной «капельный» тон: косой слайд сверху вниз
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(140, now + BUBBLE_DUR);
+
+    // Лёгкий щелчок/толчок «булька» — короткий вторичный тон
+    const pop = ctx.createOscillator();
+    pop.type = "triangle";
+    pop.frequency.setValueAtTime(1800, now);
+    pop.frequency.exponentialRampToValueAtTime(400, now + 0.06);
+
+    // Огибающие
+    const gMain = ctx.createGain();
+    gMain.gain.setValueAtTime(0.0001, now);
+    gMain.gain.exponentialRampToValueAtTime(0.25, now + 0.02);
+    gMain.gain.exponentialRampToValueAtTime(0.0001, now + BUBBLE_DUR);
+
+    const gPop = ctx.createGain();
+    gPop.gain.setValueAtTime(0.0001, now);
+    gPop.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+    gPop.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+
+    // Сухой и посыл на реверб
+    const dryBus = ctx.createGain();
+    dryBus.gain.value = 1.0;
+
+    const wetSend = ctx.createGain();
+    wetSend.gain.value = 1.0;
+
+    // Цепочки
+    if (panner) {
+      gMain.connect(panner); gPop.connect(panner);
+      panner.connect(dryBus); panner.connect(wetSend);
+    } else {
+      gMain.connect(dryBus); gPop.connect(dryBus);
+      gMain.connect(wetSend); gPop.connect(wetSend);
+    }
+
+    dryBus.connect(dryGain);
+    wetSend.connect(convolver);
+
+    osc.connect(gMain); pop.connect(gPop);
+
+    osc.start(now);     pop.start(now);
+    pop.stop(now + 0.09);
+    osc.stop(now + BUBBLE_DUR + 0.02);
+
+    // аккуратная уборка
+    const kill = () => {
+      try {
+        gMain.disconnect(); gPop.disconnect();
+        dryBus.disconnect(); wetSend.disconnect();
+        if (panner) panner.disconnect();
+      } catch {}
+    };
+    setTimeout(kill, (BUBBLE_DUR + 0.2) * 1000);
+  };
 
   // -------- 1) Получаем список файлов --------
   useEffect(() => {
     let stop = false;
     (async () => {
       try {
+        // Пытаемся взять manifest.json (если он есть)
         const res = await fetch(`${BASE}manifest.json?ts=${Date.now()}`, { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          const list = Array.isArray(data?.jpg) ? data.jpg : [];
-          const found = list.map((n) => `${BASE}${n}`);
-          if (!stop) { setUrls(found); return; }
+          const listFromManifest =
+            Array.isArray(data?.jpg) ? data.jpg :
+            Array.isArray(data)      ? data    : [];
+          if (listFromManifest.length) {
+            const found = listFromManifest.map((n) => `${BASE}${n}`);
+            if (!stop) { setUrls(found); return; }
+          }
         }
-      } catch {}
-      // Фоллбек: img1.jpg .. imgN.jpg пока не встретится 404
-      const found = [];
-      for (let i = 1; i <= 2000 && !stop; i++) {
-        const u = `${BASE}img${i}.jpg`;
-        try {
-          const head = await fetch(u, { method: "HEAD", cache: "no-store" });
-          if (head.ok) found.push(u);
-          else break;
-        } catch { break; }
-      }
+      } catch { /* пойдём на фоллбек */ }
+
+      // Фоллбек: фиксированный диапазон img1..imgN
+      const found = Array.from({ length: Math.max(0, STATIC_COUNT) }, (_, i) => `${BASE}img${i + 1}.jpg`);
       if (!stop) setUrls(found);
     })();
     return () => { stop = true; };
@@ -125,13 +286,9 @@ export default function MosaicBackground() {
         poolRef.current[k] = img;
         seqRef.current[k]  = parseSeq(u);
         loaded++;
-        // Как только всё загрузилось — принудительно пересобираем расстановку
         if (loaded === ordered.length) {
           initTiles(true);
           if (!rafRef.current) start();
-
-          // Страховка: если первый кадр по какой-то причине ещё не прошёл,
-          // отправим mosaic:ready сейчас (но только если ещё не отправляли)
           setTimeout(() => {
             if (!readySentRef.current) {
               readySentRef.current = true;
@@ -142,7 +299,6 @@ export default function MosaicBackground() {
       };
       img.onerror = () => {
         if (cancelled) return;
-        // помечаем как пустой, но не ломаем загрузку остальных
         loaded++;
         if (loaded === ordered.length) {
           initTiles(true);
@@ -193,6 +349,10 @@ export default function MosaicBackground() {
           fading: false, fadeStart: 0,
           scale: 1,
           nextChange: now + (c + r) * 35 + Math.random() * 120,
+
+          // для звука «бульк»
+          prevRing: 99,
+          lastBloopAt: 0,
         };
       }
     }
@@ -200,7 +360,7 @@ export default function MosaicBackground() {
     const pool = poolRef.current;
 
     if (pool.length && (force || !tilesRef.current.length)) {
-      // порядок — «шахматка», меньше конфликтов
+      // порядок — «шахматка»
       const order = [];
       for (let p = 0; p < 2; p++) {
         for (let i = 0; i < tiles.length; i++) {
@@ -209,18 +369,16 @@ export default function MosaicBackground() {
         }
       }
 
-      // Полный первичный подбор картинок без наследования из старого состояния
       for (const id of order) {
         const t = tiles[id];
         t.imgIdx = chooseIdxForTile(t, tiles);
-        if (t.imgIdx < 0 && pool.length) t.imgIdx = (ptrRef.current++) % pool.length; // запасной вариант
+        if (t.imgIdx < 0 && pool.length) t.imgIdx = (ptrRef.current++) % pool.length;
       }
     } else if (tilesRef.current.length) {
-      // При ресайзе — аккуратно переносим старые тайлы в новые, где возможно
+      // При ресайзе — переносим старые тайлы
       tilesRef.current.forEach((old, i) => {
         if (i < tiles.length) Object.assign(tiles[i], old);
       });
-      // Для «новых» плиток дозадаём картинки
       for (let i = 0; i < tiles.length; i++) {
         if (tiles[i].imgIdx < 0) {
           const idx = chooseIdxForTile(tiles[i], tiles);
@@ -237,7 +395,7 @@ export default function MosaicBackground() {
     waveRef.current.nextWaveAt = now + randInt(WAVE_PERIOD_MIN, WAVE_PERIOD_MAX);
   }
 
-  // -------- 5) Подбор индексов (анти-дубли с соседями и N±1 по номеру) --------
+  // -------- 5) Подбор индексов (анти-дубли) --------
   function neighborSets(tile, tiles) {
     const idxSet = new Set();
     const seqSet = new Set();
@@ -259,30 +417,62 @@ export default function MosaicBackground() {
     return { idxSet, seqSet };
   }
 
+  function usedIndicesGlobal(tiles, exceptId = -1) {
+    const used = new Set();
+    for (const t of tiles) {
+      if (!t) continue;
+      if (t.id === exceptId) continue;
+      if (t.imgIdx >= 0) used.add(t.imgIdx);
+      if (t.fading && t.prevIdx >= 0) used.add(t.prevIdx);
+    }
+    return used;
+  }
+
   function chooseIdxForTile(tile, tiles) {
     const pool = poolRef.current;
     if (!pool.length) return -1;
 
-    const { idxSet, seqSet } = neighborSets(tile, tiles);
+    const { idxSet: neiIdx, seqSet: neiSeq } = neighborSets(tile, tiles);
+    const globalUsed = usedIndicesGlobal(tiles, tile.id);
     const start = ptrRef.current % pool.length;
 
-    // Идеальный вариант: не как у соседа и не «по номеру рядом»
+    const canBeAllUnique = pool.length > globalUsed.size;
+
+    if (canBeAllUnique) {
+      for (let step = 0; step < pool.length; step++) {
+        const i = (start + step) % pool.length;
+        if (!pool[i] || !pool[i].width) continue;
+        if (globalUsed.has(i)) continue;
+        if (neiIdx.has(i)) continue;
+        const s = seqRef.current[i];
+        if (neiSeq.has(s - 1) || neiSeq.has(s + 1)) continue;
+        ptrRef.current = i + 1;
+        return i;
+      }
+      for (let step = 0; step < pool.length; step++) {
+        const i = (start + step) % pool.length;
+        if (!pool[i] || !pool[i].width) continue;
+        if (globalUsed.has(i)) continue;
+        ptrRef.current = i + 1;
+        return i;
+      }
+    }
+
     for (let step = 0; step < pool.length; step++) {
       const i = (start + step) % pool.length;
       if (!pool[i] || !pool[i].width) continue;
-      if (idxSet.has(i)) continue;
+      if (neiIdx.has(i)) continue;
       const s = seqRef.current[i];
-      if (seqSet.has(s - 1) || seqSet.has(s + 1)) continue;
+      if (neiSeq.has(s - 1) || neiSeq.has(s + 1)) continue;
       ptrRef.current = i + 1;
       return i;
     }
-    // Фоллбек: хотя бы не точный дубль рядом
     for (let step = 0; step < pool.length; step++) {
       const i = (start + step) % pool.length;
-      if (!pool[i] || !pool[i].width) continue;
-      if (idxSet.has(i)) continue;
-      ptrRef.current = i + 1;
-      return i;
+      if (pool[i] && pool[i].width) {
+        ptrRef.current = i + 1;
+        return i;
+      }
     }
     return -1;
   }
@@ -307,13 +497,10 @@ export default function MosaicBackground() {
     const tiles = tilesRef.current;
     if (!pool.length || !tiles.length) return;
 
-    // После первого полноценного кадра — сигналим, что мозаика готова
+    // После первого кадра — сигналим, что мозаика готова
     if (!readySentRef.current) {
       readySentRef.current = true;
-      // Чуть отложим, чтобы точно ушло после отрисовки кадра
-      setTimeout(() => {
-        window.dispatchEvent(new Event("mosaic:ready"));
-      }, 0);
+      setTimeout(() => { window.dispatchEvent(new Event("mosaic:ready")); }, 0);
     }
 
     // новая волна
@@ -332,12 +519,21 @@ export default function MosaicBackground() {
     const mc = Math.floor(mouseRef.current.x / tileW);
     const mr = Math.floor(mouseRef.current.y / tileH);
 
-    // масштаб + замены
+    // масштаб + запланированные замены
     const order = new Array(tiles.length);
     for (let i = 0; i < tiles.length; i++) {
       const tile = tiles[i];
       const ring = Math.max(Math.abs(tile.c - mc), Math.abs(tile.r - mr));
       order[i] = { idx: i, ring };
+
+      // Триггер звука «бульк», когда курсор ЗАХОДИТ на тайл (ring меняется на 0)
+      if (ring === 0 && tile.prevRing !== 0) {
+        const cx = (tile.c + 0.5) * tileW;
+        // панорама по X
+        playBubble(cx / Math.max(1, window.innerWidth));
+        tile.lastBloopAt = t;
+      }
+      tile.prevRing = ring;
 
       // целевой масштаб (+20% для тайла под курсором)
       let target = 1;
@@ -358,7 +554,7 @@ export default function MosaicBackground() {
       }
     }
 
-    // дальние кольца раньше
+    // дальние кольца раньше — центр поверх
     order.sort((a, b) => b.ring - a.ring);
 
     // рендер
@@ -386,9 +582,7 @@ export default function MosaicBackground() {
   }
 
   // -------- helpers --------
-  function randInt(min, max) {
-    return Math.floor(min + Math.random() * (max - min + 1));
-  }
+  function randInt(min, max) { return Math.floor(min + Math.random() * (max - min + 1)); }
 
   function drawCoverRounded(ctx, img, dx, dy, dw, dh, s = 1) {
     if (!img || !img.width || !img.height) return;
