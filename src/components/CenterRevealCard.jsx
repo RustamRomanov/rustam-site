@@ -1,7 +1,32 @@
 // src/components/CenterRevealCard.jsx
 import React, { useEffect, useRef, useState } from "react";
 
-/* === Лоадер-оверлей: MP4 === */
+/* ===========================
+   Утилиты
+=========================== */
+const useIsMobile = (bp = 768) => {
+  const [isMob, setIsMob] = useState(
+    typeof window !== "undefined" ? window.innerWidth <= bp : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${bp}px)`);
+    const h = (e) => setIsMob(e.matches);
+    if (mq.addEventListener) mq.addEventListener("change", h);
+    else mq.addListener(h);
+    setIsMob(mq.matches);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", h);
+      else mq.removeListener(h);
+    };
+  }, [bp]);
+  return isMob;
+};
+
+const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+
+/* ===========================
+   Лоадер-оверлей (как был)
+=========================== */
 function OverlayLoader() {
   const [visible, setVisible] = useState(true);
   const [fade, setFade] = useState(false);
@@ -67,7 +92,9 @@ function OverlayLoader() {
   );
 }
 
-/* === Соц-иконка (со звуком) === */
+/* ===========================
+   Соц-иконка (как была)
+=========================== */
 function IconLink({ href, whiteSrc, colorSrc, label, order = 0, open, onNotify, onPrime }) {
   const [hover, setHover] = useState(false);
   const delay = `${open ? order * 120 + 900 : 0}ms`;
@@ -109,48 +136,67 @@ function IconLink({ href, whiteSrc, colorSrc, label, order = 0, open, onNotify, 
   );
 }
 
-/* === Видео-оверлей — Vimeo === */
-function VideoOverlay({ open, onClose, vimeoId }) {
+/* ===========================
+   Видео-оверлей — Vimeo
+   (добавлен fullscreen для мобилы)
+=========================== */
+function VideoOverlay({ open, onClose, vimeoId, isMobile = false }) {
   if (!open) return null;
-  return (
-    <div
-      onClick={onClose}
-      style={{
+  const wrapStyle = isMobile
+    ? {
+        position: "fixed", inset: 0,
+        background: "#000",
+        zIndex: 2147486500,
+        display: "flex",
+        alignItems: "center", justifyContent: "center",
+      }
+    : {
         position: "fixed", inset: 0,
         background: "rgba(0,0,0,0.96)",
         zIndex: 2147484500, display: "flex",
         alignItems: "center", justifyContent: "center", padding: "3vw",
-      }}
-    >
+      };
+
+  const frameStyle = isMobile
+    ? { width: "100vw", height: "100vh", display: "block", background: "#000" }
+    : { width: "60vw", maxWidth: 1200, height: "60vh", display: "block", background: "#000" };
+
+  return (
+    <div onClick={onClose} style={wrapStyle}>
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "relative",
-          width: "60vw", maxWidth: 1200, maxHeight: "60vh",
-          borderRadius: 12, overflow: "hidden",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.55)",
+          width: isMobile ? "100vw" : "60vw",
+          maxWidth: isMobile ? "100vw" : 1200,
+          maxHeight: isMobile ? "100vh" : "60vh",
+          borderRadius: isMobile ? 0 : 12,
+          overflow: "hidden",
+          boxShadow: isMobile ? "none" : "0 20px 60px rgba(0,0,0,0.55)",
           background: "#000",
         }}
       >
-        <button
-          aria-label="Close"
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: -34, right: -8,
-            width: 34, height: 34, borderRadius: 999,
-            background: "rgba(0,0,0,0.55)",
-            border: "1px solid rgba(255,255,255,0.35)",
-            cursor: "pointer",
-            display: "grid", placeItems: "center",
-            boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
-            transition: "transform 120ms ease, background 160ms ease",
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block" }}>
-            <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
+        {!isMobile && (
+          <button
+            aria-label="Close"
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: -34, right: -8,
+              width: 34, height: 34, borderRadius: 999,
+              background: "rgba(0,0,0,0.55)",
+              border: "1px solid rgba(255,255,255,0.35)",
+              cursor: "pointer",
+              display: "grid", placeItems: "center",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+              transition: "transform 120ms ease, background 160ms ease",
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block" }}>
+              <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
 
         <iframe
           src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=0&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1`}
@@ -159,26 +205,24 @@ function VideoOverlay({ open, onClose, vimeoId }) {
           allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
           allowFullScreen
           referrerPolicy="no-referrer-when-downgrade"
-          style={{ width: "60vw", maxWidth: 1200, height: "60vh", display: "block", background: "#000" }}
+          style={frameStyle}
         />
       </div>
     </div>
   );
 }
 
-/* === BIO Overlay (обновлено) === */
-function BioOverlay({ open, onClose, imageSrc }) {
+/* ===========================
+   BIO Overlay (десктоп как был)
+=========================== */
+function BioOverlayDesktop({ open, onClose, imageSrc }) {
   const [tab, setTab] = useState("bio");
 
-  // refs для выравнивания правой границы текста по концу "ХАРАКТЕРИСТИКА"
   const rightColRef = useRef(null);
   const charBtnRef  = useRef(null);
   const [alignRightPx, setAlignRightPx] = useState(0);
-
-  // небольшая ручная подстройка (px), если надо отрезать ещё пару пикселей
   const manualRightTrim = 0;
 
-  // музыка при открытии BIO
   const audioRef = useRef(null);
   useEffect(() => {
     if (!open) return;
@@ -186,12 +230,11 @@ function BioOverlay({ open, onClose, imageSrc }) {
     if (a) {
       a.volume = 0.6;
       a.currentTime = 0;
-      a.play().catch(() => {}); // есть клик по "BIO", так что autoplay проходит
+      a.play().catch(() => {});
     }
     return () => { if (a) a.pause(); };
   }, [open]);
 
-  // пересчёт правого отступа текста под конец слова "ХАРАКТЕРИСТИКА"
   useEffect(() => {
     if (!rightColRef.current || !charBtnRef.current) return;
     const calc = () => {
@@ -231,7 +274,6 @@ function BioOverlay({ open, onClose, imageSrc }) {
 
 В своей карьере я приобрел значительный опыт работы с звездами и селебрити блогерами, что позволило мне развить уникальные навыки в области коммуникации с высокопрофильными личностями, работа с которыми требует уникального подхода.`;
 
-  // --- жирнение указанных фраз ---
   const phrasesToBold = [
     "Я родился 4 декабря 1980 г в Ульяновске",
     "Получилось",
@@ -253,7 +295,6 @@ function BioOverlay({ open, onClose, imageSrc }) {
     "глубокого понимания потребностей и ожиданий клиента.",
     "направлять и мотивировать",
     "значительный опыт работы с звездами и селебрити блогерами",
-    
   ];
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const boldify = (t) => {
@@ -265,17 +306,12 @@ function BioOverlay({ open, onClose, imageSrc }) {
     return out;
   };
 
-  // геометрия/типографика
   const inset = "clamp(10px, 1.2vw, 18px)";
   const headerFS = "clamp(12px, 1vw, 18px)";
   const leftPart = "40%";
   const textNudge = "8px";
-
-  // правый отступ заметно больше, чем было
   const padRightExtra = "clamp(12px, 2vw, 30px)";
-
-  // «пустая строка» между заголовками и текстом — увеличиваем зазор
-  const extraGapEm = 1.1; // визуально как пустая строка
+  const extraGapEm = 1.1;
 
   return (
     <div
@@ -302,7 +338,6 @@ function BioOverlay({ open, onClose, imageSrc }) {
           animation: "bioPop 280ms cubic-bezier(0.18,0.8,0.2,1) forwards",
         }}
       >
-        {/* Музыка (исправлен путь) */}
         <audio ref={audioRef} src="/rustam-site/assents/music/bio.mp3" preload="auto" />
 
         <img
@@ -320,7 +355,6 @@ function BioOverlay({ open, onClose, imageSrc }) {
           }}
         />
 
-        {/* Слой заголовков и текста — фото слева, текст справа */}
         <div
           style={{
             position: "absolute",
@@ -331,10 +365,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
             pointerEvents: "none",
           }}
         >
-          {/* Левая зона = фото */}
           <div style={{ width: leftPart, height: "100%" }} />
-
-          {/* Правая зона = заголовки + текст */}
           <div
             ref={rightColRef}
             style={{
@@ -346,7 +377,6 @@ function BioOverlay({ open, onClose, imageSrc }) {
               pointerEvents: "auto",
             }}
           >
-            {/* Табы */}
             <div
               style={{
                 position: "absolute",
@@ -395,12 +425,10 @@ function BioOverlay({ open, onClose, imageSrc }) {
               </button>
             </div>
 
-            {/* Текст: justify + вынесенный скролл */}
-            {/* Обёртка, чтобы вынести системный скролл за правую кромку изображения */}
             <div
               style={{
                 position: "absolute",
-                top: `calc(${inset} + (${headerFS} * ${2.2 + extraGapEm}))`, // добавил «пустую строку»
+                top: `calc(${inset} + (${headerFS} * ${2.2 + extraGapEm}))`,
                 bottom: `calc(${inset} + ${headerFS} * 1)`,
                 left: 0,
                 right: 0,
@@ -412,7 +440,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
                 style={{
                   position: "absolute",
                   top: 0, bottom: 0, left: 0,
-                  right: "-14px", // выносим нативный скролл на 14px наружу
+                  right: "-14px",
                   overflow: "auto",
                   paddingRight: `calc(${padRightExtra} + ${alignRightPx + manualRightTrim}px + 14px)`,
                   color: "#000",
@@ -429,13 +457,13 @@ function BioOverlay({ open, onClose, imageSrc }) {
                   pointerEvents: "auto",
                   background: "transparent",
                 }}
-                dangerouslySetInnerHTML={{ __html: tab === "bio" ? boldify(textBio) : boldify(textChar) }}
+                dangerouslySetInnerHTML={{ __html: (tab === "bio" ? textBio : textChar)
+                  .replace(/(Я родился 4 декабря 1980 г в Ульяновске|Получилось|Gazgolder|Тимати|Black Star|L’One — «Океан»|Doni feat\. Натали — «Ты такой»|Макса Коржа|Iowa|Pizza|Стаса Михайлова|Николая Баскова|Филиппа Киркорова\.?|200\+|более 2-х миллиардов просмотров|сотни артистов\.|глубокого понимания потребностей и ожиданий клиента\.|направлять и мотивировать|значительный опыт работы с звездами и селебрити блогерами)/g, "<strong>$1</strong>") }}
               />
             </div>
           </div>
         </div>
 
-        {/* Крестик */}
         <button
           aria-label="Close"
           onClick={onClose}
@@ -462,13 +490,230 @@ function BioOverlay({ open, onClose, imageSrc }) {
   );
 }
 
+/* ===========================
+   BIO Sheet (МОБИЛЬНАЯ шторка)
+   — на всю ширину, снизу от плашки
+=========================== */
+function BioSheetMobile({ open, onClose, anchorRect, imageSrc }) {
+  const [tab, setTab] = useState("bio");
+  const [ready, setReady] = useState(false);
+  const top = anchorRect ? Math.round(anchorRect.bottom + 8) : 140;
+  const height = `calc(100vh - ${top}px)`;
 
-/* === Главный компонент === */
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => setReady(true), 10);
+    return () => clearTimeout(t);
+  }, [open]);
+
+  if (!open) return null;
+
+  // тот же текст, что и на десктопе
+  const textBio = `Я родился 4 декабря 1980 г в Ульяновске.
+
+В конце 90-х я сделал свой первый клип. Камера Hi8, магнитофон и видеоплеер — как монтажный стол. Это была настоящая магия без компьютера.
+
+В 2009-м я переехал в Москву. Снимал рэп-клипы на «зеркалку» с горящими глазами и верой, что всё получится. Получилось. 
+
+В 2010 году я оказался в команде Gazgolder, а в 2011-м отправился с Бастой в тур по Америке. 
+
+В 2012-м я снял первый документальный фильм о Тимати. Так началась большая глава с Black Star, а вместе с ней и десятки громких клипов.
+
+2014 год стал переломным — клип L’One — «Океан» открыл для меня новые горизонты. А в 2015-м работа Doni feat. Натали — «Ты такой» побила все рекорды, став первым клипом в России, преодолевшим 100 млн просмотров на YouTube.
+
+Дальше — сотни проектов, работа с артистами разных жанров и масштабов: от Макса Коржа, Iowa, Pizza до Стаса Михайлова,   Николая Баскова и Филиппа Киркорова. 
+
+Сегодня мой багаж — 200+ проектов, более 2-х миллиардов просмотров и более сотни артистов.`;
+
+  const textChar = `Я считаю, что успешный проект зависит не только от визуального воплощения идеи, но и от глубокого понимания потребностей и ожиданий клиента. 
+
+Руководство командой - это прежде всего способности направлять и мотивировать людей для достижения общей цели. 
+
+В своей карьере я приобрел значительный опыт работы с звездами и селебрити блогерами, что позволило мне развить уникальные навыки в области коммуникации с высокопрофильными личностями, работа с которыми требует уникального подхода.`;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        left: 0, right: 0, top,
+        height,
+        zIndex: 2147485200,
+        background: "#000",
+        transform: ready ? "translateY(0)" : "translateY(12px)",
+        opacity: ready ? 1 : 0,
+        transition: "transform 360ms cubic-bezier(.2,1,.2,1), opacity 280ms ease",
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        overflow: "hidden",
+        boxShadow: "0 -16px 40px rgba(0,0,0,.5)",
+      }}
+    >
+      {/* фон bio.jpg, текст поверх справа как в десктопе, но во всю ширину */}
+      <div style={{ position: "relative", width: "100%", height: "100%" }}>
+        <img
+          src={imageSrc}
+          alt="bio"
+          style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%",
+            objectFit: "cover",
+            filter: "brightness(0.98)",
+          }}
+        />
+
+        {/* затемняющий градиент для читабельности справа */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(90deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.35) 55%, rgba(0,0,0,.55) 100%)"
+        }} />
+
+        {/* шапка/табы */}
+        <div style={{
+          position: "absolute", left: 16, right: 16, top: 12,
+          display: "flex", gap: 18, alignItems: "center", zIndex: 2
+        }}>
+          <button
+            onClick={() => setTab("bio")}
+            style={{
+              background: "transparent", border: "none", color: tab==="bio" ? "#E53935" : "#fff",
+              fontFamily: "UniSans-Heavy, system-ui", fontWeight: 800, letterSpacing: ".05em",
+              fontSize: 14, lineHeight: 1.2
+            }}
+          >БИОГРАФИЯ</button>
+          <button
+            onClick={() => setTab("char")}
+            style={{
+              background: "transparent", border: "none", color: tab==="char" ? "#E53935" : "#fff",
+              fontFamily: "UniSans-Heavy, system-ui", fontWeight: 800, letterSpacing: ".05em",
+              fontSize: 14, lineHeight: 1.2
+            }}
+          >ХАРАКТЕРИСТИКА</button>
+
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              marginLeft: "auto",
+              width: 32, height: 32, borderRadius: 999,
+              background: "rgba(0,0,0,0.5)",
+              border: "1px solid rgba(255,255,255,0.35)",
+              color: "#fff", display: "grid", placeItems: "center"
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {/* текстовый блок — отступ сверху под шапку, скролл, выравнивание по ширине */}
+        <div style={{
+          position: "absolute", left: 16, right: 16, top: 56, bottom: 16,
+          overflow: "auto", zIndex: 2
+        }}>
+          <div
+            lang="ru"
+            style={{
+              color: "#fff",
+              fontFamily: "Jura-Ofont, Jura, system-ui",
+              fontWeight: 400,
+              fontSize: 14,
+              lineHeight: 1.35,
+              whiteSpace: "pre-wrap",
+              textAlign: "justify",
+              textAlignLast: "left",
+              hyphens: "auto",
+              wordBreak: "normal",
+              overflowWrap: "anywhere",
+              paddingRight: 4
+            }}
+            dangerouslySetInnerHTML={{ __html: (tab === "bio" ? textBio : textChar)
+              .replace(/(Я родился 4 декабря 1980 г в Ульяновске|Получилось|Gazgolder|Тимати|Black Star|L’One — «Океан»|Doni feat\. Натали — «Ты такой»|Макса Коржа|Iowa|Pizza|Стаса Михайлова|Николая Баскова|Филиппа Киркорова\.?|200\+|более 2-х миллиардов просмотров|сотни артистов\.|глубокого понимания потребностей и ожиданий клиента\.|направлять и мотивировать|значительный опыт работы с звездами и селебрити блогерами)/g, "<strong>$1</strong>") }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===========================
+   Кружок с цифрой (как был)
+=========================== */
+function DotButton({ n, onClick, onHover, order = 0, active = false }) {
+  const [hover, setHover] = useState(false);
+  const RED = "#E53935";
+  const pulseDelay = `${order * 300}ms`;
+  const flyDelay   = `${order * 140}ms`;
+
+  return (
+    <>
+      <button
+        onClick={onClick}
+        onMouseEnter={() => { setHover(true); onHover?.(); }}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          width: 40, height: 40,
+          borderRadius: 999,
+          background: hover ? "rgba(229,57,53,0.65)" : "rgba(255,255,255,0.10)",
+          border: `1px solid ${hover ? RED : "rgba(255,255,255,0.28)"}`,
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          color: "#fff",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 16,
+          cursor: "pointer",
+
+          translate: active ? "0 0" : "0 14px",
+          scale: active ? (hover ? "1.3" : "1") : "0.88",
+          opacity: active ? 1 : 0,
+
+          transitionProperty: "translate, scale, opacity, background, border-color, box-shadow",
+          transitionTimingFunction: hover ? "cubic-bezier(.2,.9,.2,1.05)" : "cubic-bezier(.18,.8,.2,1)",
+          transitionDuration: hover ? "160ms" : "360ms",
+
+          animation: active
+            ? [
+                hover ? "none" : `dotPulse 1400ms ease-in-out ${pulseDelay} infinite`,
+                `dotFly 560ms cubic-bezier(.2,1,.2,1) ${flyDelay} both`
+              ].join(", ")
+            : "none",
+
+          boxShadow: hover ? "0 8px 24px rgba(229,57,53,0.35)" : "none",
+        }}
+      >
+        {n}
+      </button>
+
+      <style>{`
+        @keyframes dotFly {
+          0%   { translate: 0 12px; }
+          65%  { translate: 0 -14px; }
+          100% { translate: 0 0; }
+        }
+        @keyframes dotPulse {
+          0%,100% { background: rgba(229,57,53,0.22); border-color: rgba(229,57,53,0.40); }
+          50%     { background: rgba(229,57,53,0.60); border-color: rgba(229,57,53,0.85); }
+        }
+      `}</style>
+    </>
+  );
+}
+
+/* ===========================
+   ГЛАВНЫЙ КОМПОНЕНТ с ветвлением:
+   Desktop (как было) / Mobile (новое)
+=========================== */
 export default function CenterRevealCard() {
-  const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+  const isMobile = useIsMobile(768);
+  return isMobile ? <CenterRevealMobile /> : <CenterRevealDesktop />;
+}
+
+/* ---------- DESKTOP (исходная логика) ---------- */
+function CenterRevealDesktop() {
   const randColor = () => `hsl(${Math.floor(Math.random() * 360)}, 86%, 60%)`;
 
-  /* размеры главной плашки (-10% ширины) */
   const [baseWidth, setBaseWidth] = useState(420);
   const [height, setHeight] = useState(210);
   const width = Math.round(baseWidth * 0.9);
@@ -486,7 +731,6 @@ export default function CenterRevealCard() {
     return () => window.removeEventListener("resize", recalc);
   }, []);
 
-  /* центрирование */
   const rectRef = useRef({ left: 0, top: 0, right: 0, bottom: 0, w: 0, h: 0 });
   const updateRect = () => {
     const vw = window.innerWidth, vh = window.innerHeight;
@@ -501,7 +745,6 @@ export default function CenterRevealCard() {
     return () => window.removeEventListener("resize", h);
   }, []);
 
-  /* зоны открытия */
   const triggerRef = useRef({ w: 240, h: 150 });
   const isInRect = (x, y, r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
   const isInTrigger = (x, y) => {
@@ -528,7 +771,7 @@ export default function CenterRevealCard() {
     return () => document.removeEventListener("mousemove", onMove);
   }, []);
 
-  /* === AUDIO (синт-эффекты) === */
+  /* === AUDIO === */
   const audioCtxRef = useRef(null);
   const soundReadyRef = useRef(false);
   const getCtx = async () => {
@@ -603,7 +846,6 @@ export default function CenterRevealCard() {
     } catch {}
   };
 
-  /* строки и состояния */
   const nameStr = "RUSTAM ROMANOV";
   const dirStr  = "DIRECTOR'S SHOWREEL";
   const mapEnToRu = { R:"Р",U:"У",S:"С",T:"Т",A:"А",M:"М",O:"О",N:"Н",V:"В"," ":" " };
@@ -614,10 +856,8 @@ export default function CenterRevealCard() {
   const [dirColors,  setDirColors]  = useState(Array.from(dirStr).map(() => "#fff"));
   const [dirScale,   setDirScale]   = useState(Array.from(dirStr).map(() => false));
 
-  // BIO (маленькая строка между именем и соц-иконками)
   const [bioAllRu, setBioAllRu] = useState(false);
 
-  /* вылеты после открытия плашки */
   const [showDots, setShowDots] = useState(false);
   const [dotsMounted, setDotsMounted] = useState(false);
   const [showBioLine, setShowBioLine] = useState(false);
@@ -711,39 +951,34 @@ export default function CenterRevealCard() {
     animation: animate ? "springPop 220ms cubic-bezier(0.2,0.9,0.2,1)" : "none",
   });
 
-  // Vimeo
   const VIMEO_IDS = { 1: "1118465522", 2: "1118467509", 3: "1001147905" };
   const [playerOpen, setPlayerOpen] = useState(false);
   const [vimeoId, setVimeoId] = useState(null);
 
-  // BIO overlay
   const [bioOpen, setBioOpen] = useState(false);
 
-  // малое BIO между именем и соц-иконками
   const V_BIO_TOP = Math.round(directedFont * 3.6);
 
   return (
     <>
-      <div style={wrapperStyle}>
+      <div style={{ position: "fixed", inset: 0, zIndex: 2147483600, pointerEvents: "none" }}>
         <div id="hero-card" style={cardStyle}>
           <div style={contentBox}>
             <div style={centerRow}>
               <div style={headerWrap}>
-
-                {/* Кружки — поочерёдный вылет, пульс */}
                 <div
                   style={{
                     position: "absolute",
                     left: "50%",
                     top: -Math.max(86, Math.round(directedFont * 2.35)),
                     transform: "translateX(-50%)",
-                    opacity: showDots ? 1 : 0,
+                    opacity: open ? 1 : 0,
                     display: "flex",
                     gap: 16,
                     alignItems: "center",
                     justifyContent: "center",
                     padding: 4,
-                    pointerEvents: showDots ? "auto" : "none",
+                    pointerEvents: open ? "auto" : "none",
                     transition: "opacity 240ms ease",
                     zIndex: 3,
                   }}
@@ -753,16 +988,15 @@ export default function CenterRevealCard() {
                       key={n}
                       n={n}
                       order={idx}
-                      active={dotsMounted}
-                      onClick={() => { const ids={1:"1118465522",2:"1118467509",3:"1001147905"}; setVimeoId(ids[n]); setPlayerOpen(true); }}
-                      onHover={playNotify}
+                      active={open}
+                      onClick={() => { setVimeoId(VIMEO_IDS[n]); setPlayerOpen(true); }}
+                      onHover={() => {}}
                     />
                   ))}
                 </div>
 
-                {/* DIRECTOR'S SHOWREEL */}
                 <h2 style={directedStyle}>
-                  {Array.from(dirStr).map((ch, i) => (
+                  {Array.from("DIRECTOR'S SHOWREEL").map((ch, i) => (
                     <span
                       key={`d-${i}`}
                       onMouseEnter={async () => {
@@ -777,12 +1011,11 @@ export default function CenterRevealCard() {
                   ))}
                 </h2>
 
-                {/* Имя */}
                 <h1
                   onMouseLeave={() => {
-                    setNameColors(Array.from(nameStr).map(() => "#fff"));
-                    setNameScale(Array.from(nameStr).map(() => false));
-                    setNameChars(Array.from(nameStr));
+                    setNameColors(Array.from("RUSTAM ROMANOV").map(() => "#fff"));
+                    setNameScale(Array.from("RUSTAM ROMANOV").map(() => false));
+                    setNameChars(Array.from("RUSTAM ROMANOV"));
                   }}
                   style={titleStyle}
                 >
@@ -794,8 +1027,8 @@ export default function CenterRevealCard() {
                         const ns = [...nameScale];  ns[i] = true;        setNameScale(ns);
                         setNameChars(prev => {
                           const arr = [...prev];
-                          const base = nameStr[i] || ch;
-                          arr[i] = mapEnToRu[base] ?? base;
+                          const base = "RUSTAM ROMANOV"[i] || ch;
+                          arr[i] = { R:"Р",U:"У",S:"С",T:"Т",A:"А",M:"М",O:"О",N:"Н",V:"В"," ":" " }[base] ?? base;
                           return arr;
                         });
                         await playLetterClick();
@@ -807,145 +1040,218 @@ export default function CenterRevealCard() {
                   ))}
                 </h1>
 
-                {/* Малое BIO */}
                 <div
                   style={{
                     position: "absolute",
                     left: "50%",
                     top: V_BIO_TOP,
                     transform: "translateX(-50%)",
-                    opacity: showBioLine ? 1 : 0,
-                    pointerEvents: showBioLine ? "auto" : "none",
+                    opacity: open ? 1 : 0,
+                    pointerEvents: open ? "auto" : "none",
                     zIndex: 3,
                   }}
                 >
                   <h2
-                    onMouseEnter={async () => { setBioAllRu(true); await playNotify(); }}
-                    onMouseLeave={() => setBioAllRu(false)}
                     onClick={() => setBioOpen(true)}
                     style={{
                       ...directedStyle,
                       marginTop: 6,
                       cursor: "pointer",
-                      animation: showBioLine
-                        ? (bioMountedAnim ? "bioFly 560ms cubic-bezier(.2,1,.2,1) both" : "none")
-                        : "none",
-                      transform: bioAllRu ? "scale(1.5)" : "scale(1)",
-                      transition: "transform 160ms ease, color 160ms ease",
-                      color: bioAllRu ? "#E53935" : "#fff",
+                      opacity: open ? 1 : 0,
+                      filter: open ? "blur(0)" : "blur(10px)",
+                      translate: open ? "0 0" : "0 4px",
                     }}
                   >
-                    {bioAllRu ? "БИО" : "BIO"}
+                    BIO
                   </h2>
                 </div>
 
                 <style>{`
                   @keyframes springPop { 0% { transform: scale(0.9); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
-                  @keyframes bioFly { 0%{ transform: translateY(-16px); opacity:.0 } 70%{ transform: translateY(6px); opacity:1 } 100%{ transform: translateY(0); opacity:1 } }
                 `}</style>
               </div>
             </div>
 
-            {/* Соц-иконки */}
             <div id="social-hotzone" style={{ display: "flex", gap: 14, justifyContent: "center", alignItems: "center", marginTop: 6 }}>
               <IconLink
                 href="https://instagram.com/rustamromanov.ru"
                 label="Instagram"
                 whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
                 colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
-                order={0} open={open} onNotify={playNotify} onPrime={primeSound}
+                order={0} open={open} onNotify={()=>{}} onPrime={()=>{}}
               />
               <IconLink
                 href="https://t.me/rustamromanov"
                 label="Telegram"
                 whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
                 colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3"
-                order={1} open={open} onNotify={playNotify} onPrime={primeSound}
+                order={1} open={open} onNotify={()=>{}} onPrime={()=>{}}
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Vimeo */}
       <VideoOverlay
         open={playerOpen}
         onClose={() => { setPlayerOpen(false); setVimeoId(null); }}
         vimeoId={vimeoId}
+        isMobile={false}
       />
 
-      {/* BIO Overlay */}
-      <BioOverlay
+      <BioOverlayDesktop
         open={bioOpen}
         onClose={() => setBioOpen(false)}
         imageSrc="/rustam-site/assents/foto/bio.jpg"
       />
 
-      {/* Лоадер */}
       <OverlayLoader />
     </>
   );
 }
 
-/* === Кружок с цифрой === */
-function DotButton({ n, onClick, onHover, order = 0, active = false }) {
-  const [hover, setHover] = useState(false);
-  const RED = "#E53935";
-  const pulseDelay = `${order * 300}ms`;
-  const flyDelay   = `${order * 140}ms`;
+/* ---------- MOBILE (новая логика) ---------- */
+function CenterRevealMobile() {
+  const [size, setSize] = useState(220); // сторона квадрата
+  const [top, setTop]   = useState(0);
+  const [left, setLeft] = useState(0);
+
+  const cardRef = useRef(null);
+  const [cardRect, setCardRect] = useState(null);
+
+  // квадратик немного выше центра, всегда виден
+  useEffect(() => {
+    const recalc = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const s  = Math.round(Math.min(vw * 0.7, vh * 0.42)); // квадрат
+      const t  = Math.round(vh / 2 - s / 2 - vh * 0.06);    // чуть выше центра (~6vh)
+      const l  = Math.round(vw / 2 - s / 2);
+      setSize(s); setTop(t); setLeft(l);
+      setTimeout(() => {
+        if (cardRef.current) setCardRect(cardRef.current.getBoundingClientRect());
+      }, 0);
+    };
+    recalc();
+    window.addEventListener("resize", recalc);
+    return () => window.removeEventListener("resize", recalc);
+  }, []);
+
+  // кружочки — всегда активны с вылетом при маунте
+  const [dotsMounted, setDotsMounted] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setDotsMounted(true), 400);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Vimeo
+  const VIMEO_IDS = { 1: "1118465522", 2: "1118467509", 3: "1001147905" };
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [vimeoId, setVimeoId] = useState(null);
+
+  // BIO шторка
+  const [bioOpen, setBioOpen] = useState(false);
 
   return (
     <>
-      <button
-        onClick={onClick}
-        onMouseEnter={() => { setHover(true); onHover?.(); }}
-        onMouseLeave={() => setHover(false)}
+      <div
+        ref={cardRef}
         style={{
-          width: 40, height: 40,
-          borderRadius: 999,
-          background: hover ? "rgba(229,57,53,0.65)" : "rgba(255,255,255,0.10)",
-          border: `1px solid ${hover ? RED : "rgba(255,255,255,0.28)"}`,
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-          color: "#fff",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 16,
-          cursor: "pointer",
-
-          translate: active ? "0 0" : "0 14px",
-          scale: active ? (hover ? "1.3" : "1") : "0.88",
-          opacity: active ? 1 : 0,
-
-          transitionProperty: "translate, scale, opacity, background, border-color, box-shadow",
-          transitionTimingFunction: hover ? "cubic-bezier(.2,.9,.2,1.05)" : "cubic-bezier(.18,.8,.2,1)",
-          transitionDuration: hover ? "160ms" : "360ms",
-
-          animation: active
-            ? [
-                hover ? "none" : `dotPulse 1400ms ease-in-out ${pulseDelay} infinite`,
-                `dotFly 560ms cubic-bezier(.2,1,.2,1) ${flyDelay} both`
-              ].join(", ")
-            : "none",
-
-          boxShadow: hover ? "0 8px 24px rgba(229,57,53,0.35)" : "none",
+          position: "fixed",
+          left, top, width: size, height: size,
+          zIndex: 2147483600,
+          background: "rgba(255,255,255,0.08)",
+          WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)",
+          borderRadius: 16, overflow: "hidden",
+          border: "1px solid rgba(255,255,255,0.18)",
+          boxShadow: "0 10px 26px rgba(0,0,0,0.28)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#fff", fontFamily: "UniSans-Heavy, system-ui", pointerEvents: "auto"
         }}
       >
-        {n}
-      </button>
+        {/* Кружки — над квадратом */}
+        <div
+          style={{
+            position: "absolute",
+            left: "50%", top: -56,
+            transform: "translateX(-50%)",
+            display: "flex", gap: 12,
+          }}
+        >
+          {[1,2,3].map((n, idx) => (
+            <DotButton
+              key={n}
+              n={n}
+              order={idx}
+              active={dotsMounted}
+              onClick={() => { setVimeoId(VIMEO_IDS[n]); setPlayerOpen(true); }}
+              onHover={() => {}}
+            />
+          ))}
+        </div>
 
-      <style>{`
-        @keyframes dotFly {
-          0%   { translate: 0 12px; }
-          65%  { translate: 0 -14px; }
-          100% { translate: 0 0; }
-        }
-        @keyframes dotPulse {
-          0%,100% { background: rgba(229,57,53,0.22); border-color: rgba(229,57,53,0.40); }
-          50%     { background: rgba(229,57,53,0.60); border-color: rgba(229,57,53,0.85); }
-        }
-      `}</style>
+        {/* Титры внутри квадрата */}
+        <div style={{ textAlign: "center" }}>
+          <div style={{
+            fontSize: 12, letterSpacing: ".08em", opacity: .95, marginBottom: 6
+          }}>DIRECTOR'S SHOWREEL</div>
+          <div style={{
+            fontSize: 18, letterSpacing: ".02em", fontWeight: 600
+          }}>RUSTAM ROMANOV</div>
+
+          {/* BIO — всегда на экране, по тапу — шторка снизу */}
+          <button
+            onClick={() => setBioOpen(true)}
+            style={{
+              marginTop: 8,
+              fontSize: 14,
+              color: "#fff",
+              background: "transparent",
+              border: "1px solid rgba(255,255,255,0.4)",
+              padding: "6px 10px",
+              borderRadius: 999
+            }}
+          >
+            BIO
+          </button>
+
+          {/* соц-иконки */}
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 10 }}>
+            <IconLink
+              href="https://instagram.com/rustamromanov.ru"
+              label="Instagram"
+              whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
+              colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
+              order={0} open={true}
+            />
+            <IconLink
+              href="https://t.me/rustamromanov"
+              label="Telegram"
+              whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
+              colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3"
+              order={1} open={true}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Vimeo — полноэкранно на мобиле */}
+      <VideoOverlay
+        open={playerOpen}
+        onClose={() => { setPlayerOpen(false); setVimeoId(null); }}
+        vimeoId={vimeoId}
+        isMobile={true}
+      />
+
+      {/* BIO шторка снизу, ширина 100% */}
+      <BioSheetMobile
+        open={bioOpen}
+        onClose={() => setBioOpen(false)}
+        anchorRect={cardRect}
+        imageSrc="/rustam-site/assents/foto/bio.jpg"
+      />
+
+      <OverlayLoader />
     </>
   );
 }
