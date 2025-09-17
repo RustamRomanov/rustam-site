@@ -21,6 +21,8 @@ const CLICK_MULT = 2.0;               // клик → ×2 и заморозка
 /** Мобильный режим */
 const MOBILE_BREAKPOINT = 768;
 const HOVER_BOOST_MOBILE = 1.10;
+/** Сколько картинок прелоадим на мобайле максимум */
+const MOBILE_MAX_IMAGES = 140;
 
 /** Путь к изображениям */
 const BASE = "/rustam-site/assents/images/";
@@ -291,8 +293,8 @@ export default function MosaicBackground() {
     // маршрутизация
     const srcSum = ctx.createGain();
 
-    const chainPing = ping.connect(pingGain).connect(srcSum);
-    const chainSpark = sparkle.connect(sparkGain).connect(srcSum);
+    ping.connect(pingGain).connect(srcSum);
+    sparkle.connect(sparkGain).connect(srcSum);
     noise.connect(bp).connect(hitGain).connect(srcSum);
 
     srcSum.connect(hs).connect(pannerDry).connect(dryGain).connect(master);
@@ -331,13 +333,18 @@ export default function MosaicBackground() {
         if (res.ok) {
           const data = await res.json();
           const list = Array.isArray(data?.jpg) ? data.jpg : [];
-          const found = list.map((n) => `${BASE}${n}`);
+          // ограничим пул на мобилке
+          const sliced = (window.innerWidth <= MOBILE_BREAKPOINT)
+            ? list.slice(0, MOBILE_MAX_IMAGES)
+            : list;
+          const found = sliced.map((n) => `${BASE}${n}`);
           if (!stop) { setUrls(found); return; }
         }
       } catch {}
-      // Фоллбек: img1.jpg.. пока не 404
+      // Фоллбек: img1.jpg.. пока не 404 (с ограничением на мобайле)
       const found = [];
-      for (let i = 1; i <= 2000 && !stop; i++) {
+      const limit = (window.innerWidth <= MOBILE_BREAKPOINT) ? MOBILE_MAX_IMAGES : 2000;
+      for (let i = 1; i <= limit && !stop; i++) {
         const u = `${BASE}img${i}.jpg`;
         try {
           const head = await fetch(u, { method: "HEAD", cache: "no-store" });
@@ -357,13 +364,14 @@ export default function MosaicBackground() {
     ctxRef.current = ctx;
 
     const resize = () => {
-      const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+      // На мобилке — DPR=1 (меньше пикселей -> легче рендер/память)
+      const wantDpr = (window.innerWidth <= MOBILE_BREAKPOINT) ? 1 : Math.max(1, Math.min(3, window.devicePixelRatio || 1));
       const w = window.innerWidth, h = window.innerHeight;
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      canvas.width = Math.floor(w * wantDpr);
+      canvas.height = Math.floor(h * wantDpr);
+      ctx.setTransform(wantDpr, 0, 0, wantDpr, 0, 0);
 
       let cols, rows, tileW, tileH;
 
@@ -434,6 +442,7 @@ export default function MosaicBackground() {
           }, 0);
         }
       };
+      // кэш-брейкер
       img.src = u + (u.includes("?") ? "&" : "?") + "v=" + Date.now();
     });
 
@@ -595,7 +604,7 @@ export default function MosaicBackground() {
     const hoveredId = (mc >= 0 && mr >= 0) ? (mr * cols + mc) : -1;
     hoveredTileIdRef.current = hoveredId;
 
-    // НАПРАВЛЕННЫЙ ЗВУК: срабатывает при смене центрального тайла
+    // НАПРАВЛЕННЫЙ ЗВУК: при смене центрального тайла
     if (hoveredId !== prevHoverIdRef.current && hoveredId >= 0) {
       const pan = cols > 1 ? ((mc / (cols - 1)) * 2 - 1) : 0;
       const prevCol = prevHoverColRef.current >= 0 ? prevHoverColRef.current : mc;
@@ -732,6 +741,7 @@ export default function MosaicBackground() {
   };
 
   const onMouseLeave = () => {
+    // курсор ушёл — «ховер» сбрасываем
     mouseRef.current = { x: -1e6, y: -1e6 };
     const ct = clickedTileIdRef.current;
     if (ct >= 0) {
@@ -743,7 +753,7 @@ export default function MosaicBackground() {
     prevHoverColRef.current = -1;
   };
 
-  // Клик — увеличить текущий тайл и заморозить
+  // Клик — увеличить текущий тайл и заморозить (десктоп)
   const onClick = () => {
     const tiles = tilesRef.current;
     const { cols, tileW, tileH } = gridRef.current;
@@ -781,6 +791,11 @@ export default function MosaicBackground() {
 
   const onPointerUp = () => {
     pointerActiveRef.current = false;
+    // === КЛЮЧЕВАЯ ПРАВКА: палец убран — ховер сбрасываем,
+    // плитки плавно возвращаются к масштабу 1
+    mouseRef.current = { x: -1e6, y: -1e6 };
+    prevHoverIdRef.current = -1;
+    prevHoverColRef.current = -1;
   };
 
   return (
