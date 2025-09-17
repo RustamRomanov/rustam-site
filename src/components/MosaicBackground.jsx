@@ -18,6 +18,10 @@ const HOVER_BOOST = 1.2;
 const CENTER_15_PERCENT_LESS = 0.85; // центр на 15% меньше чем раньше
 const CLICK_MULT = 2.0;               // клик → ×2 и заморозка
 
+/** Мобильный режим */
+const MOBILE_BREAKPOINT = 768;
+const HOVER_BOOST_MOBILE = 1.10;
+
 /** Путь к изображениям */
 const BASE = "/rustam-site/assents/images/";
 
@@ -54,6 +58,26 @@ export default function MosaicBackground() {
 
   const readySentRef = useRef(false);
 
+  /** ======== MOBILE FLAG + body scroll lock ======== */
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= MOBILE_BREAKPOINT : false);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [isMobile]);
+
   /* ===================== AUDIO: направленный «ш-ш-ш» с эхом ===================== */
   const audioCtxRef    = useRef(null);
   const convolverRef   = useRef(null);
@@ -88,23 +112,21 @@ export default function MosaicBackground() {
     }
   };
 
-  // Импульс реверба — «зал» с длинным хвостом, но с мягким затуханием
-const makeReverbIR = (ctx, seconds = 3.4, decay = 3.8) => {
-  const rate = ctx.sampleRate;
-  const length = Math.max(1, Math.floor(seconds * rate));
-  const ir = ctx.createBuffer(2, length, rate);
-  for (let ch = 0; ch < 2; ch++) {
-    const data = ir.getChannelData(ch);
-    for (let i = 0; i < length; i++) {
-      const t = i / length;
-      // чуть «зернистее» и медленнее затухание — длинный зал
-      const g = (Math.random() * 2 - 1) * (1 - 0.1 * Math.random());
-      data[i] = g * Math.pow(1 - t, decay);
+  // Импульс реверба
+  const makeReverbIR = (ctx, seconds = 2.8, decay = 3.3) => {
+    const rate = ctx.sampleRate;
+    const length = Math.max(1, Math.floor(seconds * rate));
+    const ir = ctx.createBuffer(2, length, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = ir.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        const t = i / length;
+        const g = (Math.random() * 2 - 1) * (1 - 0.1 * Math.random());
+        data[i] = g * Math.pow(1 - t, decay);
+      }
     }
-  }
-  return ir;
-};
-
+    return ir;
+  };
 
   const ensureConvolver = async () => {
     const ctx = await getCtx();
@@ -165,169 +187,140 @@ const makeReverbIR = (ctx, seconds = 3.4, decay = 3.8) => {
   }, []);
 
   /**
-   * Новый звук: «шипящая вспышка» + направленное стерео-эхо и реверб.
-   * pan ∈ [-1..+1]: -1 слева, +1 справа (по колонке курсора).
-   * dir ∈ [-1..+1]: -1 курсор идёт влево по колонкам, +1 — вправо (чуть меняем тайминги/тон).
+   * Звук: «шипящая вспышка» + ping-pong delay + реверб, с панорамой по колонке
    */
-// ЗАМЕНИ ЭТУ ФУНКЦИЮ
-const playDirectionalAir = async (strength = 1, pan = 0, dir = 0) => {
-  const nowMs = performance.now();
-  if (nowMs - lastSoundAtRef.current < SOUND_MIN_GAP_MS) return;
-  lastSoundAtRef.current = nowMs;
+  const playDirectionalAir = async (strength = 1, pan = 0, dir = 0) => {
+    const nowMs = performance.now();
+    if (nowMs - lastSoundAtRef.current < SOUND_MIN_GAP_MS) return;
+    lastSoundAtRef.current = nowMs;
 
-  const ctx = await getCtx(); if (!ctx) return;
-  const conv = await ensureConvolver();
-  const comp = masterCompRef.current;
-  const t0 = ctx.currentTime;
+    const ctx = await getCtx(); if (!ctx) return;
+    const conv = await ensureConvolver();
+    const comp = masterCompRef.current;
+    const t0 = ctx.currentTime;
 
-  // громкость: чуть больше на краях и при сильном наведении
-  const edgeBoost = 0.35 + 0.65 * Math.abs(pan);
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0.0001, t0);
-  const peak = (0.6 + 0.35 * strength) * edgeBoost;
-  master.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
-  master.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
+    const edgeBoost = 0.35 + 0.65 * Math.abs(pan);
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, t0);
+    const peak = (0.6 + 0.35 * strength) * edgeBoost;
+    master.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
+    master.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
 
-  // ===== «капля»: тональный пинг с лёгким глиссандо + искра =====
-  // базовая частота: правее — выше, при движении вправо — небольшой подъём
-  const baseHz = 1700 + 700 * Math.max(0, pan) + 200 * dir * Math.abs(pan);
-  const ping = ctx.createOscillator();
-  ping.type = "sine";
-  ping.frequency.setValueAtTime(baseHz + 350, t0);
-  ping.frequency.exponentialRampToValueAtTime(Math.max(400, baseHz), t0 + 0.12); // лёгкое «падение»
+    const baseHz = 1700 + 700 * Math.max(0, pan) + 200 * dir * Math.abs(pan);
+    const ping = ctx.createOscillator();
+    ping.type = "sine";
+    ping.frequency.setValueAtTime(baseHz + 350, t0);
+    ping.frequency.exponentialRampToValueAtTime(Math.max(400, baseHz), t0 + 0.12);
 
-  // второй, более высокий «блик»
-  const sparkle = ctx.createOscillator();
-  sparkle.type = "sine";
-  sparkle.frequency.setValueAtTime((baseHz * 2.02), t0);
-  sparkle.frequency.exponentialRampToValueAtTime((baseHz * 1.6), t0 + 0.09);
+    const sparkle = ctx.createOscillator();
+    sparkle.type = "sine";
+    sparkle.frequency.setValueAtTime((baseHz * 2.02), t0);
+    sparkle.frequency.exponentialRampToValueAtTime((baseHz * 1.6), t0 + 0.09);
 
-  // огибающие
-  const pingGain = ctx.createGain();
-  pingGain.gain.setValueAtTime(0.0001, t0);
-  pingGain.gain.exponentialRampToValueAtTime(1.0, t0 + 0.008);
-  pingGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+    const pingGain = ctx.createGain();
+    pingGain.gain.setValueAtTime(0.0001, t0);
+    pingGain.gain.exponentialRampToValueAtTime(1.0, t0 + 0.008);
+    pingGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
 
-  const sparkGain = ctx.createGain();
-  sparkGain.gain.setValueAtTime(0.0001, t0);
-  sparkGain.gain.exponentialRampToValueAtTime(0.45, t0 + 0.006);
-  sparkGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+    const sparkGain = ctx.createGain();
+    sparkGain.gain.setValueAtTime(0.0001, t0);
+    sparkGain.gain.exponentialRampToValueAtTime(0.45, t0 + 0.006);
+    sparkGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
 
-  // небольшая «капля-удар» — короткий шум через узкий бэндпасс
-  const noise = ctx.createBufferSource();
-  const nLen = Math.floor(ctx.sampleRate * 0.06);
-  const nBuf = ctx.createBuffer(1, nLen, ctx.sampleRate);
-  const nd = nBuf.getChannelData(0);
-  for (let i = 0; i < nLen; i++) nd[i] = (Math.random()*2-1) * (1 - i / nLen);
-  noise.buffer = nBuf;
+    const noise = ctx.createBufferSource();
+    const nLen = Math.floor(ctx.sampleRate * 0.06);
+    const nBuf = ctx.createBuffer(1, nLen, ctx.sampleRate);
+    const nd = nBuf.getChannelData(0);
+    for (let i = 0; i < nLen; i++) nd[i] = (Math.random()*2-1) * (1 - i / nLen);
+    noise.buffer = nBuf;
 
-  const bp = ctx.createBiquadFilter();
-  bp.type = "bandpass";
-  bp.frequency.setValueAtTime(baseHz, t0);
-  bp.Q.setValueAtTime(12, t0); // звонкость
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.setValueAtTime(baseHz, t0);
+    bp.Q.setValueAtTime(12, t0);
 
-  const hitGain = ctx.createGain();
-  hitGain.gain.setValueAtTime(0.0001, t0);
-  hitGain.gain.exponentialRampToValueAtTime(0.35, t0 + 0.004);
-  hitGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.08);
+    const hitGain = ctx.createGain();
+    hitGain.gain.setValueAtTime(0.0001, t0);
+    hitGain.gain.exponentialRampToValueAtTime(0.35, t0 + 0.004);
+    hitGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.08);
 
-  // high-shelf — блеск
-  const hs = ctx.createBiquadFilter();
-  hs.type = "highshelf";
-  hs.frequency.setValueAtTime(6000, t0);
-  hs.gain.setValueAtTime(7 + 3 * Math.abs(pan), t0);
+    const hs = ctx.createBiquadFilter();
+    hs.type = "highshelf";
+    hs.frequency.setValueAtTime(6000, t0);
+    hs.gain.setValueAtTime(7 + 3 * Math.abs(pan), t0);
 
-  // панорама: правее колонка — правее звук
-  const pannerDry = ctx.createStereoPanner();
-  pannerDry.pan.setValueAtTime(pan * 0.95, t0);
+    const pannerDry = ctx.createStereoPanner();
+    pannerDry.pan.setValueAtTime(pan * 0.95, t0);
 
-  // ===== ДЛИННЫЙ ping-pong delay (звонкий), шире =====
-  const delayL = ctx.createDelay(2.5);
-  const delayR = ctx.createDelay(2.5);
-  const baseL = 0.24 + 0.04 * (dir < 0 ? 1 : 0);
-  const baseR = 0.32 + 0.04 * (dir > 0 ? 1 : 0);
-  delayL.delayTime.setValueAtTime(baseL, t0);
-  delayR.delayTime.setValueAtTime(baseR, t0);
+    const delayL = ctx.createDelay(2.5);
+    const delayR = ctx.createDelay(2.5);
+    const baseL = 0.24 + 0.04 * (dir < 0 ? 1 : 0);
+    const baseR = 0.32 + 0.04 * (dir > 0 ? 1 : 0);
+    delayL.delayTime.setValueAtTime(baseL, t0);
+    delayR.delayTime.setValueAtTime(baseR, t0);
 
-  const fbL = ctx.createGain();
-  const fbR = ctx.createGain();
-  const sideBoostL = 0.55 + 0.18 * Math.max(0, -pan);
-  const sideBoostR = 0.55 + 0.18 * Math.max(0,  pan);
-  fbL.gain.setValueAtTime(sideBoostL, t0);
-  fbR.gain.setValueAtTime(sideBoostR, t0);
+    const fbL = ctx.createGain();
+    const fbR = ctx.createGain();
+    const sideBoostL = 0.55 + 0.18 * Math.max(0, -pan);
+    const sideBoostR = 0.55 + 0.18 * Math.max(0,  pan);
+    fbL.gain.setValueAtTime(sideBoostL, t0);
+    fbR.gain.setValueAtTime(sideBoostR, t0);
 
-  // демпферы в петле — высокий срез, чтобы хвост звенел
-  const lpL = ctx.createBiquadFilter();
-  lpL.type = "lowpass"; lpL.frequency.setValueAtTime(7500, t0);
-  const lpR = ctx.createBiquadFilter();
-  lpR.type = "lowpass"; lpR.frequency.setValueAtTime(7500, t0);
+    const lpL = ctx.createBiquadFilter();
+    lpL.type = "lowpass"; lpL.frequency.setValueAtTime(7500, t0);
+    const lpR = ctx.createBiquadFilter();
+    lpR.type = "lowpass"; lpR.frequency.setValueAtTime(7500, t0);
 
-  // пан мокрого шире
-  const panWetL = ctx.createStereoPanner();
-  const panWetR = ctx.createStereoPanner();
-  panWetL.pan.setValueAtTime(-0.65 + 0.25 * pan, t0);
-  panWetR.pan.setValueAtTime( 0.65 + 0.25 * pan, t0);
+    const panWetL = ctx.createStereoPanner();
+    const panWetR = ctx.createStereoPanner();
+    panWetL.pan.setValueAtTime(-0.65 + 0.25 * pan, t0);
+    panWetR.pan.setValueAtTime( 0.65 + 0.25 * pan, t0);
 
-  const dryGain = ctx.createGain();
-  dryGain.gain.setValueAtTime(0.7, t0);
-  const wetGain = ctx.createGain();
-  wetGain.gain.setValueAtTime(0.62, t0); // больше мокрого — «капля» тянется эхом
+    const dryGain = ctx.createGain();
+    dryGain.gain.setValueAtTime(0.7, t0);
+    const wetGain = ctx.createGain();
+    wetGain.gain.setValueAtTime(0.62, t0);
 
-  // реверб: немного, чтобы не «замыливать» атаку
-  let revMix = null;
-  if (convolverRef.current) {
-    revMix = ctx.createGain();
-    revMix.gain.setValueAtTime(0.28 + 0.12 * Math.abs(pan), t0);
-    convolverRef.current.connect(revMix).connect(master);
-  }
+    let revMix = null;
+    if (convolverRef.current) {
+      revMix = ctx.createGain();
+      revMix.gain.setValueAtTime(0.28 + 0.12 * Math.abs(pan), t0);
+      convolverRef.current.connect(revMix).connect(master);
+    }
 
-  // ===== маршрутизация =====
-  ping.connect(pingGain);
-  sparkle.connect(sparkGain);
-  noise.connect(bp).connect(hitGain);
+    // маршрутизация
+    const srcSum = ctx.createGain();
 
-  const srcSum = ctx.createGain();
-  pingGain.connect(srcSum);
-  sparkGain.connect(srcSum);
-  hitGain.connect(srcSum);
+    const chainPing = ping.connect(pingGain).connect(srcSum);
+    const chainSpark = sparkle.connect(sparkGain).connect(srcSum);
+    noise.connect(bp).connect(hitGain).connect(srcSum);
 
-  // блеск + пан → dry
-  srcSum.connect(hs).connect(pannerDry).connect(dryGain).connect(master);
+    srcSum.connect(hs).connect(pannerDry).connect(dryGain).connect(master);
 
-  // в задержки
-  srcSum.connect(delayL);
-  srcSum.connect(delayR);
+    srcSum.connect(delayL);
+    srcSum.connect(delayR);
+    delayL.connect(lpL).connect(fbL).connect(delayR);
+    delayR.connect(lpR).connect(fbR).connect(delayL);
+    delayL.connect(panWetL).connect(wetGain);
+    delayR.connect(panWetR).connect(wetGain);
+    wetGain.connect(master);
 
-  // кросс-фидбэк L↔R через фильтры
-  delayL.connect(lpL).connect(fbL).connect(delayR);
-  delayR.connect(lpR).connect(fbR).connect(delayL);
+    if (convolverRef.current && revMix) {
+      srcSum.connect(convolverRef.current);
+      delayL.connect(convolverRef.current);
+      delayR.connect(convolverRef.current);
+    }
 
-  // выход задержек → мокрый (с широкой панорамой)
-  delayL.connect(panWetL).connect(wetGain);
-  delayR.connect(panWetR).connect(wetGain);
-  wetGain.connect(master);
+    if (comp) master.connect(comp); else master.connect(ctx.destination);
 
-  // реверб посылаем и исходник, и задержки
-  if (convolverRef.current && revMix) {
-    srcSum.connect(convolverRef.current);
-    delayL.connect(convolverRef.current);
-    delayR.connect(convolverRef.current);
-  }
+    ping.start(t0);
+    sparkle.start(t0 + 0.002);
+    noise.start(t0);
 
-  // master → comp → out
-  if (comp) master.connect(comp); else master.connect(ctx.destination);
-
-  // старт/стоп
-  ping.start(t0);
-  sparkle.start(t0 + 0.002);
-  noise.start(t0);
-
-  ping.stop(t0 + 0.24);
-  sparkle.stop(t0 + 0.16);
-  noise.stop(t0 + 0.08);
-};
-
-
+    ping.stop(t0 + 0.24);
+    sparkle.stop(t0 + 0.16);
+    noise.stop(t0 + 0.08);
+  };
 
   /* ===================== 1) Список файлов ===================== */
   useEffect(() => {
@@ -372,10 +365,21 @@ const playDirectionalAir = async (strength = 1, pan = 0, dir = 0) => {
       canvas.height = Math.floor(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const cols = Math.max(1, Math.ceil(w / BASE_TILE_W));
-      const rows = Math.max(1, Math.ceil(h / BASE_TILE_H));
-      const tileW = Math.ceil(w / cols);
-      const tileH = Math.ceil(h / rows);
+      let cols, rows, tileW, tileH;
+
+      if (window.innerWidth <= MOBILE_BREAKPOINT) {
+        // === МОБИЛЬНАЯ СЕТКА: 8 колонок, высота из 16:9, рядов — сколько влезет ===
+        cols = 8;
+        tileW = Math.floor(w / cols);
+        tileH = Math.max(1, Math.floor(tileW * 9 / 16));
+        rows = Math.ceil(h / tileH) + 1;
+      } else {
+        // === ДЕСКТОП: как было (адаптивно) ===
+        cols = Math.max(1, Math.ceil(w / BASE_TILE_W));
+        rows = Math.max(1, Math.ceil(h / BASE_TILE_H));
+        tileW = Math.ceil(w / cols);
+        tileH = Math.ceil(h / rows);
+      }
 
       gridRef.current = { cols, rows, tileW, tileH };
       initTiles(true);
@@ -593,27 +597,26 @@ const playDirectionalAir = async (strength = 1, pan = 0, dir = 0) => {
 
     // НАПРАВЛЕННЫЙ ЗВУК: срабатывает при смене центрального тайла
     if (hoveredId !== prevHoverIdRef.current && hoveredId >= 0) {
-      // pan по колонке: -1 слева, +1 справа
       const pan = cols > 1 ? ((mc / (cols - 1)) * 2 - 1) : 0;
-      // направление движения по колонкам: -1 влево, +1 вправо
       const prevCol = prevHoverColRef.current >= 0 ? prevHoverColRef.current : mc;
       const dir = Math.max(-1, Math.min(1, mc - prevCol));
       prevHoverColRef.current = mc;
 
-      // сила — ближе к центру тайла чуть сильнее
       const tx = (hoveredId % cols) * tileW + tileW / 2;
       const ty = Math.floor(hoveredId / cols) * tileH + tileH / 2;
       const dx = Math.abs(mouseRef.current.x - tx) / (tileW / 2);
       const dy = Math.abs(mouseRef.current.y - ty) / (tileH / 2);
       const dist = Math.min(1, Math.hypot(dx, dy));
-      const strength = 1 - 0.6 * dist; // 1…0.4
+      const strength = 1 - 0.6 * dist;
 
       playDirectionalAir(strength, pan, dir);
       prevHoverIdRef.current = hoveredId;
     }
 
     // масштаб + смены
+    const HOVER_MUL = isMobile ? HOVER_BOOST_MOBILE : HOVER_BOOST;
     const order = new Array(tiles.length);
+
     for (let i = 0; i < tiles.length; i++) {
       const tile = tiles[i];
 
@@ -623,7 +626,7 @@ const playDirectionalAir = async (strength = 1, pan = 0, dir = 0) => {
       order[i] = { idx: i, ring };
 
       let target = 1;
-      if (ring === 0)       target = (RING_SCALES[0] * HOVER_BOOST) * CENTER_15_PERCENT_LESS;
+      if (ring === 0)       target = (RING_SCALES[0] * HOVER_MUL) * CENTER_15_PERCENT_LESS;
       else if (ring === 1)  target = RING_SCALES[1];
       else if (ring === 2)  target = RING_SCALES[2];
       else if (ring === 3)  target = RING_SCALES[3];
@@ -722,7 +725,7 @@ const playDirectionalAir = async (strength = 1, pan = 0, dir = 0) => {
     ctx.closePath();
   }
 
-  /* ===================== события мыши ===================== */
+  /* ===================== события мыши (десктоп) ===================== */
   const onMouseMove = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -760,13 +763,38 @@ const playDirectionalAir = async (strength = 1, pan = 0, dir = 0) => {
     }
   };
 
+  /* ===================== pointer (палец на мобиле) ===================== */
+  const pointerActiveRef = useRef(false);
+
+  const onPointerDown = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    pointerActiveRef.current = true;
+    canvasRef.current.setPointerCapture?.(e.pointerId);
+  };
+
+  const onPointerMove = (e) => {
+    if (isMobile && pointerActiveRef.current && e.cancelable) e.preventDefault();
+    const rect = canvasRef.current.getBoundingClientRect();
+    mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const onPointerUp = () => {
+    pointerActiveRef.current = false;
+  };
+
   return (
     <canvas
       ref={canvasRef}
       className="mosaic-canvas absolute top-0 left-0 w-full h-full z-10"
+      style={{ touchAction: isMobile ? "none" : "auto" }}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
       onClick={onClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
     />
   );
 }
