@@ -27,8 +27,8 @@ const TRY_EXTS = ["jpg","jpeg","png","webp"];
 const MAX_INDEX_SCAN = 10000;
 
 /* ===== АНТИ-БЛИЗОСТЬ ===== */
-const NEI_RADIUS = 10;   // радиус 10 колец
-const NEI_DELTA  = 15;   // |Δ номера| ≤ 15
+const NEI_RADIUS = 10;
+const NEI_DELTA  = 15;
 
 /* ===== УТИЛИТЫ ===== */
 const clamp = (v,min,max)=>Math.min(Math.max(v,min),max);
@@ -42,13 +42,12 @@ export default function MosaicBackground() {
 
   /* Пул / счётчики / сетка */
   const [urls, setUrls] = useState([]);
-  const poolRef   = useRef([]);     // Image[]
-  const seqRef    = useRef([]);     // числовые суффиксы
-  const useCntRef = useRef([]);     // текущие использования на экране
-  const tilesRef  = useRef([]);     // тайлы
+  const poolRef   = useRef([]);
+  const seqRef    = useRef([]);
+  const useCntRef = useRef([]);
+  const tilesRef  = useRef([]);
   const gridRef   = useRef({ cols:0, rows:0, tileW:BASE_TILE_W, tileH:BASE_TILE_H });
 
-  /* Квота копий одной картинки (если pool < tiles) */
   const quotaRef  = useRef(1);
 
   /* Волны / рендер */
@@ -58,9 +57,9 @@ export default function MosaicBackground() {
   /* Наведение / клик */
   const mouseRef = useRef({ x:-1e6, y:-1e6 });
   const prevMouseRef = useRef({ x:-1e6, y:-1e6 });
-  const prevHoverIdRef  = useRef(-1);
+  const prevHoverIdRef = useRef(-1);
   const prevHoverColRef = useRef(-1);
-  const prevHoverRowRef = useRef(-1);  // ⬅️ ДОБАВЛЕНО для вертикального трекинга
+  const prevHoverRowRef = useRef(-1);
   const clickedTileIdRef = useRef(-1);
 
   /* Прочее */
@@ -87,7 +86,7 @@ export default function MosaicBackground() {
     return ()=>{ document.body.style.overflow=prev; };
   },[isMobile]);
 
-  /* ===== АУДИО (как было, плюс вертикальная модуляция) ===== */
+  /* ===== АУДИО (с вертикальной модуляцией) ===== */
   const audioCtxRef    = useRef(null);
   const convolverRef   = useRef(null);
   const masterCompRef  = useRef(null);
@@ -143,7 +142,7 @@ export default function MosaicBackground() {
     };
   },[]);
 
-  // ⬇️ изменена сигнатура: добавлены v (вертикальная позиция 0..1) и dirY
+  // направление + вертикальная позиция для тона
   const playDirectionalAir = async (strength = 1, pan = 0, dirX = 0, v = 0.5, dirY = 0) => {
     const nowMs = performance.now();
     if (nowMs - lastSoundAtRef.current < SOUND_MIN_GAP_MS) return;
@@ -160,23 +159,18 @@ export default function MosaicBackground() {
     master.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
     master.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
 
-    // --- вертикальная составляющая тона ---
-    const vert = (v - 0.5) * 2; // -1 (низ) .. +1 (верх)
-
-    // Базовая частота теперь зависит и от вертикали (вверх — выше)
+    const vert = (v - 0.5) * 2; // -1..+1
     const baseHz =
       1700
       + 700 * Math.max(0, pan)
       + 200 * dirX * Math.abs(pan)
-      + 600 * vert; // ⬅️ новая вертикальная модуляция
+      + 600 * vert;
 
-    const ping = ctx.createOscillator();
-    ping.type = "sine";
+    const ping = ctx.createOscillator(); ping.type = "sine";
     ping.frequency.setValueAtTime(baseHz + 350, t0);
     ping.frequency.exponentialRampToValueAtTime(Math.max(400, baseHz), t0 + 0.12);
 
-    const sparkle = ctx.createOscillator();
-    sparkle.type = "sine";
+    const sparkle = ctx.createOscillator(); sparkle.type="sine";
     sparkle.frequency.setValueAtTime(baseHz * 2.02, t0);
     sparkle.frequency.exponentialRampToValueAtTime(baseHz * 1.6, t0 + 0.09);
 
@@ -197,18 +191,15 @@ export default function MosaicBackground() {
     for (let i = 0; i < nLen; i++) nd[i] = (Math.random()*2-1) * (1 - i / nLen);
     noise.buffer = nBuf;
 
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.frequency.setValueAtTime(baseHz, t0);
-    bp.Q.setValueAtTime(12, t0);
+    const bp = ctx.createBiquadFilter(); bp.type="bandpass";
+    bp.frequency.setValueAtTime(baseHz, t0); bp.Q.setValueAtTime(12, t0);
 
     const hitGain = ctx.createGain();
     hitGain.gain.setValueAtTime(0.0001, t0);
     hitGain.gain.exponentialRampToValueAtTime(0.35, t0 + 0.004);
     hitGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.08);
 
-    const hs = ctx.createBiquadFilter();
-    hs.type = "highshelf";
+    const hs = ctx.createBiquadFilter(); hs.type="highshelf";
     hs.frequency.setValueAtTime(6000, t0);
     hs.gain.setValueAtTime(7 + 3 * Math.abs(pan), t0);
 
@@ -310,7 +301,10 @@ export default function MosaicBackground() {
 
       let cols, rows, tileW, tileH;
       if(window.innerWidth<=MOBILE_BREAKPOINT){
-        cols=8; tileW=Math.floor(w/cols); tileH=Math.max(1,Math.floor(tileW*9/16)); rows=Math.ceil(h/tileH)+1;
+        cols=8; // ровно 8 по горизонтали
+        tileW=Math.floor(w/cols);
+        tileH=Math.max(1,Math.floor(tileW*9/16)); // держим 16:9
+        rows=Math.ceil(h/tileH)+1;
       }else{
         cols=Math.max(1,Math.ceil(w/BASE_TILE_W));
         rows=Math.max(1,Math.ceil(h/BASE_TILE_H));
@@ -367,7 +361,6 @@ export default function MosaicBackground() {
   }
 
   function penaltyFor(idx, id, tiles, cols, rows){
-    // жёстко наказываем точные повторы; мягко — |Δ|<=15
     const si=seqRef.current[idx];
     let pen=0;
     for(const j of neighborsOf(id, cols, rows)){
@@ -378,15 +371,12 @@ export default function MosaicBackground() {
       const sj=seqRef.current[a];
       if(sj!=null && si!=null && Math.abs(sj-si)<=NEI_DELTA) pen += 1;
     }
-    // небольшая добавка за частоту (равномерность)
     pen += useCntRef.current[idx]*0.001;
     return pen;
   }
 
   function pickIndexFor(id, tiles, cols, rows, hardUnique, maxUse){
     const pool=poolRef.current; if(!pool.length) return -1;
-
-    // 1) базовый набор по квоте
     let cands=[];
     for(let i=0;i<pool.length;i++){
       if(!pool[i] || !pool[i].width) continue;
@@ -395,24 +385,20 @@ export default function MosaicBackground() {
     }
     if(!cands.length) return -1;
 
-    // 2) если можем — вообще без дублей
     if(hardUnique){
       const zero = cands.filter(i=>useCntRef.current[i]===0);
       if(zero.length) cands = zero;
     }
 
-    // 3) пытаемся найти нулевой штраф (строгое соблюдение правил)
     let best = [], bestPen = Infinity;
     for(const i of cands){
       const p = penaltyFor(i, id, tiles, cols, rows);
       if(p < bestPen){ bestPen = p; best = [i]; }
       else if(p === bestPen){ best.push(i); }
       if(bestPen===0 && hardUnique && useCntRef.current[i]===0){
-        // идеальный кандидат — можно сразу брать
         return i;
       }
     }
-    // 4) берём среди лучших по штрафу того, у кого минимальный useCnt (равномерность)
     let minCnt = Infinity, bag=[];
     for(const i of best){ const u=useCntRef.current[i]; if(u<minCnt){ minCnt=u; bag=[i]; } else if(u===minCnt) bag.push(i); }
     return bag[(Math.random()*bag.length)|0];
@@ -490,7 +476,6 @@ export default function MosaicBackground() {
 
     if(!readySentRef.current){ readySentRef.current=true; setTimeout(()=>window.dispatchEvent(new Event("mosaic:ready")),0); }
 
-    // волна — расписание смен
     if(t>=waveRef.current.nextWaveAt){
       const { cols, rows } = gridRef.current;
       const oc=randInt(0,cols-1), or=randInt(0,rows-1);
@@ -506,14 +491,13 @@ export default function MosaicBackground() {
     const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH);
     const hoveredId=(mc>=0 && mr>=0) ? (mr*cols + mc) : -1;
 
-    // звук при входе в новый тайл (с вертикальной модуляцией)
+    // звук при входе в новый тайл
     if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
       const pan = cols>1 ? ((mc/(cols-1))*2 - 1) : 0;
       const prevCol = prevHoverColRef.current>=0 ? prevHoverColRef.current : mc;
       const dirX = Math.max(-1,Math.min(1, mc - prevCol));
       prevHoverColRef.current = mc;
 
-      // вертикальная позиция 0..1: верх громче/выше
       const v = rows>1 ? (1 - mr/(rows-1)) : 0.5;
       const prevRow = prevHoverRowRef.current>=0 ? prevHoverRowRef.current : mr;
       const dirY = Math.max(-1, Math.min(1, mr - prevRow));
@@ -526,7 +510,7 @@ export default function MosaicBackground() {
       const dist=Math.min(1,Math.hypot(dx,dy));
       const strength=1 - 0.6*dist;
 
-      playDirectionalAir(strength, pan, dirX, v, dirY); // ⬅️ передаём v и dirY
+      playDirectionalAir(strength, pan, dirX, v, dirY);
       prevHoverIdRef.current=hoveredId;
     }
 
@@ -547,7 +531,6 @@ export default function MosaicBackground() {
       if(tile.frozen) target*=CLICK_MULT;
       tile.scale += (target - tile.scale)*LERP;
 
-      // динамическая смена: сначала без дублей/в квоте, иначе — минимальный штраф
       if(!tile.frozen && !tile.fading && t>=tile.nextChange){
         const hardUnique = pool.length >= tiles.length;
         const maxUse = hardUnique ? 1 : quotaRef.current;
@@ -583,7 +566,7 @@ export default function MosaicBackground() {
       }
     }
 
-    // ЗУМ 80% нативы + скругление + «контр-поворот»
+    // клик-зум с круглыми углами
     const ct=clickedTileIdRef.current;
     if(ct>=0){
       const tile=tiles[ct]; if(tile && tile.imgIdx>=0){
@@ -635,3 +618,23 @@ export default function MosaicBackground() {
     />
   );
 }
+
+/* ===========================================================
+   МОБИЛЬНАЯ ВЕРСИЯ — быстрые правки тут:
+   — Порог мобильной ширины
+   — Количество колонок
+   — Директория для картинок
+   — Усиление ховера и множитель клика
+=========================================================== */
+// Порог мобилки:
+export const MOSAIC_MOBILE_BREAKPOINT = MOBILE_BREAKPOINT; // 768
+
+// Колонки мобилки:
+export const MOSAIC_MOBILE_COLS = 8; // менять при необходимости
+
+// Папка мобилок:
+export const MOSAIC_MOBILE_DIR = MOBILE_DIR; // "/rustam-site/assents/mobile/"
+
+// Усиления на мобиле:
+export const MOSAIC_MOBILE_HOVER = HOVER_BOOST_MOBILE; // 1.10
+export const MOSAIC_CLICK_MULT    = CLICK_MULT;        // 2.0
