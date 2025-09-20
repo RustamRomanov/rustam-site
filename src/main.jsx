@@ -1,30 +1,17 @@
 // src/main.jsx
 import React from "react";
-import ReactDOM from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 
-/* Локальный шрифт (MontserratLocal 900) */
-import "./style/fonts.css";
-
-/* Базовые стили проекта */
+// Глобальные стили (у тебя есть эти файлы в src/style/)
 import "./style/index.css";
+import "./style/fonts.css";
+import "./style/App.css";     // если нужен
+import "./style/animations.css"; // если нужен
 
-/* Находим/создаём корневой контейнер */
-let rootEl = document.getElementById("root");
-if (!rootEl) {
-  rootEl = document.createElement("div");
-  rootEl.id = "root";
-  document.body.appendChild(rootEl);
-}
-
-/* Рендер приложения */
-ReactDOM.createRoot(document.getElementById("root")).render(
+const rootEl = document.getElementById("root");
+createRoot(rootEl).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
-
-/* Vite HMR (не обязательно, но полезно во время разработки) */
-// if (import.meta && import.meta.hot) {
-//   import.meta.hot.accept();
-// }

@@ -1,10 +1,7 @@
 // src/App.jsx
-import React from "react";
-
-// ВАЖНО: импортируем конкретные файлы с расширением .jsx
+import * as React from "react";
 import MosaicBackground from "./components/MosaicBackground.jsx";
 import CenterRevealCard from "./components/CenterRevealCard.jsx";
-import FactsPanel from "./components/FactsPanel.jsx";
 
 /** Страховка от «белого экрана», если что-то внутри упадёт */
 class ErrorBoundary extends React.Component {
@@ -61,24 +58,17 @@ export default function App() {
         backgroundColor: "#000",
       }}
     >
-      {/* Фон-мозаика */}
+      {/* Фон-мозаика (канвас) */}
       <ErrorBoundary>
         <MosaicBackground />
       </ErrorBoundary>
 
-      {/* Центральная плашка: даём якорь для FactsPanel */}
+      {/* Центральная плашка (десктоп/мобайл внутри) */}
       <ErrorBoundary>
         <div id="hero-card" style={{ position: "relative", zIndex: 30 }}>
           <CenterRevealCard />
         </div>
       </ErrorBoundary>
-
-      {/* Плашка фактов: не перекрывает hero-card, скрывается если тесно */}
-      <FactsPanel
-        text="Снято более 120 рекламных роликов; призы: Epica, Golden Drum, Kinsale, ADCR, White Square. Работаю с детьми, животными и сложными постановками."
-        // maxLines={6} // при желании можно изменить
-        // anchorId="hero-card" // по умолчанию уже 'hero-card'
-      />
     </div>
   );
 }

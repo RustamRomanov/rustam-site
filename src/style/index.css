@@ -42,12 +42,12 @@
   font-display: swap;
 }
 
-
 /* ===== Базовые переменные/тема ===== */
 :root {
   color-scheme: dark;
   --bg: #000;
   --fg: #fff;
+  overscroll-behavior: none; /* убираем «отскок» */
 }
 
 /* ===== Нормализация/базовая типографика ===== */
@@ -62,12 +62,16 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--fg);
-  /* Глобальный дефолт — системный; нужные гарнитуры задаются локально в компонентах */
   font-family: system-ui, -apple-system, "Segoe UI", Roboto,
                "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  touch-action: manipulation; /* фикс для мобилок */
+}
+
+#root {
+  isolation: isolate; /* модалки и z-index слои независимы */
 }
 
 ::selection {
