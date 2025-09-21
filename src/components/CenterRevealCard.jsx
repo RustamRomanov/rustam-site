@@ -5,17 +5,18 @@ import React, { useEffect, useRef, useState } from "react";
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
 const within = (x,y,r)=> x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
 const randColor = () => `hsl(${Math.floor(Math.random()*360)}, 86%, 60%)`;
-const shuffle = (arr) => { const a=arr.slice(); for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a; };
+const shuffle = (arr) => { const a=arr.slice(); for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j]]; } return a; };
 
 /* Курсор (десктоп) */
 const CURSOR_URL = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><circle cx='10' cy='10' r='6' fill='%23E53935'/><circle cx='10' cy='10' r='3' fill='%23ffffff'/></svg>`.replace(/\n|\s{2,}/g,"");
 
 /* ===== Параметры плашки ===== */
-const PLATE_OPACITY_MAX = 0.95;
+const PLATE_OPACITY_MAX = 0.8;
 const PLATE_EASE_POWER  = 1.35;
 const PLATE_LERP        = 0.18;
 const PLATE_SATURATE_INPUT = 0.30;
-const PLATE_SATURATE_FRACTION = PLATE_SATURATE_INPUT > 10 ? PLATE_SATURATE_INPUT/100 : PLATE_SATURATE_INPUT;
+// принимаем 0..1 или проценты 0..100
+const PLATE_SATURATE_FRACTION = PLATE_SATURATE_INPUT > 1 ? PLATE_SATURATE_INPUT/100 : PLATE_SATURATE_INPUT;
 
 /* ===== Платформа ===== */
 const MOBILE_BREAKPOINT = 768;
@@ -115,7 +116,7 @@ function useAudio() {
   return { playHoverSoft, playIcon, playDot, playAppear };
 }
 
-/* ===== Соц-иконка (теперь с настраиваемым размером) ===== */
+/* ===== Соц-иконка (настраиваемый размер) ===== */
 function IconLink({ href, whiteSrc, colorSrc, label, onHoverSound, size=28 }) {
   const [hover, setHover] = useState(false);
   const enter = () => { setHover(true); onHoverSound?.(); };
@@ -243,7 +244,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
   );
 }
 
-/* ===== BIO Mobile overlay (как было; соц-бар убран) ===== */
+/* ===== BIO Mobile overlay ===== */
 function BioMobileOverlay({ open, onClose, imageSrc }) {
   const [tab,setTab] = useState("bio");
   const audioRef = useRef(null);
@@ -332,7 +333,7 @@ function DotButton({ n, onClick, onHoverSound, animate=false, delayMs=0, hoverEx
             fontWeight:800, fontFamily:"UniSans-Heavy, 'Uni Sans', system-ui", fontSize:18,
             cursor:"pointer",
             transform: active ? "scale(1.3)" : "scale(1)",
-            transition:"transform 140ms cubic-bezier(.2,.9,.2,1), background 240ms ease, border-color 240ms ease, box-shadow 240ms.ease",
+            transition:"transform 140ms cubic-bezier(.2,.9,.2,1), background 240ms ease, border-color 240ms ease, box-shadow 240ms ease",
             boxShadow: active ? "0 10px 28px rgba(229,57,53,0.35)" : "none",
             animation: `dotColor 2600ms ease-in-out ${delayMs}ms infinite`
           }}
@@ -354,7 +355,7 @@ function DotButton({ n, onClick, onHoverSound, animate=false, delayMs=0, hoverEx
   );
 }
 
-/* ===== DESKTOP Card — круг на 10% больше ===== */
+/* ===== DESKTOP Card — круг на 10% больше; стартовая непрозрачность 50% ===== */
 function DesktopCard() {
   const { playHoverSoft, playDot } = useAudio();
 
@@ -365,25 +366,45 @@ function DesktopCard() {
   useEffect(()=>{ updateRect(); },[fixedSize]);
   useEffect(()=>{ const f=()=>updateRect(); window.addEventListener("resize",f); return ()=>window.removeEventListener("resize",f); },[]);
 
-  const plateTargetRef = useRef(0);
-  const plateAlphaRef  = useRef(0);
-  const [plateAlpha, setPlateAlpha] = useState(0);
+  // === стартовая непрозрачность круга — 50% от финала
+  const BASE_OPACITY = PLATE_OPACITY_MAX * 0.5;
+  const plateTargetRef = useRef(BASE_OPACITY);
+  const plateAlphaRef  = useRef(BASE_OPACITY);
+  const [plateAlpha, setPlateAlpha] = useState(BASE_OPACITY);
   const [isInside, setIsInside] = useState(false);
-  useEffect(()=>{ let raf=0; const tick=()=>{ const a=plateAlphaRef.current, t=plateTargetRef.current; const next=a+(t-a)*PLATE_LERP; if(Math.abs(next-a)>0.001){ plateAlphaRef.current=next; setPlateAlpha(next);} raf=requestAnimationFrame(tick); }; raf=requestAnimationFrame(tick); return ()=>cancelAnimationFrame(raf); },[]);
+
+  useEffect(()=>{ // плавное приближение к цели
+    let raf=0;
+    const tick=()=>{ const a=plateAlphaRef.current, t=plateTargetRef.current;
+      const next=a+(t-a)*PLATE_LERP;
+      if(Math.abs(next-a)>0.001){ plateAlphaRef.current=next; setPlateAlpha(next); }
+      raf=requestAnimationFrame(tick);
+    };
+    raf=requestAnimationFrame(tick);
+    return ()=>cancelAnimationFrame(raf);
+  },[]);
+
   useEffect(()=>{
     const onMove = (e)=>{
       const r = rectRef.current;
       const inside = within(e.clientX,e.clientY,{left:r.left,top:r.top,right:r.left+r.w,bottom:r.top+r.h});
-      if(!inside){ plateTargetRef.current=0; if(isInside) setIsInside(false); return; }
+      if(!inside){
+        plateTargetRef.current = BASE_OPACITY; // вне — держим базовые 50%
+        if(isInside) setIsInside(false);
+        return;
+      }
       if(!isInside) setIsInside(true);
+
       const cx=r.left+r.w/2, cy=r.top+r.h/2;
       const dx=(e.clientX-cx)/(r.w/2), dy=(e.clientY-cy)/(r.h/2);
       const radial = Math.hypot(dx,dy);
       const closeness=clamp(1-radial,0,1);
       const norm=clamp(closeness/PLATE_SATURATE_FRACTION,0,1);
-      plateTargetRef.current=Math.pow(norm, PLATE_EASE_POWER)*PLATE_OPACITY_MAX;
+
+      const target = BASE_OPACITY + Math.pow(norm, PLATE_EASE_POWER) * (PLATE_OPACITY_MAX - BASE_OPACITY);
+      plateTargetRef.current = target;
     };
-    const onLeave = ()=>{ plateTargetRef.current=0; setIsInside(false); };
+    const onLeave = ()=>{ plateTargetRef.current = BASE_OPACITY; setIsInside(false); };
     window.addEventListener("mousemove", onMove, { passive:true });
     window.addEventListener("mouseleave", onLeave);
     return ()=>{ window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseleave", onLeave); };
@@ -547,7 +568,7 @@ function BiographyWordPerLetter({ onOpen }) {
   );
 }
 
-/* ===== Mobile Card — круг на 30% больше; соц-иконки ниже и на 10% крупнее ===== */
+/* ===== Mobile Card — круг на 35%; блоки и иконки опущены ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
   const [bioOpen,setBioOpen]=useState(false);
@@ -562,8 +583,8 @@ function MobileCard() {
 
   const wrapper = { position:"fixed", left:"50%", top:"50%", transform:"translate(-50%,-50%)", width:`${size.w}px`, height:`${size.h}px`, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2147483600, touchAction:"none" };
 
-  // круг был = min(w,h); стал на 30% больше
-  const circleDiam = Math.round(Math.min(size.w, size.h) * 1.30);
+  // круг был 1.30; теперь +5% → 1.35
+  const circleDiam = Math.round(Math.min(size.w, size.h) * 1.35);
   const plateStyle = { position:"absolute", width:circleDiam, height:circleDiam, left:"50%", top:"50%", transform:"translate(-50%,-50%)", borderRadius:"50%", opacity: PLATE_OPACITY_MAX, pointerEvents:"none" };
 
   const lettersBio = Array.from("BIOGRAPHY");
@@ -614,6 +635,8 @@ function MobileCard() {
     }
   };
 
+  const ONE_LINE = "1.2em"; // сдвиг на строку
+
   return (
     <>
       <div style={wrapper} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
@@ -633,8 +656,9 @@ function MobileCard() {
             </h2>
           </PrePlate>
 
+          {/* Имя — опускаем на строку */}
           <PrePlate active={true}>
-            <h1 ref={nameRef} style={{ margin:"10px 0 0", fontSize:"clamp(20px, 7.2vw, 32px)", letterSpacing:"0.02em", userSelect:"none" }}>
+            <h1 ref={nameRef} style={{ margin:`calc(10px + ${ONE_LINE}) 0 0`, fontSize:"clamp(20px, 7.2vw, 32px)", letterSpacing:"0.02em", userSelect:"none" }}>
               {nameLatin.map((ch,i)=>(
                 <span key={i} data-idx={i}
                   style={{
@@ -650,8 +674,9 @@ function MobileCard() {
             </h1>
           </PrePlate>
 
+          {/* SHOWREEL — тоже ниже на строку */}
           <PrePlate active={true}>
-            <h3 ref={srRef} style={{ margin:"6px 0 0", fontSize:"clamp(14px, 4.6vw, 18px)", letterSpacing:"0.08em", color:"#cfcfcf", userSelect:"none" }}>
+            <h3 ref={srRef} style={{ margin:`calc(6px + ${ONE_LINE}) 0 0`, fontSize:"clamp(14px, 4.6vw, 18px)", letterSpacing:"0.08em", color:"#cfcfcf", userSelect:"none" }}>
               {srLetters.map((ch,i)=>(
                 <span key={i} data-idx={i}
                   style={{ display:"inline-block", whiteSpace:"pre", color: srStick[i] ? srColors[i] : "#cfcfcf",
@@ -662,7 +687,8 @@ function MobileCard() {
             </h3>
           </PrePlate>
 
-          <div ref={dotsRef} style={{ marginTop:16, display:"flex", gap:16, alignItems:"center" }}>
+          {/* Кружочки — ниже на строку */}
+          <div ref={dotsRef} style={{ marginTop:`calc(16px + ${ONE_LINE})`, display:"flex", gap:16, alignItems:"center" }}>
             {[1,2,3].map((n,idx)=>(
               <div key={n} data-dot>
                 <DotButton n={n} delayMs={idx*200} hoverExternal={hoverDot===idx} onHoverSound={playDot}
@@ -671,8 +697,8 @@ function MobileCard() {
             ))}
           </div>
 
-          {/* Соц-иконки — ниже на «строку» и на 10% крупнее */}
-          <div style={{ position:"absolute", left:0, right:0, bottom:"6%", display:"flex", justifyContent:"center", gap:20 }}>
+          {/* Соц-иконки — ниже ещё примерно на "две строки" (ближе к низу круга) */}
+          <div style={{ position:"absolute", left:0, right:0, bottom:"3%", display:"flex", justifyContent:"center", gap:20 }}>
             <IconLink href="https://instagram.com/rustamromanov.ru" label="Instagram"
               whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
               colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
