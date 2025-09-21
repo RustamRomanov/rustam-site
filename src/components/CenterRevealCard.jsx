@@ -199,7 +199,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
 В основу я кладу скорость принятия решений и приоритетность действий. Для меня важно строго придерживаться дедлайна, прогнозировать изменения и настраивать команду, на достижения лучшего результата.`;
 
   const inset="clamp(10px,1.2vw,18px)", headerFS="clamp(12px,1vw,18px)", leftPart="40%", padRightExtra="clamp(12px,2vw,30px)";
-  const CLOSE_OFFSETS = { top: -14, right: -14 };
+  const CLOSE_OFFSETS = { top: -34, right: -34 };
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.82)", zIndex:2147485200, display:"flex", alignItems:"center", justifyContent:"center", padding:"3vw", animation:"bioFade 180ms ease" }}>

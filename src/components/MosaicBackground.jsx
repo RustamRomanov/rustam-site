@@ -70,6 +70,9 @@ export default function MosaicBackground() {
   );
   const basePathRef = useRef(isMobile ? MOBILE_DIR : DESKTOP_DIR);
 
+  /* === НОВОЕ: индекс img1 === */
+  const img1IdxRef = useRef(-1); // сюда сохраним индекс изображения с seq === 1 (img1.*)
+
   useEffect(()=>{
     const onResize=()=>setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT);
     window.addEventListener("resize",onResize);
@@ -331,7 +334,13 @@ export default function MosaicBackground() {
 
     let loaded=0,cancelled=false;
     const onDone=()=>{
-      initTiles(true);
+      /* === НОВОЕ: найти индекс img1 (seq === 1) === */
+      img1IdxRef.current = -1;
+      for (let k = 0; k < seqRef.current.length; k++) {
+        if (seqRef.current[k] === 1) { img1IdxRef.current = k; break; }
+      }
+
+      initTiles(true); // старт — весь экран img1 (если найден)
       if(!rafRef.current) start();
       if(!readySentRef.current){ readySentRef.current=true; setTimeout(()=>window.dispatchEvent(new Event("mosaic:ready")),0); }
     };
@@ -375,11 +384,13 @@ export default function MosaicBackground() {
     return pen;
   }
 
+  /* === НОВОЕ: исключаем img1 из кандидатов === */
   function pickIndexFor(id, tiles, cols, rows, hardUnique, maxUse){
     const pool=poolRef.current; if(!pool.length) return -1;
     let cands=[];
     for(let i=0;i<pool.length;i++){
       if(!pool[i] || !pool[i].width) continue;
+      if(i === img1IdxRef.current) continue;            // <<< НЕ ИСПОЛЬЗОВАТЬ img1
       if(useCntRef.current[i] >= maxUse) continue;
       cands.push(i);
     }
@@ -405,7 +416,7 @@ export default function MosaicBackground() {
   }
 
   /* ===== 5) ИНИЦИАЛИЗАЦИЯ (БЕЗ ДЫР) ===== */
-  function initTiles(){
+  function initTiles(initial=false){
     const { cols, rows } = gridRef.current; if(!cols || !rows) return;
     const total = cols*rows, poolN = poolRef.current.length;
     const now = performance.now();
@@ -424,10 +435,25 @@ export default function MosaicBackground() {
     const hardUnique = poolN >= total;
     const maxUse = hardUnique ? 1 : quotaRef.current;
 
-    for(const id of order){
-      const idx = pickIndexFor(id, tiles, cols, rows, hardUnique, maxUse);
-      tiles[id].imgIdx = idx>=0 ? idx : 0;
-      if(idx>=0) useCntRef.current[idx] += 1;
+    /* === НОВОЕ: старт — полностью img1 === */
+    const img1 = img1IdxRef.current;
+    if (initial && img1>=0 && poolRef.current[img1] && poolRef.current[img1].width) {
+      for (const id of order) {
+        tiles[id].imgIdx = img1;
+        tiles[id].prevIdx = -1;
+        tiles[id].fading = false;
+        // лёгкая рассинхронизация времени следующей замены, чтобы волна могла красиво «сместить» img1
+        tiles[id].nextChange = now + randInt(1200, 2600) + (tiles[id].c + tiles[id].r)*5;
+      }
+      // учтём стартовые использования img1 (не критично, но корректно)
+      useCntRef.current[img1] = total;
+    } else {
+      // обычная инициализация, если img1 нет
+      for(const id of order){
+        const idx = pickIndexFor(id, tiles, cols, rows, hardUnique, maxUse);
+        tiles[id].imgIdx = idx>=0 ? idx : 0;
+        if(idx>=0) useCntRef.current[idx] += 1;
+      }
     }
 
     tilesRef.current = tiles;
@@ -532,14 +558,19 @@ export default function MosaicBackground() {
       tile.scale += (target - tile.scale)*LERP;
 
       if(!tile.frozen && !tile.fading && t>=tile.nextChange){
+        const pool = poolRef.current;
         const hardUnique = pool.length >= tiles.length;
         const maxUse = hardUnique ? 1 : quotaRef.current;
+
         let nextIdx = pickIndexFor(tile.id, tiles, cols, rows, hardUnique, maxUse);
 
         if(nextIdx>=0 && nextIdx!==tile.imgIdx){
           const prev = tile.imgIdx;
           tile.prevIdx = prev>=0 ? prev : nextIdx;
+
+          // аккуратно уменьшаем счётчик предыдущего, даже если это был img1
           if(prev>=0) useCntRef.current[prev]=Math.max(0,useCntRef.current[prev]-1);
+
           useCntRef.current[nextIdx]+=1;
 
           tile.imgIdx = nextIdx;
@@ -621,20 +652,9 @@ export default function MosaicBackground() {
 
 /* ===========================================================
    МОБИЛЬНАЯ ВЕРСИЯ — быстрые правки тут:
-   — Порог мобильной ширины
-   — Количество колонок
-   — Директория для картинок
-   — Усиление ховера и множитель клика
 =========================================================== */
-// Порог мобилки:
 export const MOSAIC_MOBILE_BREAKPOINT = MOBILE_BREAKPOINT; // 768
-
-// Колонки мобилки:
 export const MOSAIC_MOBILE_COLS = 8; // менять при необходимости
-
-// Папка мобилок:
 export const MOSAIC_MOBILE_DIR = MOBILE_DIR; // "/rustam-site/assents/mobile/"
-
-// Усиления на мобиле:
 export const MOSAIC_MOBILE_HOVER = HOVER_BOOST_MOBILE; // 1.10
 export const MOSAIC_CLICK_MULT    = CLICK_MULT;        // 2.0
