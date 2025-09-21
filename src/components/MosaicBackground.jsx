@@ -30,16 +30,6 @@ const MAX_INDEX_SCAN = 10000;
 const NEI_RADIUS = 10;
 const NEI_DELTA  = 15;
 
-/* ===== МОБИЛЬНЫЙ СКРОЛ-БУСТ ===== */
-const SCROLL_CENTER_BOOST = 0.20; // +20% к центру во время движения пальца
-
-/* ===== НАСТРОЙКИ МОБИЛЬНОГО РАСКРЫТИЯ ПО ТАПУ ===== */
-const MOBILE_SIDE_MARGIN_FRAC = 0.04;  // 4% ширины — равные поля слева/справа
-const MOBILE_MAX_BLOCK_FRAC   = 0.52;  // высота блока до ~52% экрана
-const MOBILE_POP_RADIUS       = 16;    // скругление углов попапа
-const MOBILE_POP_LERP         = 0.25;  // плавность анимации попапа
-const TAP_MOVE_TOLERANCE_PX   = 8;     // допуск движения для «тапа»
-
 /* ===== УТИЛИТЫ ===== */
 const clamp = (v,min,max)=>Math.min(Math.max(v,min),max);
 const clamp01 = (x)=>Math.max(0,Math.min(1,x));
@@ -50,12 +40,12 @@ const shuffle = (a)=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+
 export default function MosaicBackground() {
   const canvasRef = useRef(null), ctxRef = useRef(null);
 
-  /* Пул / сетка */
+  /* Пул / счётчики / сетка */
   const [urls, setUrls] = useState([]);
-  const poolRef   = useRef([]);     // Image[]
-  const seqRef    = useRef([]);     // числовые суффиксы
-  const useCntRef = useRef([]);     // текущие использования
-  const tilesRef  = useRef([]);     // тайлы
+  const poolRef   = useRef([]);
+  const seqRef    = useRef([]);
+  const useCntRef = useRef([]);
+  const tilesRef  = useRef([]);
   const gridRef   = useRef({ cols:0, rows:0, tileW:BASE_TILE_W, tileH:BASE_TILE_H });
 
   const quotaRef  = useRef(1);
@@ -70,23 +60,7 @@ export default function MosaicBackground() {
   const prevHoverIdRef = useRef(-1);
   const prevHoverColRef = useRef(-1);
   const prevHoverRowRef = useRef(-1);
-  const clickedTileIdRef = useRef(-1); // для десктопного клик-зума
-
-  /* ===== МОБИЛЬНОЕ СОСТОЯНИЕ ===== */
-  const pointerActiveRef = useRef(false);
-  const lastMoveAtRef = useRef(0);
-  const scrollBoostRef = useRef(0); // 0..SCROLL_CENTER_BOOST
-
-  // попап по тапу (моб.)
-  const mobilePopRef = useRef({
-    active: false,
-    topHalf: true,
-    imgIdx: -1,
-    anim: 0,  // 0..1
-  });
-
-  // распознавание «тапа»
-  const tapTrackRef = useRef({ downX:0, downY:0, downAt:0 });
+  const clickedTileIdRef = useRef(-1);
 
   /* Прочее */
   const readySentRef = useRef(false);
@@ -112,7 +86,7 @@ export default function MosaicBackground() {
     return ()=>{ document.body.style.overflow=prev; };
   },[isMobile]);
 
-  /* ===== АУДИО ===== */
+  /* ===== АУДИО (с вертикальной модуляцией) ===== */
   const audioCtxRef    = useRef(null);
   const convolverRef   = useRef(null);
   const masterCompRef  = useRef(null);
@@ -168,7 +142,7 @@ export default function MosaicBackground() {
     };
   },[]);
 
-  // звук
+  // направление + вертикальная позиция для тона
   const playDirectionalAir = async (strength = 1, pan = 0, dirX = 0, v = 0.5, dirY = 0) => {
     const nowMs = performance.now();
     if (nowMs - lastSoundAtRef.current < SOUND_MIN_GAP_MS) return;
@@ -185,8 +159,12 @@ export default function MosaicBackground() {
     master.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
     master.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
 
-    const vert = (v - 0.5) * 2;
-    const baseHz = 1700 + 700*Math.max(0,pan) + 200*dirX*Math.abs(pan) + 600*vert;
+    const vert = (v - 0.5) * 2; // -1..+1
+    const baseHz =
+      1700
+      + 700 * Math.max(0, pan)
+      + 200 * dirX * Math.abs(pan)
+      + 600 * vert;
 
     const ping = ctx.createOscillator(); ping.type = "sine";
     ping.frequency.setValueAtTime(baseHz + 350, t0);
@@ -323,9 +301,9 @@ export default function MosaicBackground() {
 
       let cols, rows, tileW, tileH;
       if(window.innerWidth<=MOBILE_BREAKPOINT){
-        cols=8; // фикс 8 по горизонтали
+        cols=8; // ровно 8 по горизонтали
         tileW=Math.floor(w/cols);
-        tileH=Math.max(1,Math.floor(tileW*9/16)); // 16:9
+        tileH=Math.max(1,Math.floor(tileW*9/16)); // держим 16:9
         rows=Math.ceil(h/tileH)+1;
       }else{
         cols=Math.max(1,Math.ceil(w/BASE_TILE_W));
@@ -385,32 +363,14 @@ export default function MosaicBackground() {
   function penaltyFor(idx, id, tiles, cols, rows){
     const si=seqRef.current[idx];
     let pen=0;
-
-    const r0=Math.floor(id/cols), c0=id%cols;
-
     for(const j of neighborsOf(id, cols, rows)){
       const t=tiles[j]; if(!t) continue;
       const a=t.fading ? (t.imgIdx>=0 ? t.imgIdx : t.prevIdx) : t.imgIdx;
       if(a<0) continue;
-
-      if(a===idx){ pen += 10000; continue; } // полный запрет точного повтора
-
+      if(a===idx){ pen += 10000; continue; }
       const sj=seqRef.current[a];
-      if(sj!=null && si!=null){
-        const rr=Math.floor(j/cols), cc=j%cols;
-        const ringDist = Math.max(Math.abs(cc-c0), Math.abs(rr-r0));
-        const isSeqClose = Math.abs(sj - si) <= NEI_DELTA;
-
-        // 🚫 Для всех платформ: сильный запрет близких номеров в радиусе ≤ 3
-        if(isSeqClose && ringDist <= 3){
-          pen += 1000;
-        } else if(isSeqClose){
-          pen += 1;    // мягкий штраф для дальних соседей
-        }
-      }
+      if(sj!=null && si!=null && Math.abs(sj-si)<=NEI_DELTA) pen += 1;
     }
-
-    // равномерность использования
     pen += useCntRef.current[idx]*0.001;
     return pen;
   }
@@ -444,7 +404,7 @@ export default function MosaicBackground() {
     return bag[(Math.random()*bag.length)|0];
   }
 
-  /* ===== 5) ИНИЦИАЛИЗАЦИЯ ===== */
+  /* ===== 5) ИНИЦИАЛИЗАЦИЯ (БЕЗ ДЫР) ===== */
   function initTiles(){
     const { cols, rows } = gridRef.current; if(!cols || !rows) return;
     const total = cols*rows, poolN = poolRef.current.length;
@@ -490,16 +450,10 @@ export default function MosaicBackground() {
   function roundedRect(ctx,x,y,w,h,r){
     const rr=Math.max(0,Math.min(r,Math.min(w,h)/2));
     ctx.beginPath();
-    ctx.moveTo(x+rr,y);
-    ctx.lineTo(x+w-rr,y);
-    ctx.quadraticCurveTo(x+w,y,x+w,y+rr);
-    ctx.lineTo(x+w,y+h-rr);
-    ctx.quadraticCurveTo(x+w,y+h,x+w-rr,y+h);
-    ctx.lineTo(x+rr,y+h);
-    ctx.quadraticCurveTo(x,y+h,x,y+h-rr);
-    ctx.lineTo(x,y+rr);
-    ctx.quadraticCurveTo(x,y,x+rr,y);
-    ctx.closePath();
+    ctx.moveTo(x+rr,y); ctx.lineTo(x+w-rr,y); ctx.quadraticCurveTo(x+w,y,x+w,y+rr);
+    ctx.lineTo(x+w,y+h-rr); ctx.quadraticCurveTo(x+w,y+h,x+w-rr,y+h);
+    ctx.lineTo(x+rr,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-rr);
+    ctx.lineTo(x,y+rr); ctx.quadraticCurveTo(x,y,x+rr,y); ctx.closePath();
   }
   function drawCoverRounded(ctx,img,dx,dy,dw,dh,s=1){
     if(!img||!img.width||!img.height) return;
@@ -509,15 +463,8 @@ export default function MosaicBackground() {
     const sw=drawW/scale, sh=drawH/scale;
     const sx=(img.width-sw)*0.5, sy=(img.height-sh)*0.5;
     const radius = s>1.01 ? Math.min(12*(s/3),18) : 0;
-    if(radius>0){
-      ctx.save();
-      roundedRect(ctx,cx-drawW/2,cy-drawH/2,drawW,drawH,radius);
-      ctx.clip();
-      ctx.drawImage(img,sx,sy,sw,sh,cx-drawW/2,cy-drawH/2,drawW,drawH);
-      ctx.restore();
-    } else {
-      ctx.drawImage(img,sx,sy,sw,sh,cx-drawW/2,cy-drawH/2,drawW,drawH);
-    }
+    if(radius>0){ ctx.save(); roundedRect(ctx,cx-drawW/2,cy-drawH/2,drawW,drawH,radius); ctx.clip(); ctx.drawImage(img,sx,sy,sw,sh,cx-drawW/2,cy-drawH/2,drawW,drawH); ctx.restore(); }
+    else ctx.drawImage(img,sx,sy,sw,sh,cx-drawW/2,cy-drawH/2,drawW,drawH);
   }
 
   function draw(t){
@@ -529,7 +476,6 @@ export default function MosaicBackground() {
 
     if(!readySentRef.current){ readySentRef.current=true; setTimeout(()=>window.dispatchEvent(new Event("mosaic:ready")),0); }
 
-    // волны
     if(t>=waveRef.current.nextWaveAt){
       const { cols, rows } = gridRef.current;
       const oc=randInt(0,cols-1), or=randInt(0,rows-1);
@@ -582,16 +528,13 @@ export default function MosaicBackground() {
       else if(ring===2) target=RING_SCALES[2];
       else if(ring===3) target=RING_SCALES[3];
 
-      // моб. дополнительный буст к центру во время скролла
-      if(isMobile && ring===0) target *= (1 + scrollBoostRef.current);
-
       if(tile.frozen) target*=CLICK_MULT;
       tile.scale += (target - tile.scale)*LERP;
 
       if(!tile.frozen && !tile.fading && t>=tile.nextChange){
         const hardUnique = pool.length >= tiles.length;
         const maxUse = hardUnique ? 1 : quotaRef.current;
-        const nextIdx = pickIndexFor(tile.id, tiles, cols, rows, hardUnique, maxUse);
+        let nextIdx = pickIndexFor(tile.id, tiles, cols, rows, hardUnique, maxUse);
 
         if(nextIdx>=0 && nextIdx!==tile.imgIdx){
           const prev = tile.imgIdx;
@@ -609,11 +552,10 @@ export default function MosaicBackground() {
     }
     order.sort((a,b)=>b.ring - a.ring);
 
-    // базовая отрисовка
     for(const o of order){
       const tile=tiles[o.idx]; if(tile.imgIdx<0) continue;
       const dx=tile.c*tileW, dy=tile.r*tileH;
-      if(o.idx===clickedTileIdRef.current && !isMobile) continue; // десктопный зум рисуем отдельно
+      if(o.idx===clickedTileIdRef.current) continue;
       if(tile.fading){
         const p=Math.min(1,(t - tile.fadeStart)/FADE_MS);
         if(tile.prevIdx>=0){ ctx.globalAlpha=1-p; drawCoverRounded(ctx,pool[tile.prevIdx],dx,dy,tileW,tileH,tile.scale); }
@@ -624,174 +566,42 @@ export default function MosaicBackground() {
       }
     }
 
-    /* ===== МОБИЛЬНЫЙ ПОПАП ПО ТАПУ ===== */
-    if(isMobile){
-      // затухание буста после остановки
-      const idle = performance.now() - lastMoveAtRef.current;
-      const targetBoost = idle > 120 ? 0 : SCROLL_CENTER_BOOST;
-      scrollBoostRef.current += (targetBoost - scrollBoostRef.current) * 0.18;
+    // клик-зум с круглыми углами
+    const ct=clickedTileIdRef.current;
+    if(ct>=0){
+      const tile=tiles[ct]; if(tile && tile.imgIdx>=0){
+        const img=pool[tile.imgIdx];
+        const mx=mouseRef.current.x, my=mouseRef.current.y;
+        const pm=prevMouseRef.current; const dmx=isFinite(pm.x)?(mx-pm.x):0; prevMouseRef.current={x:mx,y:my};
+        const dx=tile.c*tileW, dy=tile.r*tileH;
+        const cover=computeCover(img.width,img.height,tileW,tileH,tile.scale);
+        const left=dx+(tileW-cover.drawW)/2, top=dy+(tileH-cover.drawH)/2;
+        const u=clamp01((mx-left)/cover.drawW), v=clamp01((my-top)/cover.drawH);
+        const imgX=cover.sx + u*cover.sw, imgY=cover.sy + v*cover.sh;
+        const drawW=Math.floor(img.width*ZOOM_NATIVE_FACTOR), drawH=Math.floor(img.height*ZOOM_NATIVE_FACTOR);
+        const drawX=mx - imgX*ZOOM_NATIVE_FACTOR, drawY=my - imgY*ZOOM_NATIVE_FACTOR;
+        const angle=clamp(-dmx*ROT_SENS, -ZOOM_MAX_ROT, ZOOM_MAX_ROT);
 
-      // анимация попапа
-      const pop = mobilePopRef.current;
-      const targetAnim = pop.active ? 1 : 0;
-      pop.anim += (targetAnim - pop.anim) * MOBILE_POP_LERP;
-
-      if(pop.anim > 0.001 && pop.imgIdx>=0){
-        const img = pool[pop.imgIdx];
-        if(img && img.width){
-          const sideMargin = Math.max(8, Math.floor(w * MOBILE_SIDE_MARGIN_FRAC));
-          const availW = w - sideMargin*2;
-
-          const targetW = availW;
-          const targetH_byAspect = Math.floor(targetW * (img.height / img.width));
-          const maxBlockH = Math.floor(h * MOBILE_MAX_BLOCK_FRAC);
-          const targetH = Math.min(targetH_byAspect, maxBlockH);
-
-          const targetX = sideMargin;
-          const targetY = pop.topHalf ? sideMargin : (h - sideMargin - targetH);
-
-          // лёгкое затемнение
-          ctx.save();
-          ctx.globalAlpha = 0.18 * pop.anim;
-          ctx.fillStyle = "#000";
-          ctx.fillRect(0,0,w,h);
-          ctx.restore();
-
-          // масштаб от 0.92 -> 1.0
-          const k = 0.92 + 0.08 * clamp01(pop.anim);
-          const drawW = Math.floor(targetW * k);
-          const drawH = Math.floor(targetH * k);
-          const drawX = Math.floor(targetX + (targetW - drawW)/2);
-          const drawY = Math.floor(targetY + (targetH - drawH)/2);
-
-          ctx.save();
-          roundedRect(ctx, drawX, drawY, drawW, drawH, MOBILE_POP_RADIUS);
-          ctx.clip();
-          ctx.imageSmoothingEnabled = true;
-          ctx.drawImage(img, 0,0,img.width,img.height, drawX,drawY, drawW,drawH);
-          ctx.restore();
-        }
+        ctx.save();
+        ctx.beginPath(); roundedRect(ctx,Math.floor(drawX),Math.floor(drawY),drawW,drawH,ZOOM_RADIUS); ctx.clip();
+        ctx.translate(mx,my); ctx.rotate(angle); ctx.translate(-mx,-my);
+        ctx.imageSmoothingEnabled=true;
+        ctx.drawImage(img,0,0,img.width,img.height,Math.floor(drawX),Math.floor(drawY),drawW,drawH);
+        ctx.restore();
       }
     }
-
-    /* ===== ДЕСКТОПНЫЙ КЛИК-ЗУМ ===== */
-    if(!isMobile){
-      const ct=clickedTileIdRef.current;
-      if(ct>=0){
-        const tile=tiles[ct]; if(tile && tile.imgIdx>=0){
-          const img=pool[tile.imgIdx];
-          const mx=mouseRef.current.x, my=mouseRef.current.y;
-          const pm=prevMouseRef.current; const dmx=isFinite(pm.x)?(mx-pm.x):0; prevMouseRef.current={x:mx,y:my};
-          const dx=tile.c*tileW, dy=tile.r*tileH;
-          const cover=computeCover(img.width,img.height,tileW,tileH,tile.scale);
-          const left=dx+(tileW-cover.drawW)/2, top=dy+(tileH-cover.drawH)/2;
-          const u=clamp01((mx-left)/cover.drawW), v=clamp01((my-top)/cover.drawH);
-          const imgX=cover.sx + u*cover.sw, imgY=cover.sy + v*cover.sh;
-          const drawW=Math.floor(img.width*ZOOM_NATIVE_FACTOR), drawH=Math.floor(img.height*ZOOM_NATIVE_FACTOR);
-          const drawX=mx - imgX*ZOOM_NATIVE_FACTOR, drawY=my - imgY*ZOOM_NATIVE_FACTOR;
-          const angle=clamp(-dmx*ROT_SENS, -ZOOM_MAX_ROT, ZOOM_MAX_ROT);
-
-          ctx.save();
-          ctx.beginPath(); roundedRect(ctx,Math.floor(drawX),Math.floor(drawY),drawW,drawH,ZOOM_RADIUS); ctx.clip();
-          ctx.translate(mx,my); ctx.rotate(angle); ctx.translate(-mx,-my);
-          ctx.imageSmoothingEnabled=true;
-          ctx.drawImage(img,0,0,img.width,img.height,Math.floor(drawX),Math.floor(drawY),drawW,drawH);
-          ctx.restore();
-        }
-      }
-      if(clickedTileIdRef.current>=0 && clickedTileIdRef.current!==hoveredId) clickedTileIdRef.current=-1;
-    }
+    if(ct>=0 && ct!==hoveredId) clickedTileIdRef.current=-1;
   }
 
   /* ===== 7) СОБЫТИЯ ===== */
   const onMouseMove=(e)=>{ const r=canvasRef.current.getBoundingClientRect(); mouseRef.current={ x:e.clientX-r.left, y:e.clientY-r.top }; };
-  const onMouseLeave=()=>{ 
-    mouseRef.current={x:-1e6,y:-1e6}; 
-    if(!isMobile) clickedTileIdRef.current=-1; 
-    prevHoverIdRef.current=-1; 
-    prevHoverColRef.current=-1; 
-    prevHoverRowRef.current=-1; 
-  };
+  const onMouseLeave=()=>{ mouseRef.current={x:-1e6,y:-1e6}; clickedTileIdRef.current=-1; prevHoverIdRef.current=-1; prevHoverColRef.current=-1; };
+  const onClick=()=>{ const { cols,tileW,tileH }=gridRef.current; const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH); if(mc<0||mr<0) return; const id=mr*cols+mc; const t=tilesRef.current[id]; if(!t||t.imgIdx<0) return; clickedTileIdRef.current=id; };
 
-  // десктопный клик
-  const onClick=()=>{ 
-    if(isMobile) return; 
-    const { cols,tileW,tileH }=gridRef.current; 
-    const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH); 
-    if(mc<0||mr<0) return; 
-    const id=mr*cols+mc; 
-    const t=tilesRef.current[id]; 
-    if(!t||t.imgIdx<0) return; 
-    clickedTileIdRef.current=id; 
-  };
-
-  // pointer-обработчики
-  const onPointerDown=(e)=>{
-    const r=canvasRef.current.getBoundingClientRect();
-    const x=e.clientX-r.left, y=e.clientY-r.top;
-    mouseRef.current={ x, y };
-    pointerActiveRef.current=true;
-    canvasRef.current.setPointerCapture?.(e.pointerId);
-
-    tapTrackRef.current.downX = x;
-    tapTrackRef.current.downY = y;
-    tapTrackRef.current.downAt = performance.now();
-
-    if(!isMobile){
-      onClick();
-    }
-  };
-
-  const onPointerMove=(e)=>{
-    if(isMobile && pointerActiveRef.current && e.cancelable) e.preventDefault();
-    const r=canvasRef.current.getBoundingClientRect();
-    const x=e.clientX-r.left, y=e.clientY-r.top;
-    mouseRef.current={ x, y };
-
-    if(isMobile && pointerActiveRef.current){
-      lastMoveAtRef.current = performance.now();
-      // при движении закрываем попап
-      if(mobilePopRef.current.active){
-        mobilePopRef.current.active=false;
-      }
-    }
-  };
-
-  const onPointerUp=()=>{
-    if(isMobile){
-      const { cols,tileW,tileH }=gridRef.current;
-      const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH);
-      if(mc>=0 && mr>=0){
-        const dx = mouseRef.current.x - tapTrackRef.current.downX;
-        const dy = mouseRef.current.y - tapTrackRef.current.downY;
-        const dist2 = dx*dx + dy*dy;
-        if(dist2 <= TAP_MOVE_TOLERANCE_PX*TAP_MOVE_TOLERANCE_PX) {
-          // «тап» — переключаем попап
-          if(mobilePopRef.current.active){
-            mobilePopRef.current.active = false;
-          }else{
-            const id = mr*cols + mc;
-            const t = tilesRef.current[id];
-            if(t && t.imgIdx>=0){
-              mobilePopRef.current.imgIdx = t.imgIdx;
-              mobilePopRef.current.topHalf = (mouseRef.current.y < (window.innerHeight/2));
-              mobilePopRef.current.active = true;
-              mobilePopRef.current.anim = 0;
-            }
-          }
-        }
-      }
-      // 🔁 СБРОС СОСТОЯНИЯ ПОСЛЕ ОТПУСКАНИЯ ПАЛЬЦА
-      lastMoveAtRef.current = -1e9;
-      scrollBoostRef.current = 0;
-      mouseRef.current={ x:-1e6, y:-1e6 };
-      prevHoverIdRef.current=-1; 
-      prevHoverColRef.current=-1; 
-      prevHoverRowRef.current=-1;
-    }
-    pointerActiveRef.current=false;
-    if(!isMobile) clickedTileIdRef.current=-1;
-  };
+  const pointerActiveRef=useRef(false);
+  const onPointerDown=(e)=>{ const r=canvasRef.current.getBoundingClientRect(); mouseRef.current={ x:e.clientX-r.left, y:e.clientY-r.top }; pointerActiveRef.current=true; canvasRef.current.setPointerCapture?.(e.pointerId); onClick(); };
+  const onPointerMove=(e)=>{ if(isMobile && pointerActiveRef.current && e.cancelable) e.preventDefault(); const r=canvasRef.current.getBoundingClientRect(); mouseRef.current={ x:e.clientX-r.left, y:e.clientY-r.top }; };
+  const onPointerUp=()=>{ pointerActiveRef.current=false; clickedTileIdRef.current=-1; };
 
   return (
     <canvas
@@ -810,12 +620,21 @@ export default function MosaicBackground() {
 }
 
 /* ===========================================================
-   МОБИЛЬНАЯ ВЕРСИЯ — быстрые настройки:
-   - MOBILE_BREAKPOINT (768)
-   - кол-во колонок (resize: cols=8)
-   - директория мобильных картинок (MOBILE_DIR)
-   - скролл-буст/поля/радиус попапа (константы выше)
+   МОБИЛЬНАЯ ВЕРСИЯ — быстрые правки тут:
+   — Порог мобильной ширины
+   — Количество колонок
+   — Директория для картинок
+   — Усиление ховера и множитель клика
 =========================================================== */
-export const MOSAIC_MOBILE_BREAKPOINT = MOBILE_BREAKPOINT;
-export const MOSAIC_MOBILE_DIR = MOBILE_DIR;
-export const MOSAIC_MOBILE_COLS = 8;
+// Порог мобилки:
+export const MOSAIC_MOBILE_BREAKPOINT = MOBILE_BREAKPOINT; // 768
+
+// Колонки мобилки:
+export const MOSAIC_MOBILE_COLS = 8; // менять при необходимости
+
+// Папка мобилок:
+export const MOSAIC_MOBILE_DIR = MOBILE_DIR; // "/rustam-site/assents/mobile/"
+
+// Усиления на мобиле:
+export const MOSAIC_MOBILE_HOVER = HOVER_BOOST_MOBILE; // 1.10
+export const MOSAIC_CLICK_MULT    = CLICK_MULT;        // 2.0

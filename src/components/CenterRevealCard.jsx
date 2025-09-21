@@ -568,7 +568,7 @@ function BiographyWordPerLetter({ onOpen }) {
   );
 }
 
-/* ===== Mobile Card — сдвиг всего контента на одну строку вверх + соц-иконки ниже ===== */
+/* ===== Mobile Card — откат к стабильной структуре + твои 3 правки ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
   const [bioOpen,setBioOpen]=useState(false);
@@ -597,7 +597,7 @@ function MobileCard() {
     zIndex:2147483600, touchAction:"none"
   };
 
-  /* Круг-плашка: чуть выше центра */
+  /* Круг-плашка: ЧУТЬ ВЫШЕ центра (было 50%, стало 48%) */
   const circleDiam = Math.round(Math.min(size.w, size.h) * 1.35);
   const plateStyle = {
     position:"absolute",
@@ -606,7 +606,7 @@ function MobileCard() {
     borderRadius:"50%", opacity: PLATE_OPACITY_MAX, pointerEvents:"none"
   };
 
-  /* Тексты (как в стабильной версии) */
+  /* Тексты (как было в стабильной версии) */
   const lettersBio = Array.from("BIOGRAPHY");
   const mapBio = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
   const [stickBio,setStickBio]=useState(lettersBio.map(()=>false));
@@ -658,7 +658,7 @@ function MobileCard() {
     }
   };
 
-  /* «Строки» для отступов */
+  /* «Строки» для отступов (как раньше) */
   const ONE_LINE = "1.2em";
   const HALF_LINE = "0.6em";
 
@@ -676,14 +676,13 @@ function MobileCard() {
           <i className="bend side top" /><i className="bend side bottom" />
         </div>
 
-        {/* Центральная колонка — весь блок поднят на одну «строку» */}
+        {/* Классическая колонка по центру — без абсолютов, чтобы «шрифты не сыпались» */}
         <div style={{
           position:"relative", zIndex:1, width:"100%", height:"100%",
           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-          color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans'", textShadow:"0 1px 2px rgba(0,0,0,0.25)",
-          transform: `translateY(-${ONE_LINE})`
+          color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans'", textShadow:"0 1px 2px rgba(0,0,0,0.25)"
         }}>
-          {/* BIOGRAPHY — как было */}
+          {/* BIOGRAPHY — ниже на 2 строки */}
           <PrePlate active={true}>
             <h2
               data-bio
@@ -700,7 +699,7 @@ function MobileCard() {
             </h2>
           </PrePlate>
 
-          {/* Имя */}
+          {/* Имя — ниже на 1 строку */}
           <PrePlate active={true}>
             <h1
               data-name
@@ -721,7 +720,7 @@ function MobileCard() {
             </h1>
           </PrePlate>
 
-          {/* DIRECTOR'S SHOWREEL */}
+          {/* DIRECTOR'S SHOWREEL — ниже на полстроки */}
           <PrePlate active={true}>
             <h3
               data-sr
@@ -737,7 +736,7 @@ function MobileCard() {
             </h3>
           </PrePlate>
 
-          {/* Кружочки (как раньше, останутся ниже showreel); общий сдвиг уже учтён */}
+          {/* Кружочки — ЧУТЬ-ЧУТЬ НИЖЕ обычного (+6px к прежнему) */}
           <div ref={dotsRef} style={{ marginTop:`calc(${HALF_LINE} + 6px)`, display:"flex", gap:16, alignItems:"center" }}>
             {[1,2,3].map((n,idx)=>(
               <div key={n} data-dot>
@@ -754,10 +753,10 @@ function MobileCard() {
         </div>
       </div>
 
-      {/* Соц-иконки — опущены ближе к нижнему краю */}
+      {/* Соц-иконки — внизу экрана, с безопасным отступом ~10% */}
       <div style={{
         position:"fixed", left:"50%", transform:"translateX(-50%)",
-        bottom:"calc(4vh + env(safe-area-inset-bottom, 0px))",
+        bottom:"calc(10vh + env(safe-area-inset-bottom, 0px))",
         display:"flex", justifyContent:"center", gap:20,
         zIndex:2147483601
       }}>
@@ -783,6 +782,7 @@ function MobileCard() {
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
 
+      {/* локальные стили (как в стабильной) */}
       <style>{`
         .glass-plate.circle{
           background: rgba(255,255,255,0.07);
@@ -804,6 +804,7 @@ function MobileCard() {
           background:
             radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
             radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
+            radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
             radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
             linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
           box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
