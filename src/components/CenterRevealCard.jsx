@@ -115,7 +115,7 @@ function useAudio() {
   return { playHoverSoft, playIcon, playDot, playAppear };
 }
 
-/* ===== Social Icon (вернул!) ===== */
+/* ===== Social Icon ===== */
 function IconLink({ href, whiteSrc, colorSrc, label, onHoverSound }) {
   const [hover, setHover] = useState(false);
   return (
@@ -139,13 +139,13 @@ function IconLink({ href, whiteSrc, colorSrc, label, onHoverSound }) {
   );
 }
 
-/* ===== Тяжёлая тень (центр тёмный → растворение к краям) ===== */
-function PrePlate({ active, children, expandX=72, expandY=36, radius=12, centerOpacity=0.86 }) {
+/* ===== Тень до появления плашки (центр тёмный → края растворяются) ===== */
+function PrePlate({ active, children, expandX=72, expandY=36, radius=12, centerOpacity=0.43 }) { // стало на 50% прозрачнее
   const bg = `radial-gradient(ellipse at 50% 50%,
     rgba(0,0,0,${centerOpacity}) 0%,
-    rgba(0,0,0,${(centerOpacity*0.9).toFixed(3)}) 40%,
-    rgba(0,0,0,0.35) 65%,
-    rgba(0,0,0,0.15) 82%,
+    rgba(0,0,0,${(centerOpacity*0.8).toFixed(3)}) 40%,
+    rgba(0,0,0,0.25) 70%,
+    rgba(0,0,0,0.10) 85%,
     rgba(0,0,0,0) 100%)`;
   return (
     <div style={{ position:"relative", display:"inline-block", borderRadius:radius }}>
@@ -238,7 +238,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
   );
 }
 
-/* ===== BIO Mobile overlay ===== */
+/* ===== BIO Mobile overlay (фикс отступов/позиционирования, НЕ закрывается скролом) ===== */
 function BioMobileOverlay({ open, onClose, imageSrc }) {
   const [tab,setTab] = useState("bio");
   const audioRef = useRef(null);
@@ -267,15 +267,17 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
 
 В основу я кладу скорость принятия решений и приоритетность действий. Для меня важно строго придерживаться дедлайна, прогнозировать изменения и настраивать команду, на достижения лучшего результата.`;
 
-  const deepRed = "#b91313";
+  const deepRed = "#9e1010";
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.86)", zIndex:2147485600, display:"flex", alignItems:"center", justifyContent:"center" }}>
       <audio ref={audioRef} src="/rustam-site/assents/music/bio.mp3" preload="auto"/>
-      <div onClick={(e)=>e.stopPropagation()} style={{ position:"relative", width:"100vw", height:"100vh", borderRadius:0, overflow:"hidden", background:"#000" }}>
+      {/* никаких onClick/drag — только крестик закрывает */}
+      <div style={{ position:"relative", width:"100vw", height:"100vh", overflow:"hidden", background:"#000" }}>
         <img src={imageSrc} alt="bio-mobile"
-             style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition:"50% 58%", transform:"translateY(10px)" }}/>
-        <div style={{ position:"absolute", top:"calc(22% + 4em + env(safe-area-inset-top))", left:"7%", right:"7%", display:"flex", gap:24, alignItems:"center" }}>
+             style={{ position:"absolute", left:0, right:0, top:"32px", bottom:0, width:"100%", height:"100%", objectFit:"cover", objectPosition:"50% 62%" }}/>
+        {/* заголовки опущены на ~2 строки */}
+        <div style={{ position:"absolute", top:"calc(28% + 2.2em)", left:"7%", right:"7%", display:"flex", gap:24, alignItems:"center" }}>
           <button onClick={()=>setTab("bio")}
             style={{ appearance:"none", background:"transparent", border:"none", padding:0, margin:0,
                      color: tab==="bio" ? deepRed : "rgba(255,255,255,0.94)", fontFamily:"UniSans-Heavy, 'Uni Sans'",
@@ -285,16 +287,18 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
           <button onClick={()=>setTab("char")}
             style={{ appearance:"none", background:"transparent", border:"none", padding:0, margin:0,
                      color: tab==="char" ? deepRed : "rgba(255,255,255,0.94)", fontFamily:"UniSans-Heavy, 'Uni Sans'",
-                     fontWeight:800, letterSpacing:"0.06ем", fontSize:20, textShadow:"0 3px 8px rgba(0,0,0,0.35)" }}>
+                     fontWeight:800, letterSpacing:"0.06em", fontSize:20, textShadow:"0 3px 8px rgba(0,0,0,0.35)" }}>
             ХАРАКТЕРИСТИКА
           </button>
         </div>
-        <div style={{ position:"absolute", left:"6%", right:"6%", top:"calc(36% + 4ем)", bottom:"5%", overflow:"auto",
+        {/* текст поднят под заголовки */}
+        <div style={{ position:"absolute", left:"6%", right:"6%", top:"calc(36% + 2.8em)", bottom:"6%", overflow:"auto",
                       color:"#2f2f33", fontFamily:"Jura, system-ui", fontSize:16, lineHeight:1.32, paddingRight:12, whiteSpace:"pre-wrap" }}>
           {tab==="bio" ? textBio : textChar}
         </div>
+        {/* крестик опущен ниже вместе с изображением */}
         <button aria-label="Close" onClick={onClose}
-          style={{ position:"absolute", top:"calc(1ем + env(safe-area-inset-top))", right:10, width:40, height:40, borderRadius:999,
+          style={{ position:"absolute", top:"calc(28px + env(safe-area-inset-top))", right:12, width:40, height:40, borderRadius:999,
                    background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.4)", cursor:"pointer",
                    display:"grid", placeItems:"center", boxShadow:"0 6px 18px rgba(0,0,0,0.4)", zIndex:1 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
@@ -391,7 +395,7 @@ function DesktopCard() {
   const showreelText="DIRECTOR'S SHOWREEL";
   const nameLatin="RUSTAM ROMANOV";
   const map={ R:"Р", U:"У", S:"С", T:"Т", A:"А", M:"М", O:"О", N:"Н", V:"В", " ":"\u00A0", D:"D", I:"I", E:"E", C:"C", L:"L", H:"H", W:"W" };
-  const titleBase=24; const titleFS=Math.round(titleBase*1.1); const nameFS = Math.round(titleFS*1.2); // +20%
+  const titleBase=24; const titleFS=Math.round(titleBase*1.1); const nameFS = Math.round(titleFS*1.32); // было +20%, теперь +10% сверху ≈ +32%
 
   const [nameStick,setNameStick]=useState(Array.from(nameLatin).map(()=>false));
   const [nameColors,setNameColors]=useState(Array.from(nameLatin).map(()=>"#cfcfcf"));
@@ -436,11 +440,7 @@ function DesktopCard() {
                 <h2 style={{ margin:0, fontSize: Math.round(titleFS/1.5), letterSpacing:"0.08em", whiteSpace:"nowrap", userSelect:"none", position:"relative", zIndex:1 }}>
                   {Array.from(showreelText).map((ch,i)=>(
                     <span key={`sr-${i}`}
-                      onMouseEnter={()=>{
-                        if(!srStick[i]) { playHoverSoft(); }
-                        setSrStick(s=>{const a=[...s]; a[i]=true; return a;});
-                        setSrColors(c=>{const a=[...c]; a[i]=randColor(); return a;});
-                      }}
+                      onMouseEnter={()=>{ if(!srStick[i]) { playHoverSoft(); } setSrStick(s=>{const a=[...s]; a[i]=true; return a;}); setSrColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); }}
                       style={{ display:"inline-block", whiteSpace:"pre", color: srStick[i] ? srColors[i] : "#bfbfbf",
                                transform: srStick[i] ? "scale(1.3)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease",
                                animation: srStick[i] ? "none" : `shimmerGray 1600ms ease-in-out ${i*70}ms infinite` }}>
@@ -461,7 +461,7 @@ function DesktopCard() {
               </div>
             </PrePlate>
 
-            {/* NAME (+20%) */}
+            {/* NAME (доп. +10%) */}
             <PrePlate active={!isInside}>
               <h1 ref={nameRef} onMouseLeave={() => setNameStick(Array.from(nameLatin).map(()=>false))}
                   style={{ margin:0, fontSize:nameFS, letterSpacing:"0.02em", whiteSpace:"nowrap", userSelect:"none", cursor: `url(${CURSOR_URL}) 10 10, default` }}>
@@ -549,7 +549,7 @@ function BiographyWordPerLetter({ onOpen }) {
   );
 }
 
-/* ===== Mobile Card ===== */
+/* ===== Mobile Card (фикс: постоянная перекраска, shimmer, звуки по скролу для кружков) ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
   const [bioOpen,setBioOpen]=useState(false);
@@ -586,18 +586,20 @@ function MobileCard() {
   const [hoverDot,setHoverDot]=useState(-1);
   const draggingRef = useRef(false);
   const lastSoundRef = useRef(0);
-  const tryPlayHover = () => { const now = performance.now(); if (now - lastSoundRef.current > 80) { lastSoundRef.current = now; playHoverSoft(); } };
+  const lastDotRef   = useRef(-1);
+  const tryPlayHover = () => { const now = performance.now(); if (now - lastSoundRef.current > 90) { lastSoundRef.current = now; playHoverSoft(); } };
 
+  // постоянная перекраска при скроле
   const hitLetter = (el, setterStick, setterColor, translateMap) => {
     const idx = Number(el?.getAttribute?.("data-idx"));
     if(!Number.isFinite(idx)) return;
-    setterStick(prev=>{ if(prev[idx]) return prev; const a=[...prev]; a[idx]=true; return a; });
+    setterStick(prev=>{ if(!prev[idx]) { const a=[...prev]; a[idx]=true; return a; } return prev; });
     setterColor(c=>{ const a=[...c]; a[idx]=randColor(); return a; });
     tryPlayHover();
   };
 
   const handlePointerDown = (e)=>{ draggingRef.current=true; e.currentTarget.setPointerCapture?.(e.pointerId); handlePointerMove(e); };
-  const handlePointerUp   = ()=>{ draggingRef.current=false; setHoverDot(-1); };
+  const handlePointerUp   = ()=>{ draggingRef.current=false; setHoverDot(-1); lastDotRef.current=-1; };
   const handlePointerMove = (e)=>{
     if(!draggingRef.current) return;
     const x=e.clientX, y=e.clientY;
@@ -608,7 +610,7 @@ function MobileCard() {
     if(dotsRef.current){
       const kids = Array.from(dotsRef.current.querySelectorAll("[data-dot]"));
       let hit=-1; kids.forEach((k,i)=>{ const r=k.getBoundingClientRect(); if(x>=r.left && x<=r.right && y>=r.top && y<=r.bottom) hit=i; });
-      setHoverDot(hit);
+      if(hit!==hoverDot){ setHoverDot(hit); if(hit!==-1 && hit!==lastDotRef.current){ lastDotRef.current=hit; playDot(); } }
     }
   };
 
@@ -621,21 +623,30 @@ function MobileCard() {
         <div style={{ position:"relative", zIndex:1, width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans'", textShadow:"0 1px 2px rgba(0,0,0,0.25)" }}>
           <h2 ref={bioRef} onClick={()=>setBioOpen(true)} style={{ margin:0, fontSize:"clamp(16px, 5.2vw, 22px)", letterSpacing:"0.08em", userSelect:"none" }}>
             {lettersBio.map((ch,i)=>(
-              <span key={i} data-idx={i} style={{ display:"inline-block", whiteSpace:"pre", color: stickBio[i] ? colorsBio[i] : "#ffffff", transform: stickBio[i] ? "scale(1.28)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease" }}>
+              <span key={i} data-idx={i}
+                style={{ display:"inline-block", whiteSpace:"pre", color: stickBio[i] ? colorsBio[i] : "#ffffff",
+                         transform: stickBio[i] ? "scale(1.28)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease",
+                         animation: stickBio[i] ? "none" : `shimmerGray 1600ms ease-in-out ${i*70}ms infinite` }}>
                 {stickBio[i] ? (mapBio[ch] || ch) : ch}
               </span>
             ))}
           </h2>
           <h1 ref={nameRef} style={{ margin:"10px 0 0", fontSize:"clamp(20px, 7.2vw, 32px)", letterSpacing:"0.02em", userSelect:"none" }}>
             {nameLatin.map((ch,i)=>(
-              <span key={i} data-idx={i} style={{ display:"inline-block", whiteSpace:"pre", color: stickName[i] ? colorsName[i] : "#cfcfcf", transform: stickName[i] ? "scale(1.28)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease" }}>
+              <span key={i} data-idx={i}
+                style={{ display:"inline-block", whiteSpace:"pre", color: stickName[i] ? colorsName[i] : "#cfcfcf",
+                         transform: stickName[i] ? "scale(1.28)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease",
+                         animation: stickName[i] ? "none" : `shimmerGray 1600ms ease-in-out ${i*70}ms infinite` }}>
                 {stickName[i] ? (mapName[ch] || ch) : (ch===" " ? "\u00A0" : ch)}
               </span>
             ))}
           </h1>
           <h3 ref={srRef} style={{ margin:"6px 0 0", fontSize:"clamp(14px, 4.6vw, 18px)", letterSpacing:"0.08em", color:"#cfcfcf", userSelect:"none" }}>
             {srLetters.map((ch,i)=>(
-              <span key={i} data-idx={i} style={{ display:"inline-block", whiteSpace:"pre", color: srStick[i] ? srColors[i] : "#cfcfcf", transform: srStick[i] ? "scale(1.2)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease" }}>
+              <span key={i} data-idx={i}
+                style={{ display:"inline-block", whiteSpace:"pre", color: srStick[i] ? srColors[i] : "#cfcfcf",
+                         transform: srStick[i] ? "scale(1.2)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease",
+                         animation: srStick[i] ? "none" : `shimmerGray 1600ms ease-in-out ${i*70}ms infinite` }}>
                 {ch===" " ? "\u00A0" : ch}
               </span>
             ))}
@@ -663,18 +674,33 @@ function MobileCard() {
         .glass-plate .bend.side.right{ right:0; left:auto; width:26%; -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0) 60%); mask-image: linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0) 60%);}
         .glass-plate .bend.side.top{ top:0; bottom:auto; height:26%; -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0) 60%); mask-image: linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0) 60%);}
         .glass-plate .bend.side.bottom{ bottom:0; top:auto; height:26%; -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0) 60%); mask-image: linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0) 60%);}
+        @keyframes shimmerGray { 0%,100% { color: #cfcfcf } 50% { color: #7a7a7a } }
       `}</style>
     </>
   );
 }
 
-/* ===== Vimeo overlay (адаптивный) ===== */
+/* ===== Vimeo overlay ===== */
 function VideoOverlay({ open, onClose, vimeoId, full=true }) {
   const dragRef = useRef({active:false,startY:0,dy:0});
+  const [showUnmute,setShowUnmute]=useState(full); // на мобиле показываем подсказку
   if (!open) return null;
+
   const onPD = (e)=>{ if(!full) return; dragRef.current={active:true,startY:e.clientY,dy:0}; e.currentTarget.setPointerCapture?.(e.pointerId); };
   const onPM = (e)=>{ if(!full) return; const d=dragRef.current; if(!d.active) return; d.dy=e.clientY-d.startY; const panel=e.currentTarget.querySelector(".player-panel"); if(panel){ panel.style.transform=`translateY(${d.dy}px)`; panel.style.opacity=String(clamp(1-Math.abs(d.dy)/260,0.25,1)); } };
   const onPU = (e)=>{ if(!full) return; const d=dragRef.current; dragRef.current={active:false,startY:0,dy:0}; const panel=e.currentTarget.querySelector(".player-panel"); if(!panel) return; if(Math.abs(d.dy)>140){ onClose(); } else { panel.style.transition="transform 220ms ease, opacity 220ms ease"; panel.style.transform="translateY(0)"; panel.style.opacity="1"; setTimeout(()=>{ panel.style.transition=""; },230); } };
+
+  // попытка размьютить по тапу (Vimeo postMessage), плюс прячем титр
+  const tryUnmute = ()=> {
+    setShowUnmute(false);
+    try{
+      const iframe = document.getElementById("vimeo-embed");
+      if(!iframe) return;
+      iframe.contentWindow?.postMessage({ method:"setMuted", value:false }, "*");
+      iframe.contentWindow?.postMessage({ method:"play" }, "*");
+    }catch{}
+  };
+
   const containerStyle = full
     ? { position:"relative", width:"100vw", height:"100vh", borderRadius:0 }
     : { position:"relative", width:"60vw", maxWidth:1200, height:"60vh", borderRadius:12, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.55)", background:"#000" };
@@ -682,21 +708,30 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
     <div onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
          style={{ position:"fixed", inset:0, zIndex:2147486000, background:"rgba(0,0,0,0.96)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vw" }}>
       <button aria-label="Close" onClick={onClose}
-        style={{ position:"absolute", top:"calc(1em + env(safe-area-inset-top))", right:16, width:40, height:40, borderRadius:999, background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.35)", cursor:"pointer", display:"grid", placeItems:"center", zIndex:1 }}>
+        style={{ position:"absolute", top:"calc(2.2em + env(safe-area-inset-top))", right:16, width:40, height:40, borderRadius:999, background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.35)", cursor:"pointer", display:"grid", placeItems:"center", zIndex:2 }}>
         <svg width="18" height="18" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
       </button>
       <div className="player-panel" onClick={(e)=>e.stopPropagation()} style={containerStyle}>
         <iframe
-          src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=0&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1`}
+          id="vimeo-embed"
+          src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=1&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1`}
           title="Vimeo player" frameBorder="0" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen
           style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block", background:"#000" }}
         />
+        {full && showUnmute && (
+          <button onClick={tryUnmute}
+            style={{ position:"absolute", left:"50%", bottom:"10%", transform:"translateX(-50%)",
+                     padding:"10px 16px", borderRadius:999, background:"rgba(0,0,0,0.55)", color:"#fff",
+                     border:"1px solid rgba(255,255,255,0.35)", fontFamily:"UniSans-Heavy, 'Uni Sans'", letterSpacing:"0.06em" }}>
+            Tap to unmute
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-/* ===== Экспорт ===== */
+/* ===== Экспорт (автосвитч) ===== */
 export default function CenterRevealCard() {
   const [isMobile,setIsMobile]=useState(typeof window!=="undefined" ? window.innerWidth<=MOBILE_BREAKPOINT : false);
   useEffect(()=>{
