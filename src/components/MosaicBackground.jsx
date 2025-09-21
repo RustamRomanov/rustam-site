@@ -385,14 +385,32 @@ export default function MosaicBackground() {
   function penaltyFor(idx, id, tiles, cols, rows){
     const si=seqRef.current[idx];
     let pen=0;
+
+    const r0=Math.floor(id/cols), c0=id%cols;
+
     for(const j of neighborsOf(id, cols, rows)){
       const t=tiles[j]; if(!t) continue;
       const a=t.fading ? (t.imgIdx>=0 ? t.imgIdx : t.prevIdx) : t.imgIdx;
       if(a<0) continue;
-      if(a===idx){ pen += 10000; continue; }
+
+      if(a===idx){ pen += 10000; continue; } // полный запрет точного повтора
+
       const sj=seqRef.current[a];
-      if(sj!=null && si!=null && Math.abs(sj-si)<=NEI_DELTA) pen += 1;
+      if(sj!=null && si!=null){
+        const rr=Math.floor(j/cols), cc=j%cols;
+        const ringDist = Math.max(Math.abs(cc-c0), Math.abs(rr-r0));
+        const isSeqClose = Math.abs(sj - si) <= NEI_DELTA;
+
+        // 🚫 Для всех платформ: сильный запрет близких номеров в радиусе ≤ 3
+        if(isSeqClose && ringDist <= 3){
+          pen += 1000;
+        } else if(isSeqClose){
+          pen += 1;    // мягкий штраф для дальних соседей
+        }
+      }
     }
+
+    // равномерность использования
     pen += useCntRef.current[idx]*0.001;
     return pen;
   }
@@ -763,6 +781,13 @@ export default function MosaicBackground() {
           }
         }
       }
+      // 🔁 СБРОС СОСТОЯНИЯ ПОСЛЕ ОТПУСКАНИЯ ПАЛЬЦА
+      lastMoveAtRef.current = -1e9;
+      scrollBoostRef.current = 0;
+      mouseRef.current={ x:-1e6, y:-1e6 };
+      prevHoverIdRef.current=-1; 
+      prevHoverColRef.current=-1; 
+      prevHoverRowRef.current=-1;
     }
     pointerActiveRef.current=false;
     if(!isMobile) clickedTileIdRef.current=-1;

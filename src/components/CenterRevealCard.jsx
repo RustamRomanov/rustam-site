@@ -7,10 +7,21 @@ const within = (x,y,r)=> x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
 const randColor = () => `hsl(${Math.floor(Math.random()*360)}, 86%, 60%)`;
 const shuffle = (arr) => { const a=arr.slice(); for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a; };
 
-/* Цветной курсор (Safari ок) */
+/* Цветной курсор (Safari ок) — используется на десктопе */
 const CURSOR_URL = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><circle cx='10' cy='10' r='6' fill='%23E53935'/><circle cx='10' cy='10' r='3' fill='%23ffffff'/></svg>`.replace(/\n|\s{2,}/g,"");
 
-/* ===== Audio (как было в прошлой версии) ===== */
+/* ===== Настройки плашки ===== */
+const PLATE_OPACITY_MAX = 0.8;     // финально на 20% прозрачнее
+const PLATE_EASE_POWER  = 1.35;
+const PLATE_LERP        = 0.18;
+/* допускает 30 или 0.30 */
+const PLATE_SATURATE_INPUT = 0.30;
+const PLATE_SATURATE_FRACTION = PLATE_SATURATE_INPUT > 1 ? PLATE_SATURATE_INPUT/100 : PLATE_SATURATE_INPUT;
+
+/* ===== Платформа ===== */
+const MOBILE_BREAKPOINT = 768;
+
+/* ===== Audio ===== */
 function useAudio() {
   const ctxRef = useRef(null);
   const getCtx = async () => {
@@ -53,25 +64,20 @@ function useAudio() {
   };
 
   const playDot = async () => {
-  const ctx = await getCtx(); if (!ctx) return;
-  const t0 = ctx.currentTime;
-
-  const o = ctx.createOscillator();
-  const g = ctx.createGain();
-
-  // Мягкий «поп» — быстрый удар и затухание
-  o.type = "sine";
-  o.frequency.setValueAtTime(180, t0);
-  o.frequency.exponentialRampToValueAtTime(60, t0 + 0.25);
-
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25);
-
-  o.connect(g).connect(ctx.destination);
-  o.start(t0);
-  o.stop(t0 + 0.3);
-};
+    const ctx = await getCtx(); if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(180, t0);
+    o.frequency.exponentialRampToValueAtTime(60, t0 + 0.25);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25);
+    o.connect(g).connect(ctx.destination);
+    o.start(t0);
+    o.stop(t0 + 0.3);
+  };
 
   const playAppear = async () => {
     const ctx = await getCtx(); if (!ctx) return;
@@ -124,15 +130,18 @@ function IconLink({ href, whiteSrc, colorSrc, label, onHoverSound }) {
   );
 }
 
-/* ===== DotButton: полёт — на обёртке; масштаб — на кнопке ===== */
-function DotButton({ n, onClick, onHoverSound, animate=false, delayMs=0 }) {
+/* ===== DotButton — теперь «дышит» всегда (и на десктопе, и на мобиле) ===== */
+function DotButton({ n, onClick, onHoverSound, animate=false, delayMs=0, hoverExternal=false }) {
   const [hover,setHover] = useState(false);
+  const active = hover || hoverExternal;
   return (
     <>
       <div
         style={{
           display:"inline-block",
-          animation: animate ? `dotRise 820ms cubic-bezier(.22,.9,.18,1) ${delayMs}ms both` : "none"
+          // подъём + дыхание
+          animation: `${animate ? `dotRise 820ms cubic-bezier(.22,.9,.18,1) ${delayMs}ms both` : "none"}, breath 2600ms ease-in-out ${delayMs}ms infinite`,
+          willChange:"transform"
         }}
       >
         <button
@@ -141,21 +150,21 @@ function DotButton({ n, onClick, onHoverSound, animate=false, delayMs=0 }) {
           onMouseLeave={()=> setHover(false)}
           style={{
             width:42, height:42, borderRadius:999,
-            background: hover ? "rgba(229,57,53,0.28)" : "rgba(210,210,210,0.18)",
-            border: hover ? "1px solid rgba(229,57,53,0.7)" : "1px solid rgba(180,180,180,0.55)",
+            background: active ? "rgba(229,57,53,0.28)" : "rgba(210,210,210,0.18)",
+            border: active ? "1px solid rgba(229,57,53,0.7)" : "1px solid rgba(180,180,180,0.55)",
             backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
             color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center",
             fontWeight:800, fontFamily:"UniSans-Heavy, 'Uni Sans', system-ui", fontSize:18,
             cursor:"pointer",
-            transform: hover ? "scale(1.3)" : "scale(1)",              // <— растёт именно кружок
+            transform: active ? "scale(1.3)" : "scale(1)",
             transition:"transform 140ms cubic-bezier(.2,.9,.2,1), background 240ms ease, border-color 240ms ease",
-            boxShadow: hover ? "0 10px 28px rgba(229,57,53,0.35)" : "none",
+            boxShadow: `0 0 0 0 rgba(229,57,53,0.0), ${active ? "0 10px 28px rgba(229,57,53,0.35)" : "none"}`
           }}
         >
           <span
             style={{
               display:"inline-block",
-              transform: hover ? "scale(1.7)" : "scale(1)",            // цифра ещё больше
+              transform: active ? "scale(1.7)" : "scale(1)",
               transition:"transform 140ms cubic-bezier(.2,.9,.2,1)",
             }}
           >
@@ -166,16 +175,48 @@ function DotButton({ n, onClick, onHoverSound, animate=false, delayMs=0 }) {
 
       <style>{`
         @keyframes dotRise {
-          0%   { transform: translateY(26px); opacity: 0; }
-          58%  { transform: translateY(-14px); opacity: 1; }
-          100% { transform: translateY(6px);  opacity: 1; }
+          0%   { transform: translateY(26px) }
+          58%  { transform: translateY(-14px) }
+          100% { transform: translateY(6px)  }
+        }
+        @keyframes breath {
+          0%, 100% { transform: scale(1) }
+          45%      { transform: scale(1.12) }
         }
       `}</style>
     </>
   );
 }
 
-/* ===== BIO overlay (как было) ===== */
+/* ===== Равномерная тень под элементом (для десктопа, вне плашки) ===== */
+function PrePlate({ active, children, expand=24, radius=12, opacity=0.55 }) {
+  const mid = Math.round(70 * 0.85);
+  const bg = `radial-gradient(circle at 50% 50%,
+    rgba(0,0,0,${opacity}) 0%,
+    rgba(0,0,0,${(opacity*0.85).toFixed(3)}) ${mid}%,
+    rgba(0,0,0,0) 100%)`;
+  return (
+    <div style={{ position:"relative", display:"inline-block", borderRadius:radius }}>
+      <div
+        aria-hidden
+        style={{
+          position:"absolute",
+          top: -expand, right: -expand, bottom: -expand, left: -expand,
+          borderRadius: radius + expand,
+          background: bg,
+          opacity: active ? 1 : 0,
+          transition:"opacity 220ms ease",
+          pointerEvents:"none",
+          filter:"blur(0.3px)",
+          zIndex: 0
+        }}
+      />
+      <div style={{ position:"relative", zIndex:1 }}>{children}</div>
+    </div>
+  );
+}
+
+/* ===== BIO overlay (Desktop) ===== */
 function BioOverlay({ open, onClose, imageSrc }) {
   const [tab,setTab] = useState("bio");
   const audioRef = useRef(null);
@@ -223,7 +264,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
                          fontSize:headerFS, lineHeight:1.2, color: tab==="bio" ? "#E53935" : "#000" }}>БИОГРАФИЯ</button>
               <button onClick={()=>setTab("char")} onMouseEnter={()=>setTab("char")}
                 style={{ appearance:"none", background:"transparent", border:"none", padding:0, margin:0, cursor:"pointer",
-                         fontFamily:"UniSans-Heavy, 'Uni Sans'", fontWeight:800, letterSpacing:"0.05ем",
+                         fontFamily:"UniSans-Heavy, 'Uni Sans'", fontWeight:800, letterSpacing:"0.05em",
                          fontSize:headerFS, lineHeight:1.2, color: tab==="char" ? "#E53935" : "#000", marginLeft:"4ch" }}>ХАРАКТЕРИСТИКА</button>
             </div>
             <div style={{ position:"absolute", top:`calc(${inset} + (${headerFS} * 3.2))`, bottom:`calc(${inset} + ${headerFS} * 1)`, left:0, right:0 }}>
@@ -247,56 +288,172 @@ function BioOverlay({ open, onClose, imageSrc }) {
   );
 }
 
-/* ===== Desktop card ===== */
-function DesktopCard() {
-  const { playHoverSoft, playIcon, playDot, playAppear } = useAudio();
+/* ===== Мобильное окно BIO (95% экрана, картинка + текст) ===== */
+function BioMobileOverlay({ open, onClose, imageSrc }) {
+  const [tab,setTab] = useState("bio"); // "bio" | "char"
+  if(!open) return null;
 
-  /* фиксированный размер */
+  const textBio = `Я родился 4 декабря 1980 г в Ульяновске.
+
+В конце 90-х я сделал свой первый клип. Камера Hi8, магнитофон и видеоплеер — как монтажный стол. Это была настоящая магия без компьютера.
+
+В 2009-м я переехал в Москву. Снимал рэп-клипы на «зеркалку» с горящими глазами и верой, что всё получится. Получилось. 
+
+В 2010 году я оказался в команде Gazgolder, а в 2011-м отправился с Бастой в тур по Америке. 
+
+В 2012-м я снял первый документальный фильм о Тимати. Так началась большая глава с Black Star, а вместе с ней и десятки громких клипов.
+
+2014 год стал переломным — клип L’One — «Океан» открыл для меня новые горизонты. А в 2015-м работа Doni feat. Натали — «Ты такой» побила все рекорды, став первым клипом в России, преодолевшим 100 млн просмотров на YouTube.
+
+Дальше — сотни проектов, работа с артистами разных жанров и масштабов: от Макса Коржа, Iowa, Pizza до Стаса Михайлова,   Николая Баскова и Филиппа Киркорова. 
+
+Сегодня мой багаж — 200+ проектов, более 2-х миллиардов просмотров и более сотни артистов.`;
+
+  const textChar = `Я считаю, что успешный проект зависит не только от визуального воплощения идеи, но и от глубокого понимания потребностей клиента.
+
+Я считаю, что успешный проект зависит не только от визуального воплощения идеи, но и от глубокого понимания потребностей и ожиданий клиента. 
+
+В основу я кладу скорость принятия решений и приоритетность действий. Для меня важно строго придерживаться дедлайна, прогнозировать изменения и настраивать команду, на достижения лучшего результата.`;
+
+  return (
+    <div onClick={onClose}
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.86)", zIndex:2147485600, display:"flex", alignItems:"center", justifyContent:"center", padding:"3vw" }}>
+      <div onClick={(e)=>e.stopPropagation()}
+           style={{ position:"relative", width:"95vw", height:"95vh", maxWidth:520, borderRadius:18, overflow:"hidden", boxShadow:"0 24px 80px rgba(0,0,0,0.55)", background:"#000" }}>
+        <img src={imageSrc} alt="bio-mobile" style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }}/>
+        {/* Верхние вкладки (как на твоём макете) */}
+        <div style={{ position:"absolute", top:"16%", left:"8%", right:"8%", display:"flex", gap:24, alignItems:"center" }}>
+          <button onClick={()=>setTab("bio")}
+            style={{ appearance:"none", background:"transparent", border:"none", padding:0, margin:0,
+                     color: tab==="bio" ? "#E53935" : "rgba(255,248,240,0.9)", fontFamily:"UniSans-Heavy, 'Uni Sans'",
+                     fontWeight:800, letterSpacing:"0.06em", fontSize:18, textShadow:"0 3px 8px rgba(0,0,0,0.35)" }}>
+            БИОГРАФИЯ
+          </button>
+          <button onClick={()=>setTab("char")}
+            style={{ appearance:"none", background:"transparent", border:"none", padding:0, margin:0,
+                     color: tab==="char" ? "#E53935" : "rgba(255,248,240,0.9)", fontFamily:"UniSans-Heavy, 'Uni Sans'",
+                     fontWeight:800, letterSpacing:"0.06em", fontSize:18, textShadow:"0 3px 8px rgba(0,0,0,0.35)" }}>
+            ХАРАКТЕРИСТИКА
+          </button>
+        </div>
+        {/* Текстовое поле (внутри «розовой рамки» — я задал padding и проценты) */}
+        <div style={{ position:"absolute", left:"6%", right:"6%", top:"30%", bottom:"5%", overflow:"auto",
+                      color:"rgba(255,248,240,0.93)", fontFamily:"Jura, system-ui", fontSize:16, lineHeight:1.32,
+                      textShadow:"0 1px 1px rgba(0,0,0,0.25)", paddingRight:12, whiteSpace:"pre-wrap" }}>
+          {tab==="bio" ? textBio : textChar}
+        </div>
+
+        {/* Close */}
+        <button aria-label="Close" onClick={onClose}
+          style={{ position:"absolute", top:10, right:10, width:36, height:36, borderRadius:999, background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.35)", cursor:"pointer", display:"grid", placeItems:"center", boxShadow:"0 6px 18px rgba(0,0,0,0.4)" }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ===== Desktop card: контент всегда виден, плашка — плавная + «изогнутое стекло» ===== */
+function DesktopCard() {
+  const { playHoverSoft, playIcon, playDot } = useAudio();
+
+  /* центр и размер */
   const [fixedSize,setFixedSize]=useState({ w:520, h:320 });
-  useEffect(()=>{ const vw=window.innerWidth; const w0=clamp(Math.round(vw*0.36),360,720); const h0=Math.round((w0/2*1.26)*0.9); setFixedSize({w:w0,h:h0}); },[]);
+  useEffect(()=>{
+    const vw=window.innerWidth;
+    const w0=clamp(Math.round(vw*0.36),360,720);
+    const h0=Math.round((w0/2*1.26)*0.9);
+    setFixedSize({w:w0,h:h0});
+  },[]);
   const rectRef = useRef({ left:0, top:0, w:0, h:0 });
   const updateRect = ()=>{ const vw=window.innerWidth, vh=window.innerHeight; const {w,h}=fixedSize; rectRef.current={ left:Math.round((vw-w)/2), top:Math.round((vh-h)/2), w, h }; };
   useEffect(()=>{ updateRect(); },[fixedSize]);
   useEffect(()=>{ const f=()=>updateRect(); window.addEventListener("resize",f); return ()=>window.removeEventListener("resize",f); },[]);
 
-  /* появление */
-  const [cardShown,setCardShown]=useState(false); const [popAnim,setPopAnim]=useState(false);
-  useEffect(()=>{ if(cardShown) return; let af=null; const onMove=(e)=>{ if(af) cancelAnimationFrame(af); af=requestAnimationFrame(async()=>{ const r=rectRef.current; const inside=within(e.clientX,e.clientY,{left:r.left,top:r.top,right:r.left+r.w,bottom:r.top+r.h}); if(inside&&!cardShown){ setCardShown(true); setPopAnim(true); setTimeout(()=>setPopAnim(false),450);} });}; window.addEventListener("mousemove",onMove,{passive:true}); return ()=>{ window.removeEventListener("mousemove",onMove); if(af) cancelAnimationFrame(af);} },[cardShown,playAppear]);
+  /* цель и фактическая альфа плашки + флаг "внутри" */
+  const plateTargetRef = useRef(0);
+  const plateAlphaRef  = useRef(0);
+  const [plateAlpha, setPlateAlpha] = useState(0);
+  const [isInside, setIsInside] = useState(false);
+
+  useEffect(()=>{
+    let raf=0;
+    const tick=()=>{
+      const a=plateAlphaRef.current, t=plateTargetRef.current;
+      const next = a + (t - a) * PLATE_LERP;
+      if (Math.abs(next - a) > 0.001) {
+        plateAlphaRef.current = next;
+        setPlateAlpha(next);
+      }
+      raf=requestAnimationFrame(tick);
+    };
+    raf=requestAnimationFrame(tick);
+    return ()=>cancelAnimationFrame(raf);
+  },[]);
+
+  useEffect(()=>{
+    const onMove = (e)=>{
+      const r = rectRef.current;
+      const inside = within(e.clientX,e.clientY,{left:r.left,top:r.top,right:r.left+r.w,bottom:r.top+r.h});
+      if(!inside){
+        plateTargetRef.current = 0;
+        if (isInside) setIsInside(false);
+        return;
+      }
+      if (!isInside) setIsInside(true);
+
+      const cx = r.left + r.w/2, cy = r.top + r.h/2;
+      const dx = (e.clientX - cx) / (r.w/2);
+      const dy = (e.clientY - cy) / (r.h/2);
+      const radial = Math.hypot(dx, dy);
+      const closeness = clamp(1 - radial, 0, 1);
+      const norm = clamp(closeness / PLATE_SATURATE_FRACTION, 0, 1);
+      const eased = Math.pow(norm, PLATE_EASE_POWER);
+      plateTargetRef.current = eased * PLATE_OPACITY_MAX;
+    };
+    const onLeave = ()=>{ plateTargetRef.current = 0; setIsInside(false); };
+    window.addEventListener("mousemove", onMove, { passive:true });
+    window.addEventListener("mouseleave", onLeave);
+    return ()=>{ window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseleave", onLeave); };
+  },[isInside]);
 
   /* модалки */
   const [playerOpen,setPlayerOpen]=useState(false);
   const [vimeoId,setVimeoId]=useState(null);
   const [bioOpen,setBioOpen]=useState(false);
 
-  const card = {
+  /* оболочка */
+  const wrapper = {
     position:"fixed", left:`${rectRef.current.left}px`, top:`${rectRef.current.top}px`,
     width:`${rectRef.current.w}px`, height:`${rectRef.current.h}px`,
     display:"flex", alignItems:"center", justifyContent:"center",
-    padding:0, pointerEvents: cardShown ? "auto" : "none", overflow:"hidden",
-    background:"rgba(255,255,255,0.07)", WebkitBackdropFilter:"blur(16px)", backdropFilter:"blur(16px)",
-    borderRadius:16, border:"none", boxShadow:"0 12px 28px rgba(0,0,0,0.22)", color:"#fff",
-    fontFamily:"UniSans-Heavy, 'Uni Sans', system-ui",
-    transformOrigin:"50% 50%", transform: cardShown ? "scale(1)" : "scale(0.6)", opacity: cardShown ? 1 : 0,
-    animation: cardShown && popAnim ? "cardPop 450ms cubic-bezier(.2,.9,.18,1) both" : "none",
-    transition: cardShown ? "none" : "opacity 200ms ease, transform 200ms ease", zIndex:2147483600,
+    padding:0, overflow:"visible", pointerEvents:"auto", zIndex:2147483600,
+  };
+
+  /* плашка под контентом — с внутренними слоями-искажениями */
+  const plateStyle = {
+    position:"absolute", inset:0,
+    borderRadius:16,
+    opacity: plateAlpha,
+    transition:"opacity 60ms linear",
+    pointerEvents:"none",
   };
 
   /* типографика */
-  const latin="RUSTAM ROMANOV";
-  const map={ R:"Р", U:"У", S:"С", T:"Т", A:"А", M:"М", O:"О", N:"Н", V:"В", " ":"\u00A0" };
+  const showreelText="DIRECTOR'S SHOWREEL";
+  const nameLatin="RUSTAM ROMANOV";
+  const map={ R:"Р", U:"У", S:"С", T:"Т", A:"А", M:"М", O:"О", N:"Н", V:"В", " ":"\u00A0", D:"D", I:"I", E:"E", C:"C", L:"L", H:"H", W:"W" };
   const titleBase=24; const titleFS=Math.round(titleBase*1.1); const directedFS=Math.round(titleFS/1.5);
 
-  /* sticky-состояния и цвета */
-  const [nameStick,setNameStick]=useState(Array.from(latin).map(()=>false));
-  const [nameColors,setNameColors]=useState(Array.from(latin).map(()=>"#cfcfcf"));
+  /* hover-состояния и цвета */
+  const [nameStick,setNameStick]=useState(Array.from(nameLatin).map(()=>false));
+  const [nameColors,setNameColors]=useState(Array.from(nameLatin).map(()=>"#cfcfcf"));
   const nameRef=useRef(null);
-
-  const showreelText="DIRECTOR'S SHOWREEL";
   const [srStick,setSrStick]=useState(Array.from(showreelText).map(()=>false));
   const [srColors,setSrColors]=useState(Array.from(showreelText).map(()=>"#bfbfbf"));
   const showreelRef=useRef(null);
 
-  /* кружки */
+  /* кружки (видимость старой «подлётной» анимации) */
   const circlesRef=useRef(null);
   const [circlesVisible,setCirclesVisible]=useState(false);
   const [circleOrder,setCircleOrder]=useState([0,1,2]);
@@ -312,126 +469,146 @@ function DesktopCard() {
       if(next!==last){ setCirclesVisible(next); if(next) setCircleOrder(shuffle([0,1,2])); last=next; } }); };
     window.addEventListener("mousemove",onMove,{passive:true}); return ()=>{ window.removeEventListener("mousemove",onMove); if(af) cancelAnimationFrame(af);} },[circlesVisible]);
 
-  /* layout: ПОДНЯЛО всё содержимое на одну строку (уменьшил marginTop) */
-  const content={ position:"relative", width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" };
+  /* layout */
+  const contentWrap={ position:"relative", width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:1 };
   const headerWrap={
     position:"relative", display:"flex", flexDirection:"column", alignItems:"center",
     gap: Math.round(titleFS*0.42),
-    marginTop: Math.round((titleFS/1.5) * 3.2), // было 4.2 — поднял весь блок на ~одну строку
+    marginTop: Math.round((titleFS/1.5) * 3.2),
+    color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans', system-ui",
+    textShadow:"0 1px 2px rgba(0,0,0,0.25)",
   };
 
   return (
     <>
-      <div style={card}>
-        <div style={content}>
+      <div style={wrapper}>
+        {/* ПЛАШКА */}
+        <div className="glass-plate" style={plateStyle}>
+          <i className="bend ring" />
+          <i className="bend side left" />
+          <i className="bend side right" />
+          <i className="bend side top" />
+          <i className="bend side bottom" />
+        </div>
+
+        {/* КОНТЕНТ */}
+        <div style={contentWrap}>
           <div style={headerWrap}>
 
-            {/* SHOWREEL — ниже имени как раньше; shimmer серого, когда не ховер */}
-            <div
-              ref={showreelRef}
-              onMouseLeave={() => setSrStick(Array.from(showreelText).map(()=>false))}
-              style={{ position:"relative", display:"inline-block",
-                       marginTop: Math.round(titleFS*1.7), marginBottom: Math.round(-directedFS*0.35),
-                       cursor: `url(${CURSOR_URL}) 10 10, default` }}
-            >
-              <h2 style={{ margin:0, fontSize: directedFS, letterSpacing:"0.08em", whiteSpace:"nowrap", userSelect:"none" }}>
-                {Array.from(showreelText).map((ch,i)=>(
-                  <span
-                    key={`sr-${i}`}
-                    onMouseEnter={async ()=>{ setSrStick(s=>{const a=[...s]; a[i]=true; return a;}); setSrColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); await playHoverSoft(); }}
-                    style={{
-                      display:"inline-block", whiteSpace:"pre",
-                      color: srStick[i] ? srColors[i] : "#bfbfbf",
-                      transform: srStick[i] ? "scale(1.3)" : "scale(1)",
-                      transition:"transform 140ms ease, color 160ms ease",
-                      animation: srStick[i] ? "none" : `shimmerGray 1600ms ease-in-out ${i*70}ms infinite`,
-                    }}
-                  >
-                    {ch===" " ? "\u00A0" : ch}
-                  </span>
-                ))}
-              </h2>
-
-              {/* Кружочки — ПОДНЯЛ ВЫШЕ и масштаб именно кнопки */}
+            {/* SHOWREEL */}
+            <PrePlate active={!isInside}>
               <div
-                ref={circlesRef}
-                style={{
-                  position:"absolute", left:"50%", top:"0%",
-                  transform: circlesVisible ? "translate(-50%, -160%)" : "translate(-50%, 0%)", // было -130%
-                  opacity: circlesVisible ? 1 : 0,
-                  transition:"transform 820ms cubic-bezier(.22,.9,.18,1), opacity 520ms ease",
-                  display:"flex", gap:16, alignItems:"center", pointerEvents: circlesVisible ? "auto" : "none", zIndex:3
-                }}
+                ref={showreelRef}
+                onMouseLeave={() => setSrStick(Array.from(showreelText).map(()=>false))}
+                style={{ position:"relative", display:"inline-block",
+                         marginTop: Math.round(titleFS*0.3), marginBottom: Math.round(directedFS*0.2),
+                         cursor: `url(${CURSOR_URL}) 10 10, default` }}
               >
-                {[1,2,3].map((n,idx)=>{
-                  const orderPos = circleOrder.indexOf(idx);
-                  const delayMs = orderPos*baseStagger;
+                <h2 style={{ margin:0, fontSize: directedFS, letterSpacing:"0.08em", whiteSpace:"nowrap", userSelect:"none", position:"relative", zIndex:1 }}>
+                  {Array.from(showreelText).map((ch,i)=>(
+                    <span
+                      key={`sr-${i}`}
+                      onMouseEnter={async ()=>{ setSrStick(s=>{const a=[...s]; a[i]=true; return a;}); setSrColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); await playHoverSoft(); }}
+                      style={{
+                        display:"inline-block", whiteSpace:"pre",
+                        color: srStick[i] ? srColors[i] : "#bfbfbf",
+                        transform: srStick[i] ? "scale(1.3)" : "scale(1)",
+                        transition:"transform 140ms ease, color 160ms ease",
+                        animation: srStick[i] ? "none" : `shimmerGray 1600ms ease-in-out ${i*70}ms infinite`,
+                      }}
+                    >
+                      {ch===" " ? "\u00A0" : ch}
+                    </span>
+                  ))}
+                </h2>
+
+                {/* Кружочки — теперь «дышат» всегда */}
+                <div
+                  ref={circlesRef}
+                  style={{
+                    position:"absolute", left:"50%", top:"0%",
+                    transform: circlesVisible ? "translate(-50%, -160%)" : "translate(-50%, 0%)",
+                    opacity: circlesVisible ? 1 : 0,
+                    transition:"transform 820ms cubic-bezier(.22,.9,.18,1), opacity 520ms ease",
+                    display:"flex", gap:16, alignItems:"center", pointerEvents: circlesVisible ? "auto" : "none", zIndex:3
+                  }}
+                >
+                  {[1,2,3].map((n,idx)=>{
+                    const orderPos = circleOrder.indexOf(idx);
+                    const delayMs = orderPos*180; // и взлёт, и дыхание сдвинуты
+                    return (
+                      <DotButton
+                        key={n}
+                        n={n}
+                        animate={circlesVisible}
+                        delayMs={delayMs}
+                        onHoverSound={playDot}
+                        onClick={()=>{ setVimeoId({1:"1118465522",2:"1118467509",3:"1001147905"}[n]); setPlayerOpen(true); }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </PrePlate>
+
+            {/* NAME */}
+            <PrePlate active={!isInside}>
+              <h1
+                ref={nameRef}
+                onMouseLeave={() => setNameStick(Array.from(nameLatin).map(()=>false))}
+                style={{ margin:0, fontSize:titleFS, letterSpacing:"0.02em",
+                         whiteSpace:"nowrap", userSelect:"none",
+                         cursor: `url(${CURSOR_URL}) 10 10, default` }}
+              >
+                {Array.from(nameLatin).map((ch,i)=>{
+                  const cyr = map[ch] || ch;
+                  const show = nameStick[i] ? (cyr===" " ? "\u00A0" : cyr) : (ch===" " ? "\u00A0" : ch);
                   return (
-                    <DotButton
-                      key={n}
-                      n={n}
-                      animate={circlesVisible}
-                      delayMs={delayMs}
-                      onHoverSound={playDot}
-                      onClick={()=>{ setVimeoId({1:"1118465522",2:"1118467509",3:"1001147905"}[n]); setPlayerOpen(true); }}
-                    />
+                    <span
+                      key={`n-${i}`}
+                      onMouseEnter={async ()=>{ setNameStick(s=>{const a=[...s]; a[i]=true; return a;}); setNameColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); await playHoverSoft(); }}
+                      style={{
+                        display:"inline-block", whiteSpace:"pre", cursor:"inherit",
+                        color: nameStick[i] ? nameColors[i] : "#cfcfcf",
+                        transform: nameStick[i] ? "scale(1.3)" : "scale(1)",
+                        transition:"transform 140ms ease, color 160ms ease",
+                        animation: nameStick[i] ? "none" : `shimmerGray 1600ms ease-in-out ${i*70}ms infinite`,
+                        textShadow:"0 1px 2px rgba(0,0,0,0.25)",
+                      }}
+                    >
+                      {show}
+                    </span>
                   );
                 })}
-              </div>
-            </div>
+              </h1>
+            </PrePlate>
 
-            {/* NAME — shimmer серого вне ховера */}
-            <h1
-              ref={nameRef}
-              onMouseLeave={() => setNameStick(Array.from(latin).map(()=>false))}
-              style={{ margin:0, fontSize:titleFS, letterSpacing:"0.02em", color:"#fff",
-                       whiteSpace:"nowrap", userSelect:"none", textShadow:"0 1px 2px rgba(0,0,0,0.25)",
-                       cursor: `url(${CURSOR_URL}) 10 10, default` }}
-            >
-              {Array.from(latin).map((ch,i)=>{
-                const cyr = map[ch] || ch;
-                const show = nameStick[i] ? (cyr===" " ? "\u00A0" : cyr) : (ch===" " ? "\u00A0" : ch);
-                return (
-                  <span
-                    key={`n-${i}`}
-                    onMouseEnter={async ()=>{ setNameStick(s=>{const a=[...s]; a[i]=true; return a;}); setNameColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); await playHoverSoft(); }}
-                    style={{
-                      display:"inline-block", whiteSpace:"pre", cursor:"inherit",
-                      color: nameStick[i] ? nameColors[i] : "#cfcfcf",
-                      transform: nameStick[i] ? "scale(1.3)" : "scale(1)",
-                      transition:"transform 140ms ease, color 160ms ease",
-                      animation: nameStick[i] ? "none" : `shimmerGray 1600ms ease-in-out ${i*70}ms infinite`,
-                    }}
-                  >
-                    {show}
-                  </span>
-                );
-              })}
-            </h1>
-
-            {/* BIO — как было */}
+            {/* BIOGRAPHY (перевод по буквам) */}
             <div style={{ marginTop: Math.round(titleFS*0.9) }}>
-              <BioWordPerLetter onOpen={()=>setBioOpen(true)} />
+              <PrePlate active={!isInside}>
+                <BiographyWordPerLetter onOpen={()=>setBioOpen(true)} />
+              </PrePlate>
             </div>
 
-            {/* Socials — звук как у кружков (playDot) */}
-<div style={{ display:"flex", gap:14, justifyContent:"center", alignItems:"center", marginTop: Math.round(titleFS*0.6) }}>
-  <IconLink
-    href="https://instagram.com/rustamromanov.ru"
-    label="Instagram"
-    whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
-    colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
-    onHoverSound={playDot}
-  />
-  <IconLink
-    href="https://t.me/rustamromanov"
-    label="Telegram"
-    whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
-    colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3"
-    onHoverSound={playDot}
-  />
-</div>
-
+            {/* Socials */}
+            <PrePlate active={!isInside}>
+              <div style={{ display:"flex", gap:14, justifyContent:"center", alignItems:"center", marginTop: Math.round(titleFS*0.6) }}>
+                <IconLink
+                  href="https://instagram.com/rustamromanov.ru"
+                  label="Instagram"
+                  whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
+                  colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
+                  onHoverSound={playDot}
+                />
+                <IconLink
+                  href="https://t.me/rustamromanov"
+                  label="Telegram"
+                  whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
+                  colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3"
+                  onHoverSound={playDot}
+                />
+              </div>
+            </PrePlate>
 
           </div>
         </div>
@@ -441,56 +618,317 @@ function DesktopCard() {
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId}/>
       <BioOverlay   open={bioOpen}   onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio.jpg"/>
 
-      {/* keyframes */}
+      {/* стекло + изогнутые края */}
       <style>{`
-        @keyframes cardPop { 0%{transform:scale(0.6);opacity:0} 60%{transform:scale(1.04);opacity:1} 100%{transform:scale(1);opacity:1} }
+        .glass-plate{
+          background: rgba(255,255,255,0.07);
+          -webkit-backdrop-filter: blur(16px) saturate(1.2);
+          backdrop-filter: blur(16px) saturate(1.2);
+          box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+          border-radius: 16px;
+          overflow: hidden;
+        }
+        .glass-plate::before{
+          content:"";
+          position:absolute; inset:-1px; border-radius: inherit; pointer-events:none;
+          -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+                  backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+          -webkit-mask-image: radial-gradient(120% 120% at 50% 50%, rgba(0,0,0,0) 58%, rgba(0,0,0,1) 82%);
+                  mask-image: radial-gradient(120% 120% at 50% 50%, rgba(0,0,0,0) 58%, rgba(0,0,0,1) 82%);
+        }
+        .glass-plate::after{
+          content:"";
+          position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+          background:
+            radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
+            radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
+            radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+            radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+            linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
+          box-shadow:
+            inset 0 0 0 1px rgba(255,255,255,0.08),
+            inset 0 -20px 60px rgba(0,0,0,0.15);
+        }
+        .glass-plate .bend{ position:absolute; inset:0; border-radius:inherit; pointer-events:none; }
+        .glass-plate .bend.ring{
+          -webkit-backdrop-filter: blur(26px) saturate(1.28) contrast(1.02);
+                  backdrop-filter: blur(26px) saturate(1.28) contrast(1.02);
+          -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+                  mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+        }
+        .glass-plate .bend.side{
+          -webkit-backdrop-filter: blur(22px) saturate(1.2) brightness(1.02);
+                  backdrop-filter: blur(22px) saturate(1.2) brightness(1.02);
+        }
+        .glass-plate .bend.side.left{
+          left:0; right:auto; width:26%;
+          -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+                  mask-image: linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+        }
+        .glass-plate .bend.side.right{
+          right:0; left:auto; width:26%;
+          -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+                  mask-image: linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+        }
+        .glass-plate .bend.side.top{
+          top:0; bottom:auto; height:26%;
+          -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+                  mask-image: linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+        }
+        .glass-plate .bend.side.bottom{
+          bottom:0; top:auto; height:26%;
+          -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+                  mask-image: linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+        }
         @keyframes shimmerGray {
-          0%,100% { color: #cfcfcf; }
-          50%     { color: #7a7a7a; }
+          0%,100% { color: #cfcfcf }
+          50%     { color: #7a7a7a }
         }
       `}</style>
     </>
   );
 }
 
-/* ===== BIO per-letter (как было) ===== */
-function BioWordPerLetter({ onOpen }) {
+/* ===== BIOGRAPHY per-letter (desktop) ===== */
+function BiographyWordPerLetter({ onOpen }) {
   const { playIcon } = useAudio();
-  const latin=["B","I","O"]; const map={B:"Б",I:"И",O:"О"};
-  const [stick,setStick]=useState(Array.from(latin).map(()=>false));
-  const [colors,setColors]=useState(Array.from(latin).map(()=>"#ffffff"));
+  const latin = Array.from("BIOGRAPHY");
+  const map = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
+  const [stick,setStick]=useState(latin.map(()=>false));
+  const [colors,setColors]=useState(latin.map(()=>"#ffffff"));
   return (
-    <h2 onClick={onOpen} onMouseLeave={()=>setStick(Array.from(latin).map(()=>false))}
+    <h2 onClick={onOpen} onMouseLeave={()=>setStick(latin.map(()=>false))}
         style={{ margin:0, cursor:"pointer", fontSize:"clamp(12px,1.2vw,18px)", userSelect:"none", display:"inline-block", whiteSpace:"nowrap", letterSpacing:"0.08em" }}>
       {latin.map((ch,i)=>(
         <span key={`bio-${i}`}
           onMouseEnter={async ()=>{ setStick(s=>{const a=[...s]; a[i]=true; return a;}); setColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); await playIcon(); }}
           style={{ display:"inline-block", transformOrigin:"50% 50%", transform: stick[i] ? "scale(1.35)" : "scale(1)", color: stick[i] ? colors[i] : "#ffffff", transition:"transform 140ms ease, color 160ms ease" }}>
-          {stick[i] ? map[ch] : ch}
+          {stick[i] ? (map[ch] || ch) : ch}
         </span>
       ))}
     </h2>
   );
 }
 
-/* ===== Vimeo overlay ===== */
+/* ===== Мобильная карточка ===== */
+function MobileCard() {
+  const { playHoverSoft, playDot } = useAudio();
+  const [bioOpen,setBioOpen]=useState(false);
+  const [playerOpen,setPlayerOpen]=useState(false);
+  const [vimeoId,setVimeoId]=useState(null);
+
+  // центрируем блок, фиксируем размеры
+  const [size,setSize]=useState({w: Math.min(680, Math.round(window.innerWidth*0.9)), h: 0});
+  useEffect(()=>{
+    const w = Math.min(680, Math.round(window.innerWidth*0.9));
+    const h = Math.round(w*0.62); // примерно как десктопный
+    setSize({w,h});
+    const onR=()=>{ const w2 = Math.min(680, Math.round(window.innerWidth*0.9)); setSize({w:w2, h:Math.round(w2*0.62)}); };
+    window.addEventListener("resize",onR);
+    return ()=>window.removeEventListener("resize",onR);
+  },[]);
+
+  const wrapper = {
+    position:"fixed", left:"50%", top:"50%", transform:"translate(-50%,-50%)",
+    width:`${size.w}px`, height:`${size.h}px`,
+    display:"flex", alignItems:"center", justifyContent:"center",
+    zIndex:2147483600
+  };
+  const plateStyle = { position:"absolute", inset:0, borderRadius:16, opacity: PLATE_OPACITY_MAX, pointerEvents:"none" };
+
+  // «скрол пальцем» — симулируем hover: отслеживаем текущий индекс под пальцем
+  const letters = Array.from("BIOGRAPHY");
+  const map = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
+  const [stick,setStick]=useState(letters.map(()=>false));
+  const [colors,setColors]=useState(letters.map(()=>"#ffffff"));
+  const bioRef = useRef(null);
+  const dotsRef = useRef(null);
+  const [hoverDot,setHoverDot]=useState(-1);
+  const draggingRef = useRef(false);
+
+  const handlePointerDown = (e)=>{ draggingRef.current=true; (e.target.setPointerCapture?.(e.pointerId)); handlePointerMove(e); };
+  const handlePointerUp = ()=>{ draggingRef.current=false; setHoverDot(-1); };
+  const handlePointerMove = async (e)=>{
+    if(!draggingRef.current) return;
+    const x=e.clientX, y=e.clientY;
+    const el = document.elementFromPoint(x,y);
+    // буквы
+    if(bioRef.current && bioRef.current.contains(el)){
+      const idx = Number(el?.getAttribute?.("data-idx"));
+      if(Number.isFinite(idx)){
+        setStick(s=>{ const a=[...s]; a[idx]=true; return a; });
+        setColors(c=>{ const a=[...c]; a[idx]=randColor(); return a; });
+        await playHoverSoft();
+      }
+    }
+    // кружки
+    if(dotsRef.current){
+      const kids = Array.from(dotsRef.current.querySelectorAll("[data-dot]"));
+      let hit=-1;
+      kids.forEach((k,i)=>{ const r=k.getBoundingClientRect(); if(x>=r.left && x<=r.right && y>=r.top && y<=r.bottom) hit=i; });
+      setHoverDot(hit);
+    }
+  };
+
+  return (
+    <>
+      <div style={wrapper}
+           onPointerDown={handlePointerDown}
+           onPointerMove={handlePointerMove}
+           onPointerUp={handlePointerUp}
+           onPointerCancel={handlePointerUp}
+           style={{...wrapper, touchAction:"none"}}
+      >
+        {/* ПЛАШКА */}
+        <div className="glass-plate" style={plateStyle}>
+          <i className="bend ring" />
+          <i className="bend side left" />
+          <i className="bend side right" />
+          <i className="bend side top" />
+          <i className="bend side bottom" />
+        </div>
+
+        {/* Контент: BIOGRAPHY / NAME / SHOWREEL / Dots */}
+        <div style={{ position:"relative", zIndex:1, width:"100%", height:"100%",
+                      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                      color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans'", textShadow:"0 1px 2px rgba(0,0,0,0.25)" }}>
+          {/* BIOGRAPHY — клик открывает мобильное окно */}
+          <h2 ref={bioRef} onClick={()=>setBioOpen(true)}
+              style={{ margin:0, fontSize:"clamp(16px, 5.2vw, 22px)", letterSpacing:"0.08em", userSelect:"none" }}>
+            {letters.map((ch,i)=>(
+              <span key={i} data-idx={i}
+                    style={{ display:"inline-block", whiteSpace:"pre",
+                             color: stick[i] ? colors[i] : "#ffffff",
+                             transform: stick[i] ? "scale(1.28)" : "scale(1)",
+                             transition:"transform 140ms ease, color 160ms ease" }}>
+                {stick[i] ? (map[ch] || ch) : ch}
+              </span>
+            ))}
+          </h2>
+
+          {/* NAME */}
+          <h1 style={{ margin:"10px 0 0", fontSize:"clamp(20px, 7.2vw, 32px)", letterSpacing:"0.02em" }}>RUSTAM ROMANOV</h1>
+
+          {/* SHOWREEL */}
+          <h3 style={{ margin:"6px 0 0", fontSize:"clamp(14px, 4.6vw, 18px)", letterSpacing:"0.08em", color:"#cfcfcf" }}>DIRECTOR'S SHOWREEL</h3>
+
+          {/* Dots */}
+          <div ref={dotsRef} style={{ marginTop:16, display:"flex", gap:16, alignItems:"center" }}>
+            {[1,2,3].map((n,idx)=>(
+              <div key={n} data-dot>
+                <DotButton
+                  n={n}
+                  delayMs={idx*200}
+                  hoverExternal={hoverDot===idx}
+                  onHoverSound={playDot}
+                  onClick={()=>{ setVimeoId({1:"1118465522",2:"1118467509",3:"1001147905"}[n]); setPlayerOpen(true); }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Мобильные оверлеи */}
+      <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId}/>
+      <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
+
+      {/* те же стили «стекла», что и на десктопе */}
+      <style>{`
+        .glass-plate{
+          background: rgba(255,255,255,0.07);
+          -webkit-backdrop-filter: blur(16px) saturate(1.2);
+          backdrop-filter: blur(16px) saturate(1.2);
+          box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+          border-radius: 16px;
+          overflow: hidden;
+        }
+        .glass-plate::before{
+          content:"";
+          position:absolute; inset:-1px; border-radius: inherit; pointer-events:none;
+          -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+                  backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+          -webkit-mask-image: radial-gradient(120% 120% at 50% 50%, rgba(0,0,0,0) 58%, rgba(0,0,0,1) 82%);
+                  mask-image: radial-gradient(120% 120% at 50% 50%, rgba(0,0,0,0) 58%, rgba(0,0,0,1) 82%);
+        }
+        .glass-plate::after{
+          content:"";
+          position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+          background:
+            radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
+            radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
+            radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+            radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+            linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
+          box-shadow:
+            inset 0 0 0 1px rgba(255,255,255,0.08),
+            inset 0 -20px 60px rgba(0,0,0,0.15);
+        }
+        .glass-plate .bend{ position:absolute; inset:0; border-radius:inherit; pointer-events:none; }
+        .glass-plate .bend.ring{
+          -webkit-backdrop-filter: blur(26px) saturate(1.28) contrast(1.02);
+                  backdrop-filter: blur(26px) saturate(1.28) contrast(1.02);
+          -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+                  mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+        }
+        .glass-plate .bend.side{
+          -webkit-backdrop-filter: blur(22px) saturate(1.2) brightness(1.02);
+                  backdrop-filter: blur(22px) saturate(1.2) brightness(1.02);
+        }
+        .glass-plate .bend.side.left{
+          left:0; right:auto; width:26%;
+          -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+                  mask-image: linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+        }
+        .glass-plate .bend.side.right{
+          right:0; left:auto; width:26%;
+          -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+                  mask-image: linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+        }
+        .glass-plate .bend.side.top{
+          top:0; bottom:auto; height:26%;
+          -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+                  mask-image: linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+        }
+        .glass-plate .bend.side.bottom{
+          bottom:0; top:auto; height:26%;
+          -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+                  mask-image: linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+        }
+      `}</style>
+    </>
+  );
+}
+
+/* ===== Vimeo overlay (общий) ===== */
 function VideoOverlay({ open, onClose, vimeoId }) {
   if (!open) return null;
   return (
-    <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:2147484500, background:"rgba(0,0,0,0.96)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vw" }}>
+    <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:2147486000, background:"rgba(0,0,0,0.96)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vw" }}>
       <button aria-label="Close" onClick={onClose} style={{ position:"absolute", top:16, right:16, width:40, height:40, borderRadius:999, background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.35)", cursor:"pointer", display:"grid", placeItems:"center" }}>
         <svg width="18" height="18" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
       </button>
-      <div onClick={(e)=>e.stopPropagation()} style={{ position:"relative", width:"60vw", maxWidth:1200, height:"60vh", borderRadius:12, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.55)", background:"#000" }}>
+      <div onClick={(e)=>e.stopPropagation()} style={{ position:"relative", width:"100vw", height:"100vh", maxWidth:"100%", borderRadius:0, overflow:"hidden", background:"#000" }}>
         <iframe
           src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=0&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1`}
           title="Vimeo player" frameBorder="0" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen
-          style={{ width:"100%", height:"100%", display:"block", background:"#000" }}
+          style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block", background:"#000" }}
         />
       </div>
     </div>
   );
 }
 
-/* ===== Export ===== */
-export default function CenterRevealCard() { return <DesktopCard/>; }
+/* ===== Export: выбираем Desktop/Mobile ===== */
+export default function CenterRevealCard() {
+  const [isMobile,setIsMobile]=useState(
+    typeof window!=="undefined" ? window.innerWidth<=MOBILE_BREAKPOINT : false
+  );
+  useEffect(()=>{
+    const onR=()=>setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT);
+    window.addEventListener("resize",onR);
+    window.addEventListener("orientationchange",onR);
+    return ()=>{ window.removeEventListener("resize",onR); window.removeEventListener("orientationchange",onR); };
+  },[]);
+  return isMobile ? <MobileCard/> : <DesktopCard/>;
+}
