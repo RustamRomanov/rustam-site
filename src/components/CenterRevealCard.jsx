@@ -568,7 +568,7 @@ function BiographyWordPerLetter({ onOpen }) {
   );
 }
 
-/* ===== Mobile Card — ТОЛЬКО ЭТОТ БЛОК ЗАМЕНИ ===== */
+/* ===== Mobile Card — обновлено по ТЗ ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
   const [bioOpen,setBioOpen]=useState(false);
@@ -597,11 +597,11 @@ function MobileCard() {
     zIndex:2147483600, touchAction:"none"
   };
 
-  // круг — как раньше (увеличенный), 1.35 от базового
+  // круг-плашка: слегка выше центра (top: 48%)
   const circleDiam = Math.round(Math.min(size.w, size.h) * 1.35);
   const plateStyle = {
     position:"absolute", width:circleDiam, height:circleDiam,
-    left:"50%", top:"50%", transform:"translate(-50%,-50%)",
+    left:"50%", top:"48%", transform:"translate(-50%,-50%)",
     borderRadius:"50%", opacity: PLATE_OPACITY_MAX, pointerEvents:"none"
   };
 
@@ -620,7 +620,7 @@ function MobileCard() {
   const [srStick,setSrStick]=useState(srLetters.map(()=>false));
   const [srColors,setSrColors]=useState(srLetters.map(()=>"#bfbfbf"));
 
-  // интерактив скролл-шифт по буквам + кружки
+  // интерактив
   const dotsRef = useRef(null);
   const [hoverDot,setHoverDot]=useState(-1);
   const draggingRef = useRef(false);
@@ -682,7 +682,7 @@ function MobileCard() {
           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
           color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans'", textShadow:"0 1px 2px rgba(0,0,0,0.25)"
         }}>
-          {/* BIOGRAPHY — ниже на 2 строки */}
+          {/* BIOGRAPHY — как было (если надо, можно сдвинуть отдельно) */}
           <PrePlate active={true}>
             <h2
               data-bio
@@ -706,7 +706,7 @@ function MobileCard() {
             </h2>
           </PrePlate>
 
-          {/* RUSTAM ROMANOV — ниже на 1 строку */}
+          {/* Имя — ниже на 1 строку */}
           <PrePlate active={true}>
             <h1
               data-name
@@ -744,7 +744,7 @@ function MobileCard() {
                     display:"inline-block", whiteSpace:"pre",
                     color: srStick[i] ? srColors[i] : "#cfcfcf",
                     transform: srStick[i] ? "scale(1.2)" : "scale(1)",
-                    transition:"transform 140ms ease, color 160ms.ease"
+                    transition:"transform 140ms ease, color 160ms ease"
                   }}
                 >
                   {ch===" " ? "\u00A0" : ch}
@@ -753,8 +753,8 @@ function MobileCard() {
             </h3>
           </PrePlate>
 
-          {/* Кружочки — сразу под DIRECTOR'S */}
-          <div ref={dotsRef} style={{ marginTop:HALF_LINE, display:"flex", gap:16, alignItems:"center" }}>
+          {/* Кружочки — ЧУТЬ-ЧУТЬ НИЖЕ (добавил +6px) */}
+          <div ref={dotsRef} style={{ marginTop:`calc(${HALF_LINE} + 6px)`, display:"flex", gap:16, alignItems:"center" }}>
             {[1,2,3].map((n,idx)=>(
               <div key={n} data-dot>
                 <DotButton
@@ -768,8 +768,12 @@ function MobileCard() {
             ))}
           </div>
 
-          {/* Соц-иконки — под кружками, размер +20% (31 → 37) */}
-          <div style={{ marginTop:`calc(${ONE_LINE})`, display:"flex", justifyContent:"center", gap:20 }}>
+          {/* Соц-иконки — ФИКСИРУЕМ ВНИЗУ ЭКРАНА, ОТСТУП 10% */}
+          <div style={{
+            position:"fixed", left:"50%", transform:"translateX(-50%)",
+            bottom:"10vh", display:"flex", justifyContent:"center", gap:20,
+            zIndex:2147483601
+          }}>
             <IconLink
               href="https://instagram.com/rustamromanov.ru"
               label="Instagram"
@@ -790,7 +794,7 @@ function MobileCard() {
         </div>
       </div>
 
-      {/* оверлеи — как были */}
+      {/* оверлеи */}
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
 
