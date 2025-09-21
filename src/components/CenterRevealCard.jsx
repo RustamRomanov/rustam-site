@@ -568,7 +568,7 @@ function BiographyWordPerLetter({ onOpen }) {
   );
 }
 
-/* ===== Mobile Card — структура по ТЗ (био ↑, имя по центру, потом showreel, кружки; соц-иконки внизу экрана) ===== */
+/* ===== Mobile Card — откат к стабильной структуре + твои 3 правки ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
   const [bioOpen,setBioOpen]=useState(false);
@@ -597,16 +597,16 @@ function MobileCard() {
     zIndex:2147483600, touchAction:"none"
   };
 
-  // круг-плашка: ЧУТЬ выше центра, чтобы «воздух» был снизу
+  /* Круг-плашка: ЧУТЬ ВЫШЕ центра (было 50%, стало 48%) */
   const circleDiam = Math.round(Math.min(size.w, size.h) * 1.35);
-  const circleCenterTop = 48; // %
   const plateStyle = {
-    position:"absolute", width:circleDiam, height:circleDiam,
-    left:"50%", top: `${circleCenterTop}%`, transform:"translate(-50%,-50%)",
+    position:"absolute",
+    width:circleDiam, height:circleDiam,
+    left:"50%", top:"48%", transform:"translate(-50%,-50%)",
     borderRadius:"50%", opacity: PLATE_OPACITY_MAX, pointerEvents:"none"
   };
 
-  /* === Тексты и интерактив === */
+  /* Тексты (как было в стабильной версии) */
   const lettersBio = Array.from("BIOGRAPHY");
   const mapBio = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
   const [stickBio,setStickBio]=useState(lettersBio.map(()=>false));
@@ -621,12 +621,13 @@ function MobileCard() {
   const [srStick,setSrStick]=useState(srLetters.map(()=>false));
   const [srColors,setSrColors]=useState(srLetters.map(()=>"#bfbfbf"));
 
-  // интерактив для кружков
+  /* Интерактив для кружков */
   const dotsRef = useRef(null);
   const [hoverDot,setHoverDot]=useState(-1);
   const draggingRef = useRef(false);
   const lastSoundRef = useRef(0);
   const lastDotRef   = useRef(-1);
+
   const tryPlayHover = () => {
     const now = performance.now();
     if (now - lastSoundRef.current > 90) { lastSoundRef.current = now; playHoverSoft(); }
@@ -657,17 +658,9 @@ function MobileCard() {
     }
   };
 
-  // базовые «строки»
+  /* «Строки» для отступов (как раньше) */
   const ONE_LINE = "1.2em";
   const HALF_LINE = "0.6em";
-
-  // смещения относительно геометрического центра круга (50% круга)
-  // имя — строго по центру; bio — выше на 2 строки + пустая строка между bio и именем;
-  // под именем — showreel (полстроки) и ещё ниже кружки (чуть ниже обычного: +10px)
-  const nameTop = "50%";
-  const bioTop  = "calc(50% - (2 * 1.2em) - 1.2em)"; // 2 строки + пустая строка
-  const srTop   = `calc(50% + ${HALF_LINE})`;
-  const dotsTop = `calc(50% + ${HALF_LINE} + 2.0em + 10px)`; // «чуть ниже»
 
   return (
     <>
@@ -678,112 +671,73 @@ function MobileCard() {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
-        {/* Круг-плашка */}
         <div className="glass-plate circle" style={plateStyle}>
-          <i className="bend ring" />
-          <i className="bend side left" />
-          <i className="bend side right" />
-          <i className="bend side top" />
-          <i className="bend side bottom" />
+          <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
+          <i className="bend side top" /><i className="bend side bottom" />
         </div>
 
-        {/* Контент внутри круга — позиционируем относительно центра круга */}
-        <div
-          style={{
-            position:"absolute",
-            width:circleDiam, height:circleDiam,
-            left:"50%", top:`${circleCenterTop}%`, transform:"translate(-50%,-50%)",
-            pointerEvents:"none" /* кликабельные элементы включим локально */
-          }}
-        >
-          {/* BIOGRAPHY — над именем, есть пустая строка перед именем */}
-          <h2
-            data-bio
-            onClick={()=>setBioOpen(true)}
-            style={{
-              position:"absolute", left:"50%", top:bioTop, transform:"translate(-50%,-50%)",
-              margin:0,
-              fontSize:"clamp(16px, 5.2vw, 22px)", letterSpacing:"0.08em",
-              userSelect:"none", pointerEvents:"auto", cursor:"pointer"
-            }}
-          >
-            {lettersBio.map((ch,i)=>(
-              <span
-                key={i}
-                data-idx={i}
-                style={{
-                  display:"inline-block", whiteSpace:"pre",
-                  color: stickBio[i] ? colorsBio[i] : "#ffffff",
-                  transform: stickBio[i] ? "scale(1.28)" : "scale(1)",
-                  transition:"transform 140ms ease, color 160ms ease"
-                }}
-              >
-                {stickBio[i] ? (mapBio[ch] || ch) : ch}
-              </span>
-            ))}
-          </h2>
+        {/* Классическая колонка по центру — без абсолютов, чтобы «шрифты не сыпались» */}
+        <div style={{
+          position:"relative", zIndex:1, width:"100%", height:"100%",
+          display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+          color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans'", textShadow:"0 1px 2px rgba(0,0,0,0.25)"
+        }}>
+          {/* BIOGRAPHY — ниже на 2 строки */}
+          <PrePlate active={true}>
+            <h2
+              data-bio
+              onClick={()=>setBioOpen(true)}
+              style={{ margin:0, marginTop:`calc(${ONE_LINE} * 2)`, fontSize:"clamp(16px, 5.2vw, 22px)", letterSpacing:"0.08em", userSelect:"none" }}
+            >
+              {lettersBio.map((ch,i)=>(
+                <span key={i} data-idx={i}
+                  style={{ display:"inline-block", whiteSpace:"pre", color: stickBio[i] ? colorsBio[i] : "#ffffff",
+                           transform: stickBio[i] ? "scale(1.28)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease" }}>
+                  {stickBio[i] ? (mapBio[ch] || ch) : ch}
+                </span>
+              ))}
+            </h2>
+          </PrePlate>
 
-          {/* ИМЯ — строго по центру круга */}
-          <h1
-            data-name
-            style={{
-              position:"absolute", left:"50%", top:nameTop, transform:"translate(-50%,-50%)",
-              margin:0,
-              fontSize:"clamp(20px, 7.2vw, 32px)", letterSpacing:"0.02em",
-              userSelect:"none", pointerEvents:"auto"
-            }}
-          >
-            {nameLatin.map((ch,i)=>(
-              <span
-                key={i}
-                data-idx={i}
-                style={{
-                  display:"inline-block", whiteSpace:"pre",
-                  color: stickName[i] ? colorsName[i] : "#cfcfcf",
-                  transform: stickName[i] ? "scale(1.28)" : "scale(1)",
-                  transition:"transform 140ms ease, color 160ms ease",
-                  animation: stickName[i] ? "none" : `waveGray 1800ms ease-in-out ${i*90}ms infinite`
-                }}
-              >
-                {stickName[i] ? (mapName[ch] || ch) : (ch===" " ? "\u00A0" : ch)}
-              </span>
-            ))}
-          </h1>
+          {/* Имя — ниже на 1 строку */}
+          <PrePlate active={true}>
+            <h1
+              data-name
+              style={{ margin:`${ONE_LINE} 0 0`, fontSize:"clamp(20px, 7.2vw, 32px)", letterSpacing:"0.02em", userSelect:"none" }}
+            >
+              {nameLatin.map((ch,i)=>(
+                <span key={i} data-idx={i}
+                  style={{
+                    display:"inline-block", whiteSpace:"pre",
+                    color: stickName[i] ? colorsName[i] : "#cfcfcf",
+                    transform: stickName[i] ? "scale(1.28)" : "scale(1)",
+                    transition:"transform 140ms ease, color 160ms ease",
+                    animation: stickName[i] ? "none" : `waveGray 1800ms ease-in-out ${i*90}ms infinite`
+                  }}>
+                  {stickName[i] ? (mapName[ch] || ch) : (ch===" " ? "\u00A0" : ch)}
+                </span>
+              ))}
+            </h1>
+          </PrePlate>
 
-          {/* SHOWREEL — сразу под именем (полстроки) */}
-          <h3
-            data-sr
-            style={{
-              position:"absolute", left:"50%", top:srTop, transform:"translate(-50%,-50%)",
-              margin:0,
-              fontSize:"clamp(14px, 4.6vw, 18px)", letterSpacing:"0.08em",
-              color:"#cfcfcf", userSelect:"none", pointerEvents:"auto"
-            }}
-          >
-            {srLetters.map((ch,i)=>(
-              <span
-                key={i}
-                data-idx={i}
-                style={{
-                  display:"inline-block", whiteSpace:"pre",
-                  color: srStick[i] ? srColors[i] : "#cfcfcf",
-                  transform: srStick[i] ? "scale(1.2)" : "scale(1)",
-                  transition:"transform 140ms ease, color 160ms ease"
-                }}
-              >
-                {ch===" " ? "\u00A0" : ch}
-              </span>
-            ))}
-          </h3>
+          {/* DIRECTOR'S SHOWREEL — ниже на полстроки */}
+          <PrePlate active={true}>
+            <h3
+              data-sr
+              style={{ margin:`${HALF_LINE} 0 0`, fontSize:"clamp(14px, 4.6vw, 18px)", letterSpacing:"0.08em", color:"#cfcfcf", userSelect:"none" }}
+            >
+              {srLetters.map((ch,i)=>(
+                <span key={i} data-idx={i}
+                  style={{ display:"inline-block", whiteSpace:"pre", color: srStick[i] ? srColors[i] : "#cfcfcf",
+                           transform: srStick[i] ? "scale(1.2)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease" }}>
+                  {ch===" " ? "\u00A0" : ch}
+                </span>
+              ))}
+            </h3>
+          </PrePlate>
 
-          {/* Кружочки — ниже showreel ЧУТЬ НИЖЕ обычного */}
-          <div
-            ref={dotsRef}
-            style={{
-              position:"absolute", left:"50%", top:dotsTop, transform:"translate(-50%,-50%)",
-              display:"flex", gap:16, alignItems:"center", pointerEvents:"auto"
-            }}
-          >
+          {/* Кружочки — ЧУТЬ-ЧУТЬ НИЖЕ обычного (+6px к прежнему) */}
+          <div ref={dotsRef} style={{ marginTop:`calc(${HALF_LINE} + 6px)`, display:"flex", gap:16, alignItems:"center" }}>
             {[1,2,3].map((n,idx)=>(
               <div key={n} data-dot>
                 <DotButton
@@ -797,38 +751,38 @@ function MobileCard() {
             ))}
           </div>
         </div>
-
-        {/* Соц-иконки — ВНИЗУ ЭКРАНА */}
-        <div style={{
-          position:"fixed", left:"50%", transform:"translateX(-50%)",
-          bottom:"calc(env(safe-area-inset-bottom, 0px) + 16px)",
-          display:"flex", justifyContent:"center", gap:20,
-          zIndex:2147483601
-        }}>
-          <IconLink
-            href="https://instagram.com/rustamromanov.ru"
-            label="Instagram"
-            whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
-            colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
-            onHoverSound={playDot}
-            size={37}
-          />
-          <IconLink
-            href="https://t.me/rustamromanov"
-            label="Telegram"
-            whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
-            colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3"
-            onHoverSound={playDot}
-            size={37}
-          />
-        </div>
       </div>
 
-      {/* оверлеи */}
+      {/* Соц-иконки — внизу экрана, с безопасным отступом ~10% */}
+      <div style={{
+        position:"fixed", left:"50%", transform:"translateX(-50%)",
+        bottom:"calc(10vh + env(safe-area-inset-bottom, 0px))",
+        display:"flex", justifyContent:"center", gap:20,
+        zIndex:2147483601
+      }}>
+        <IconLink
+          href="https://instagram.com/rustamromanov.ru"
+          label="Instagram"
+          whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
+          colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
+          onHoverSound={playDot}
+          size={37}
+        />
+        <IconLink
+          href="https://t.me/rustamromanov"
+          label="Telegram"
+          whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
+          colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3"
+          onHoverSound={playDot}
+          size={37}
+        />
+      </div>
+
+      {/* оверлеи — без изменений */}
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
 
-      {/* локальные стили */}
+      {/* локальные стили (как в стабильной) */}
       <style>{`
         .glass-plate.circle{
           background: rgba(255,255,255,0.07);
