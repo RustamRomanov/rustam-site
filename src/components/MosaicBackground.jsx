@@ -30,6 +30,14 @@ const MAX_INDEX_SCAN = 10000;
 const NEI_RADIUS = 10;
 const NEI_DELTA  = 15;
 
+/* ===== ВУАЛЬ (новое) ===== */
+const VEIL_ENABLED = true;        // можно выключить, оставив код
+const VEIL_ALPHA   = 0.55;        // плотность затемнения по краям
+const VEIL_HOLE_R  = 140;         // радиус «прозрачной» зоны
+const VEIL_FEATHER = 180;         // ширина перья (градиент)
+const VEIL_MIN_R   = 90;          // минимальная дырка (на всякий случай)
+const VEIL_MAX_R   = 280;         // максимум (если захочешь анимировать)
+
 /* ===== УТИЛИТЫ ===== */
 const clamp = (v,min,max)=>Math.min(Math.max(v,min),max);
 const clamp01 = (x)=>Math.max(0,Math.min(1,x));
@@ -71,7 +79,7 @@ export default function MosaicBackground() {
   const basePathRef = useRef(isMobile ? MOBILE_DIR : DESKTOP_DIR);
 
   /* === НОВОЕ: индекс img1 === */
-  const img1IdxRef = useRef(-1); // сюда сохраним индекс изображения с seq === 1 (img1.*)
+  const img1IdxRef = useRef(-1);
 
   useEffect(()=>{
     const onResize=()=>setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT);
@@ -145,7 +153,6 @@ export default function MosaicBackground() {
     };
   },[]);
 
-  // направление + вертикальная позиция для тона
   const playDirectionalAir = async (strength = 1, pan = 0, dirX = 0, v = 0.5, dirY = 0) => {
     const nowMs = performance.now();
     if (nowMs - lastSoundAtRef.current < SOUND_MIN_GAP_MS) return;
@@ -304,9 +311,9 @@ export default function MosaicBackground() {
 
       let cols, rows, tileW, tileH;
       if(window.innerWidth<=MOBILE_BREAKPOINT){
-        cols=8; // ровно 8 по горизонтали
+        cols=8;
         tileW=Math.floor(w/cols);
-        tileH=Math.max(1,Math.floor(tileW*9/16)); // держим 16:9
+        tileH=Math.max(1,Math.floor(tileW*9/16));
         rows=Math.ceil(h/tileH)+1;
       }else{
         cols=Math.max(1,Math.ceil(w/BASE_TILE_W));
@@ -334,13 +341,12 @@ export default function MosaicBackground() {
 
     let loaded=0,cancelled=false;
     const onDone=()=>{
-      /* === НОВОЕ: найти индекс img1 (seq === 1) === */
       img1IdxRef.current = -1;
       for (let k = 0; k < seqRef.current.length; k++) {
         if (seqRef.current[k] === 1) { img1IdxRef.current = k; break; }
       }
 
-      initTiles(true); // старт — весь экран img1 (если найден)
+      initTiles(true);
       if(!rafRef.current) start();
       if(!readySentRef.current){ readySentRef.current=true; setTimeout(()=>window.dispatchEvent(new Event("mosaic:ready")),0); }
     };
@@ -384,13 +390,12 @@ export default function MosaicBackground() {
     return pen;
   }
 
-  /* === НОВОЕ: исключаем img1 из кандидатов === */
   function pickIndexFor(id, tiles, cols, rows, hardUnique, maxUse){
     const pool=poolRef.current; if(!pool.length) return -1;
     let cands=[];
     for(let i=0;i<pool.length;i++){
       if(!pool[i] || !pool[i].width) continue;
-      if(i === img1IdxRef.current) continue;            // <<< НЕ ИСПОЛЬЗОВАТЬ img1
+      if(i === img1IdxRef.current) continue; // не использовать img1 для подмен
       if(useCntRef.current[i] >= maxUse) continue;
       cands.push(i);
     }
@@ -435,20 +440,16 @@ export default function MosaicBackground() {
     const hardUnique = poolN >= total;
     const maxUse = hardUnique ? 1 : quotaRef.current;
 
-    /* === НОВОЕ: старт — полностью img1 === */
     const img1 = img1IdxRef.current;
     if (initial && img1>=0 && poolRef.current[img1] && poolRef.current[img1].width) {
       for (const id of order) {
         tiles[id].imgIdx = img1;
         tiles[id].prevIdx = -1;
         tiles[id].fading = false;
-        // лёгкая рассинхронизация времени следующей замены, чтобы волна могла красиво «сместить» img1
         tiles[id].nextChange = now + randInt(1200, 2600) + (tiles[id].c + tiles[id].r)*5;
       }
-      // учтём стартовые использования img1 (не критично, но корректно)
       useCntRef.current[img1] = total;
     } else {
-      // обычная инициализация, если img1 нет
       for(const id of order){
         const idx = pickIndexFor(id, tiles, cols, rows, hardUnique, maxUse);
         tiles[id].imgIdx = idx>=0 ? idx : 0;
@@ -493,12 +494,46 @@ export default function MosaicBackground() {
     else ctx.drawImage(img,sx,sy,sw,sh,cx-drawW/2,cy-drawH/2,drawW,drawH);
   }
 
+  /* ===== ВУАЛЬ: простая и быстрая реализация ===== */
+  function drawVeil(ctx){
+    if(!VEIL_ENABLED) return;
+    const w = window.innerWidth, h = window.innerHeight;
+
+    // если курсора нет — равномерное затемнение
+    const mx = mouseRef.current.x, my = mouseRef.current.y;
+    const noPointer = !(mx > -1e5 && my > -1e5);
+
+    if(noPointer){
+      ctx.globalAlpha = VEIL_ALPHA;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0,0,w,h);
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    // Радиус можно мягко адаптировать под текущий ховер-масштаб (необязательно)
+    const rBase = VEIL_HOLE_R;
+    const r = clamp(rBase, VEIL_MIN_R, VEIL_MAX_R);
+    const outer = r + VEIL_FEATHER;
+
+    // Один радиальный градиент на весь экран: прозрачный центр → тёмные края
+    const g = ctx.createRadialGradient(mx, my, Math.max(1, r*0.3), mx, my, outer);
+    const innerStop = r / outer;
+
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(clamp01(innerStop), "rgba(0,0,0,0)");
+    g.addColorStop(1, `rgba(0,0,0,${VEIL_ALPHA})`);
+
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+  }
+
   function draw(t){
     const ctx=ctxRef.current; if(!ctx) return;
     const w=window.innerWidth,h=window.innerHeight;
     ctx.clearRect(0,0,w,h); ctx.fillStyle="#000"; ctx.fillRect(0,0,w,h);
 
-    const pool=poolRef.current, tiles=tilesRef.current; if(!pool.length || !tiles.length) return;
+    const pool=poolRef.current, tiles=tilesRef.current; if(!pool.length || !tiles.length) { drawVeil(ctx); return; }
 
     if(!readySentRef.current){ readySentRef.current=true; setTimeout(()=>window.dispatchEvent(new Event("mosaic:ready")),0); }
 
@@ -568,7 +603,6 @@ export default function MosaicBackground() {
           const prev = tile.imgIdx;
           tile.prevIdx = prev>=0 ? prev : nextIdx;
 
-          // аккуратно уменьшаем счётчик предыдущего, даже если это был img1
           if(prev>=0) useCntRef.current[prev]=Math.max(0,useCntRef.current[prev]-1);
 
           useCntRef.current[nextIdx]+=1;
@@ -597,7 +631,7 @@ export default function MosaicBackground() {
       }
     }
 
-    // клик-зум с круглыми углами
+    // клик-зум
     const ct=clickedTileIdRef.current;
     if(ct>=0){
       const tile=tiles[ct]; if(tile && tile.imgIdx>=0){
@@ -622,16 +656,24 @@ export default function MosaicBackground() {
       }
     }
     if(ct>=0 && ct!==hoveredId) clickedTileIdRef.current=-1;
+
+    // === ВУАЛЬ поверх мозаики ===
+    drawVeil(ctx);
   }
 
   /* ===== 7) СОБЫТИЯ ===== */
-  const onMouseMove=(e)=>{ const r=canvasRef.current.getBoundingClientRect(); mouseRef.current={ x:e.clientX-r.left, y:e.clientY-r.top }; };
+  const updateMouse = (clientX, clientY) => {
+    const r=canvasRef.current.getBoundingClientRect();
+    mouseRef.current={ x:clientX-r.left, y:clientY-r.top };
+  };
+
+  const onMouseMove=(e)=> updateMouse(e.clientX, e.clientY);
   const onMouseLeave=()=>{ mouseRef.current={x:-1e6,y:-1e6}; clickedTileIdRef.current=-1; prevHoverIdRef.current=-1; prevHoverColRef.current=-1; };
   const onClick=()=>{ const { cols,tileW,tileH }=gridRef.current; const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH); if(mc<0||mr<0) return; const id=mr*cols+mc; const t=tilesRef.current[id]; if(!t||t.imgIdx<0) return; clickedTileIdRef.current=id; };
 
   const pointerActiveRef=useRef(false);
-  const onPointerDown=(e)=>{ const r=canvasRef.current.getBoundingClientRect(); mouseRef.current={ x:e.clientX-r.left, y:e.clientY-r.top }; pointerActiveRef.current=true; canvasRef.current.setPointerCapture?.(e.pointerId); onClick(); };
-  const onPointerMove=(e)=>{ if(isMobile && pointerActiveRef.current && e.cancelable) e.preventDefault(); const r=canvasRef.current.getBoundingClientRect(); mouseRef.current={ x:e.clientX-r.left, y:e.clientY-r.top }; };
+  const onPointerDown=(e)=>{ updateMouse(e.clientX, e.clientY); pointerActiveRef.current=true; canvasRef.current.setPointerCapture?.(e.pointerId); onClick(); };
+  const onPointerMove=(e)=>{ if(isMobile && pointerActiveRef.current && e.cancelable) e.preventDefault(); updateMouse(e.clientX, e.clientY); };
   const onPointerUp=()=>{ pointerActiveRef.current=false; clickedTileIdRef.current=-1; };
 
   return (
