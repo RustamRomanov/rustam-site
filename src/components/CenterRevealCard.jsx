@@ -5,13 +5,13 @@ import React, { useEffect, useRef, useState } from "react";
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
 const within = (x,y,r)=> x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
 const randColor = () => `hsl(${Math.floor(Math.random()*360)}, 86%, 60%)`;
-const shuffle = (arr) => { const a=arr.slice(); for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a; };
+const shuffle = (arr) => { const a=arr.slice(); for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j]]; } return a; };
 
 /* Курсор (десктоп) */
 const CURSOR_URL = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><circle cx='10' cy='10' r='6' fill='%23E53935'/><circle cx='10' cy='10' r='3' fill='%23ffffff'/></svg>`.replace(/\n|\s{2,}/g,"");
 
 /* ===== Плашка ===== */
-const PLATE_OPACITY_MAX = 0.8;
+const PLATE_OPACITY_MAX = 0.9;
 const PLATE_EASE_POWER  = 1.35;
 const PLATE_LERP        = 0.18;
 const PLATE_SATURATE_INPUT = 0.30;
@@ -139,14 +139,12 @@ function IconLink({ href, whiteSrc, colorSrc, label, onHoverSound }) {
   );
 }
 
-/* ===== Тень до появления плашки ===== */
-function PrePlate({ active, children, expandX=72, expandY=36, radius=12, centerOpacity=0.43 }) {
+/* ===== Тень до появления плашки (укороченная ~20%) ===== */
+function PrePlate({ active, children, expandX=18, expandY=10, radius=12, centerOpacity=0.5 }) {
   const bg = `radial-gradient(ellipse at 50% 50%,
     rgba(0,0,0,${centerOpacity}) 0%,
-    rgba(0,0,0,${(centerOpacity*0.8).toFixed(3)}) 40%,
-    rgba(0,0,0,0.25) 70%,
-    rgba(0,0,0,0.10) 85%,
-    rgba(0,0,0,0) 100%)`;
+    rgba(0,0,0,${(centerOpacity*0.6).toFixed(3)}) 35%,
+    rgba(0,0,0,0.0) 100%)`;
   return (
     <div style={{ position:"relative", display:"inline-block", borderRadius:radius }}>
       <div
@@ -159,7 +157,7 @@ function PrePlate({ active, children, expandX=72, expandY=36, radius=12, centerO
           opacity: active ? 1 : 0,
           transition:"opacity 220ms ease",
           pointerEvents:"none",
-          filter:"blur(0.3px)",
+          filter:"blur(0.4px)",
           zIndex: 0
         }}
       />
@@ -214,10 +212,9 @@ function BioOverlay({ open, onClose, imageSrc }) {
                          fontSize:headerFS, lineHeight:1.2, color: tab==="bio" ? "#E53935" : "#000" }}>БИОГРАФИЯ</button>
               <button onClick={()=>setTab("char")}
                 style={{ appearance:"none", background:"transparent", border:"none", padding:0, margin:0, cursor:"pointer",
-                         fontFamily:"UniSans-Heavy, 'Uni Sans'", fontWeight:800, letterSpacing:"0.05em",
+                         fontFamily:"UniSans-Heavy, 'Uni Sans'", fontWeight:800, letterSpacing:"0.05ем",
                          fontSize:headerFS, lineHeight:1.2, color: tab==="char" ? "#E53935" : "#000", marginLeft:"4ch" }}>ХАРАКТЕРИСТИКА</button>
             </div>
-            {/* текст поднят на ~1 линию */}
             <div style={{ position:"absolute", top:`calc(${inset} + (${headerFS} * 2.0))`, bottom:`calc(${inset} + ${headerFS} * 1)`, left:0, right:0 }}>
               <div lang="ru" style={{ position:"absolute", top:0, bottom:0, left:0, right:"-14px", overflow:"auto", paddingRight:`calc(${padRightExtra} + 14px)`,
                     color:"#000", fontFamily:"Jura, system-ui", fontWeight:400, fontSize:"clamp(12px, 0.9vw, 16px)", lineHeight:1.28, whiteSpace:"pre-wrap", textAlign:"justify", textAlignLast:"left" }}>
@@ -227,9 +224,9 @@ function BioOverlay({ open, onClose, imageSrc }) {
           </div>
         </div>
 
-        {/* Крестик — поднял выше */}
+        {/* Крестик — ВНЕ плашки (визуально) */}
         <button aria-label="Close" onClick={onClose}
-          style={{ position:"absolute", top:8, right:12, width:34, height:34, borderRadius:999, background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.35)", cursor:"pointer", display:"grid", placeItems:"center", boxShadow:"0 6px 18px rgba(0,0,0,0.4)", zIndex:5 }}>
+          style={{ position:"absolute", top:-14, right:-14, width:36, height:36, borderRadius:999, background:"rgba(0,0,0,0.65)", border:"1px solid rgba(255,255,255,0.45)", cursor:"pointer", display:"grid", placeItems:"center", boxShadow:"0 12px 26px rgba(0,0,0,0.5)", zIndex:5 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
         </button>
       </div>
@@ -241,7 +238,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
   );
 }
 
-/* ===== BIO Mobile overlay — на весь экран + аплифт текста и крестика ===== */
+/* ===== BIO Mobile overlay — сдвиги вниз (изображение -10%, заголовки/текст +13%) ===== */
 function BioMobileOverlay({ open, onClose, imageSrc }) {
   const [tab,setTab] = useState("bio");
   const audioRef = useRef(null);
@@ -276,12 +273,12 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.86)", zIndex:2147485600, display:"flex", alignItems:"center", justifyContent:"center" }}>
       <audio ref={audioRef} src="/rustam-site/assents/music/bio.mp3" preload="auto" loop />
       <div style={{ position:"relative", width:"100vw", height:"100svh", overflow:"hidden", background:"#000" }}>
-        {/* Фоновое изображение — на весь экран, без верхнего зазора */}
+        {/* Фон: визуально опущен на 10% */}
         <img src={imageSrc} alt="bio-mobile"
-             style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition:"50% 65%" }}/>
+             style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition:"50% 65%", transform:"translateY(10%)" }}/>
 
-        {/* Заголовки — чуть выше (поднял) */}
-        <div style={{ position:"absolute", top:"23%", left:"7%", right:"7%", display:"flex", gap:24, alignItems:"center" }}>
+        {/* Заголовки: сдвинуты ниже на 13% от прежнего положения (23% → 36%) */}
+        <div style={{ position:"absolute", top:"36%", left:"7%", right:"7%", display:"flex", gap:24, alignItems:"center" }}>
           <button onClick={()=>setTab("bio")}
             style={{ appearance:"none", background:"transparent", border:"none", padding:0, margin:0,
                      color: tab==="bio" ? deepRed : "rgba(255,255,255,0.94)", fontFamily:"UniSans-Heavy, 'Uni Sans'",
@@ -296,13 +293,13 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
           </button>
         </div>
 
-        {/* Текст — поднят примерно на одну строку */}
-        <div style={{ position:"absolute", left:"6%", right:"6%", top:"calc(31% - 1.2em)", bottom:"6%", overflow:"auto",
+        {/* Текст: тоже ниже на ~13% (31% → 44%) */}
+        <div style={{ position:"absolute", left:"6%", right:"6%", top:"calc(44% - 1.2em)", bottom:"6%", overflow:"auto",
                       color:"#2f2f33", fontFamily:"Jura, system-ui", fontSize:16, lineHeight:1.32, paddingRight:12, whiteSpace:"pre-wrap" }}>
           {tab==="bio" ? textBio : textChar}
         </div>
 
-        {/* Крестик — ещё выше, у самого верха с safe-area */}
+        {/* Крестик — без изменений */}
         <button aria-label="Close" onClick={onClose}
           style={{ position:"absolute", top:"calc(env(safe-area-inset-top) + 8px)", right:12, width:40, height:40, borderRadius:999,
                    background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.4)", cursor:"pointer",
@@ -402,8 +399,8 @@ function DesktopCard() {
   const nameLatin="RUSTAM ROMANOV";
   const map={ R:"Р", U:"У", S:"С", T:"Т", A:"А", M:"М", O:"О", N:"Н", V:"В", " ":"\u00A0", D:"D", I:"I", E:"E", C:"C", L:"L", H:"H", W:"W" };
   const titleBase=24; const titleFS=Math.round(titleBase*1.1);
-  const directedFS = Math.round((titleFS/1.5)*1.2);   // +20% SHOWREEL
-  const nameFS = Math.round(titleFS*1.32*1.20);       // ИМЯ +20%
+  const directedFS = Math.round((titleFS/1.5)*1.2);
+  const nameFS = Math.round(titleFS*1.32*1.20); // имя +20%
 
   const [nameStick,setNameStick]=useState(Array.from(nameLatin).map(()=>false));
   const [nameColors,setNameColors]=useState(Array.from(nameLatin).map(()=>"#cfcfcf"));
@@ -441,7 +438,6 @@ function DesktopCard() {
         </div>
         <div style={contentWrap}>
           <div style={headerWrap}>
-            {/* SHOWREEL */}
             <PrePlate active={!isInside}>
               <div ref={showreelRef} onMouseLeave={() => setSrStick(Array.from(showreelText).map(()=>false))}
                    style={{ position:"relative", display:"inline-block", marginTop: Math.round(titleFS*0.3), marginBottom: Math.round(directedFS*0.2), cursor: `url(${CURSOR_URL}) 10 10, default` }}>
@@ -470,7 +466,6 @@ function DesktopCard() {
               </div>
             </PrePlate>
 
-            {/* NAME (+20%) */}
             <PrePlate active={!isInside}>
               <h1 ref={nameRef} onMouseLeave={() => setNameStick(Array.from(nameLatin).map(()=>false))}
                   style={{ margin:0, fontSize:nameFS, letterSpacing:"0.02em", whiteSpace:"nowrap", userSelect:"none", cursor: `url(${CURSOR_URL}) 10 10, default` }}>
@@ -491,14 +486,12 @@ function DesktopCard() {
               </h1>
             </PrePlate>
 
-            {/* BIOGRAPHY */}
             <div style={{ marginTop: Math.round(titleFS*0.9) }}>
               <PrePlate active={!isInside}>
                 <BiographyWordPerLetter onOpen={()=>setBioOpen(true)} />
               </PrePlate>
             </div>
 
-            {/* Socials */}
             <PrePlate active={!isInside}>
               <div style={{ display:"flex", gap:14, justifyContent:"center", alignItems:"center", marginTop: Math.round(titleFS*0.6) }}>
                 <IconLink href="https://instagram.com/rustamromanov.ru" label="Instagram"
@@ -516,7 +509,7 @@ function DesktopCard() {
         </div>
       </div>
 
-      {/* DESKTOP: НЕ фуллскрин, стартуем со звуком */}
+      {/* DESKTOP: НЕ фуллскрин, звук сразу */}
       <VideoOverlay
         open={playerOpen}
         onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }}
@@ -654,7 +647,7 @@ function MobileCard() {
               </span>
             ))}
           </h1>
-          <h3 ref={srRef} style={{ margin:"6px 0 0", fontSize:"clamp(14px, 4.6vw, 18px)", letterSpacing:"0.08em", color:"#cfcfcf", userSelect:"none" }}>
+          <h3 ref={srRef} style={{ margin:"6px 0 0", fontSize:"clamp(14px, 4.6vw, 18px)", letterSpacing:"0.08ем", color:"#cfcfcf", userSelect:"none" }}>
             {srLetters.map((ch,i)=>(
               <span key={i} data-idx={i}
                 style={{ display:"inline-block", whiteSpace:"pre", color: srStick[i] ? srColors[i] : "#cfcfcf",
@@ -693,11 +686,11 @@ function MobileCard() {
   );
 }
 
-/* ===== Vimeo overlay — добавлен true mute toggle на мобиле и звук сразу на десктопе ===== */
+/* ===== Vimeo overlay (mute-toggle мобайл, звук десктоп) ===== */
 function VideoOverlay({ open, onClose, vimeoId, full=true }) {
   const dragRef = useRef({active:false,startY:0,dy:0});
   const iframeRef = useRef(null);
-  const [isMuted, setIsMuted] = useState(full ? true : false); // mobile starts muted; desktop wants sound
+  const [isMuted, setIsMuted] = useState(full ? true : false);
   if (!open) return null;
 
   const onPD = (e)=>{ if(!full) return; dragRef.current={active:true,startY:e.clientY,dy:0}; e.currentTarget.setPointerCapture?.(e.pointerId); };
@@ -706,14 +699,10 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
 
   const post = (method, value)=>{ try{ iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); }catch{} };
 
-  // Автовключение со звуком на десктопе
   const onIframeLoad = ()=> {
     post("play");
     post("setMuted", isMuted ? true : false);
-    if (!isMuted) {
-      post("setVolume", 1);
-      post("play");
-    }
+    if (!isMuted) { post("setVolume", 1); post("play"); }
   };
 
   const toggleMute = ()=> {
@@ -727,7 +716,6 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
     ? { position:"relative", width:"100vw", height:"100vh", borderRadius:0 }
     : { position:"relative", width:"60vw", maxWidth:1200, height:"60vh", borderRadius:12, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.55)", background:"#000" };
 
-  // query params: мобилка — muted=1; десктоп — muted=0
   const queryMuted = full ? 1 : 0;
 
   return (
@@ -749,7 +737,6 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
         />
       </div>
 
-      {/* Мобильная плашка: теперь переключатель MUTE/UNMUTE */}
       {full && (
         <button onClick={toggleMute}
           style={{ position:"absolute", left:"50%", bottom:"6%", transform:"translateX(-50%)",
@@ -762,7 +749,7 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
   );
 }
 
-/* ===== Экспорт (автосвитч) ===== */
+/* ===== Экспорт ===== */
 export default function CenterRevealCard() {
   const [isMobile,setIsMobile]=useState(typeof window!=="undefined" ? window.innerWidth<=MOBILE_BREAKPOINT : false);
   useEffect(()=>{
