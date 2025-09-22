@@ -632,11 +632,11 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
             
           }}
         >
-{`В 2009-м я переехал в Москву. Снимал рэп-клипы на «зеркалку» с горящими глазами и верой, что всё получится. Получилось. 
+{`В 2009 я переехал в Москву. Снимал рэп-клипы на «зеркалку» с горящими глазами и верой, что всё получится. Получилось! 
 
-В 2010 году я оказался в команде Gazgolder, а в 2011-м отправился с Бастой в тур по Америке. 
+В 2010 году я оказался в команде Gazgolder, а в 2011 отправился с Бастой в тур по Америке. 
 
-В 2012-м я снял первый документальный фильм о Тимати. Так началась большая глава с Black Star, а вместе с ней и десятки громких клипов.
+В 2012 я снял первый документальный фильм о Тимати. Так началась большая глава с Black Star, а вместе с ней и десятки громких клипов.
 
 2014 год стал переломным - клип L’One «Океан» открыл для меня новые горизонты. А в 2015-м работа Doni feat. Натали — «Ты такой» побила все рекорды, став первым клипом в России, преодолевшим 100 млн просмотров на YouTube.
 
@@ -849,7 +849,7 @@ function DesktopCard() {
   const contentWrap={ position:"relative", width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:1 };
   const headerWrap={ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap: Math.round(titleFS*0.42), marginTop: Math.round((titleFS/1.5) * 3.2), color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans', system-ui", textShadow:"0 1px 2px rgba(0,0,0,0.25)" };
 
-  const circle2Diam = Math.round(circleDiam * 1.3);
+  const circle2Diam = Math.round(circleDiam * 1.7);
 
   return (
     <>
@@ -1104,7 +1104,7 @@ function MobileCard() {
   const HALF_LINE = "0.6em";
 
   // Круг 2 — больше на 5% (mobile)
-  const circle2Diam = Math.round(circleDiam * 1.7 * 1.05);
+  const circle2Diam = Math.round(circleDiam * 1.5 * 1.05);
 
   return (
     <>
