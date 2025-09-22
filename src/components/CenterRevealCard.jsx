@@ -364,7 +364,10 @@ function Circle2Overlay({
           >
             <div style={{ maxWidth: maxTextWidth, color: "rgba(255,255,255,0.95)", transform: `translateY(${TEXT_SHIFT}px)` }}>
               <FitHeader text="Режиссёр · Продюсер · Сценарист" />
-              <BodyLine>
+              {/* вот это и есть пустая строка */}
+<div style={{ height: "20px" }} />
+<BodyLine>
+            
                 100+ артистов · 200+ проектов · 2+ млрд просмотров
               </BodyLine>
               <BodyLine>
