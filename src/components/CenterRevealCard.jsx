@@ -849,7 +849,7 @@ function DesktopCard() {
   const contentWrap={ position:"relative", width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:1 };
   const headerWrap={ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap: Math.round(titleFS*0.42), marginTop: Math.round((titleFS/1.5) * 3.2), color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans', system-ui", textShadow:"0 1px 2px rgba(0,0,0,0.25)" };
 
-  const circle2Diam = Math.round(circleDiam * 1.5);
+  const circle2Diam = Math.round(circleDiam * 1.3);
 
   return (
     <>
