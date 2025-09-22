@@ -524,7 +524,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
 }
 
 
-/* ===== BIO Mobile overlay — верх фото сильнее открыт, кнопки выше, текст точно на 6 строк ниже ===== */
+/* ===== BIO Mobile overlay — фото 70% 22%, кнопки выше, текст на 5 строк ниже, фон прозрачный ===== */
 function BioMobileOverlay({ open, onClose, imageSrc }) {
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -547,32 +547,34 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
 
   const IconSpeaker = ({ muted, color = "white" }) => (
     <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 9v6h4l5 4V5l-5 4H4z" fill={color}/>
+      <path d="M4 9v6h4l5 4V5l-5 4H4z" fill={color} />
       {!muted && (
         <>
-          <path d="M17 8a5 5 0 0 1 0 8" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round"/>
-          <path d="M20 5a9 9 0 0 1 0 14" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round"/>
+          <path d="M17 8a5 5 0 0 1 0 8" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path d="M20 5a9 9 0 0 1 0 14" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" />
         </>
       )}
-      {muted && <path d="M2 2l20 20" stroke={color} strokeWidth="2" strokeLinecap="round"/>}
+      {muted && <path d="M2 2l20 20" stroke={color} strokeWidth="2" strokeLinecap="round" />}
     </svg>
   );
 
-  /* Геометрия окна — НЕ двигаем (как сейчас) */
+  /* Геометрия окна — НЕ двигаем */
   const SIDE_INSET = "6%";
-  const TOP_GAP    = "16svh";   // окно остаётся на месте
+  const TOP_GAP    = "16svh";
   const BOT_GAP    = "5svh";
 
-  /* Текст: 6 строк вниз от верхней границы окна, считаем пиксельно (надёжно для iOS/Android) */
-  const FS_PX = 16;      // базовый кегль текста
-  const LH    = 1.28;    // межстрочный интервал
+  /* Текст: ровно 5 строк ниже (надёжно — в пикселях) */
+  const FS_PX       = 16;     // кегль текста
+  const LINE_HEIGHT = 1.28;   // межстрочный
+  const LINES_ABOVE = 5;      // требуемые 5 строк
+  const TEXT_TOP_PX = Math.round(FS_PX * LINE_HEIGHT * LINES_ABOVE); // ~102px
 
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        background: "transparent",   // фон не затемняем
+        background: "transparent",  // фон не затемняем
         zIndex: 2147485600,
         pointerEvents: "auto"
       }}
@@ -593,7 +595,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
           boxShadow: "0 30px 80px rgba(0,0,0,0.55)"
         }}
       >
-        {/* Фото — ещё сильнее открываем верх */}
+        {/* Фото — ещё больше открываем верх: смещаем фокус вправо и вверх */}
         <img
           src={imageSrc}
           alt="bio-mobile"
@@ -603,28 +605,24 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            objectPosition: "60% 22%"   // ← было 28%, теперь ещё выше
+            objectPosition: "70% 22%"  // ← как просил
           }}
         />
 
-        {/* Текст — шрифт ABC_TypeWriterRussian, верх на 6 строк ниже (надёжный calc по пикселям) */}
+        {/* Текст — ABC_TypeWriterRussian, чёрный без теней; верх на 5 строк ниже */}
         <div
           className="bio-scroll-m"
           style={{
             position: "absolute",
             left: "6%",
             right: "6%",
-            // Используем CSS-переменные для точного вычисления:
-            // top = 6 строк * line-height * font-size
-            "--fs": `${FS_PX}px`,
-            "--lh": LH,
-            top: "calc(6 * var(--lh) * var(--fs))",
+            top: TEXT_TOP_PX,     // ← жёсткое смещение на 5 строк
             bottom: "5%",
             overflow: "auto",
             color: "#000",
             fontFamily: "'ABC_TypeWriterRussian', system-ui, -apple-system, 'Segoe UI', Roboto",
             fontSize: FS_PX,
-            lineHeight: LH,
+            lineHeight: LINE_HEIGHT,
             paddingRight: 12,
             textShadow: "none",
             whiteSpace: "pre-wrap",
@@ -652,7 +650,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         onClick={() => setIsMuted((m) => !m)}
         style={{
           position: "absolute",
-          top: `calc(${TOP_GAP} - 64px)`,        // ← поднял выше
+          top: `calc(${TOP_GAP} - 72px)`,   // ← чуть выше
           right: `calc(${SIDE_INSET} + 46px)`,
           width: 40,
           height: 40,
@@ -674,7 +672,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         onClick={onClose}
         style={{
           position: "absolute",
-          top: `calc(${TOP_GAP} - 64px)`,        // ← поднял выше
+          top: `calc(${TOP_GAP} - 72px)`,   // ← чуть выше
           right: SIDE_INSET,
           width: 40,
           height: 40,
@@ -700,6 +698,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
     </div>
   );
 }
+
 
 
 
