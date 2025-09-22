@@ -1104,7 +1104,7 @@ function MobileCard() {
   const HALF_LINE = "0.6em";
 
   // Круг 2 — больше на 5% (mobile)
-  const circle2Diam = Math.round(circleDiam * 1.4 * 1.05);
+  const circle2Diam = Math.round(circleDiam * 1.2 * 1.05);
 
   return (
     <>
@@ -1133,81 +1133,105 @@ function MobileCard() {
           transform:"translateY(-0.6em)" // чуть выше базовой линии, т.к. элементы опускаем ниже отдельно
         }}>
           {/* BIO — тот же шрифт, что и на Desktop */}
-          <PrePlate active={true}>
-            <h2
-              data-bio
-              onClick={()=>setBioOpen(true)}
-              style={{
-                margin:0,
-                marginTop:`calc(${ONE_LINE} * 2)`,
-                fontSize:"clamp(15px, 4.8vw, 20px)",
-                letterSpacing:"0.08em",
-                userSelect:"none",
-                fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" // тот же набор
-              }}
-            >
-              {lettersBio.map((ch,i)=>(
-                <span key={i} data-idx={i}
-                  style={{ display:"inline-block", whiteSpace:"pre", color: stickBio[i] ? colorsBio[i] : "#ffffff",
-                           transform: stickBio[i] ? "scale(1.28)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease" }}>
-                  {stickBio[i] ? (mapBio[ch] || ch) : ch}
-                </span>
-              ))}
-            </h2>
-          </PrePlate>
+<PrePlate active={true}>
+  <h2
+    data-bio
+    onClick={()=>setBioOpen(true)}
+    style={{
+      margin: 0,
+      marginTop: `calc(${ONE_LINE} * 2)`,
+      fontSize: "clamp(15px, 4.8vw, 20px)",
+      letterSpacing: "0.08em",
+      userSelect: "none",
+      fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
+      fontWeight: 400,
+    }}
+  >
+    {lettersBio.map((ch,i)=>(
+      <span
+        key={i}
+        data-idx={i}
+        style={{
+          display:"inline-block",
+          whiteSpace:"pre",
+          color: stickBio[i] ? colorsBio[i] : "#ffffff",
+          transform: stickBio[i] ? "scale(1.28)" : "scale(1)",
+          transition:"transform 140ms ease, color 160ms ease"
+        }}
+      >
+        {stickBio[i] ? (mapBio[ch] || ch) : ch}
+      </span>
+    ))}
+  </h2>
+</PrePlate>
 
-          {/* Имя — тот же шрифт, что и на Desktop */}
-          <PrePlate active={true}>
-            <h1
-              data-name
-              onClick={()=> setCircle2Open(true)}
-              style={{
-                margin:`${ONE_LINE} 0 0`,
-                fontSize:"clamp(18px, 6.6vw, 28px)",
-                letterSpacing:"0.02em",
-                userSelect:"none",
-                cursor:"pointer",
-                title:"Подробнее",
-                fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui" // тот же набор
-              }}
-            >
-              {nameLatin.map((ch,i)=>(
-                <span key={i} data-idx={i}
-                  style={{
-                    display:"inline-block", whiteSpace:"pre",
-                    color: stickName[i] ? colorsName[i] : "#cfcfcf",
-                    transform: stickName[i] ? "scale(1.28)" : "scale(1)",
-                    transition:"transform 140ms ease, color 160ms ease",
-                    animation: stickName[i] ? "none" : `waveGray 1800ms ease-in-out ${i*90}ms infinite`
-                  }}>
-                  {stickName[i] ? (mapName[ch] || ch) : (ch===" " ? "\u00A0" : ch)}
-                </span>
-              ))}
-            </h1>
-          </PrePlate>
+{/* Имя — тот же шрифт, что и на Desktop */}
+<PrePlate active={true}>
+  <h1
+    data-name
+    onClick={()=> setCircle2Open(true)}
+    style={{
+      margin: `${ONE_LINE} 0 0`,
+      fontSize: "clamp(18px, 6.6vw, 28px)",
+      letterSpacing: "0.02em",
+      userSelect: "none",
+      cursor: "pointer",
+      title: "Подробнее",
+      fontFamily: "'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
+      fontWeight: 800,
+    }}
+  >
+    {nameLatin.map((ch,i)=>(
+      <span
+        key={i}
+        data-idx={i}
+        style={{
+          display:"inline-block",
+          whiteSpace:"pre",
+          color: stickName[i] ? colorsName[i] : "#cfcfcf",
+          transform: stickName[i] ? "scale(1.28)" : "scale(1)",
+          transition:"transform 140ms ease, color 160ms ease",
+          animation: stickName[i] ? "none" : `waveGray 1800ms ease-in-out ${i*90}ms infinite`
+        }}
+      >
+        {stickName[i] ? (mapName[ch] || ch) : (ch===" " ? "\u00A0" : ch)}
+      </span>
+    ))}
+  </h1>
+</PrePlate>
 
-          {/* Showreel — опустить чуть ниже */}
-          <PrePlate active={true}>
-            <h3
-              data-sr
-              style={{
-                margin:`calc(${HALF_LINE} + 8px) 0 0`,  // ниже на ~8px
-                fontSize:"clamp(13px, 4.2vw, 17px)",
-                letterSpacing:"0.08em",
-                color:"#cfcfcf",
-                userSelect:"none",
-                fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui"
-              }}
-            >
-              {srLetters.map((ch,i)=>(
-                <span key={i} data-idx={i}
-                  style={{ display:"inline-block", whiteSpace:"pre", color: srStick[i] ? srColors[i] : "#cfcfcf",
-                           transform: srStick[i] ? "scale(1.2)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease" }}>
-                  {ch===" " ? "\u00A0" : ch}
-                </span>
-              ))}
-            </h3>
-          </PrePlate>
+{/* Showreel — опустить чуть ниже */}
+<PrePlate active={true}>
+  <h3
+    data-sr
+    style={{
+      margin: `calc(${HALF_LINE} + 8px) 0 0`,
+      fontSize: "clamp(13px, 4.2vw, 17px)",
+      letterSpacing: "0.08em",
+      color: "#cfcfcf",
+      userSelect: "none",
+      fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
+      fontWeight: 400,
+    }}
+  >
+    {srLetters.map((ch,i)=>(
+      <span
+        key={i}
+        data-idx={i}
+        style={{
+          display:"inline-block",
+          whiteSpace:"pre",
+          color: srStick[i] ? srColors[i] : "#cfcfcf",
+          transform: srStick[i] ? "scale(1.2)" : "scale(1)",
+          transition:"transform 140ms ease, color 160ms ease"
+        }}
+      >
+        {ch===" " ? "\u00A0" : ch}
+      </span>
+    ))}
+  </h3>
+</PrePlate>
+
 
           {/* Кружочки — ниже, и №2 ещё чуть ниже */}
           <div ref={dotsRef} style={{ marginTop:`calc(${HALF_LINE} + 14px)`, display:"flex", gap:16, alignItems:"flex-end" }}>
