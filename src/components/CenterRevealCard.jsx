@@ -524,7 +524,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
 }
 
 
-/* ===== BIO Mobile overlay — окно с ABC_TypeWriterRussian и новыми отступами ===== */
+/* ===== BIO Mobile overlay — окно с ABC_TypeWriterRussian и корректными отступами ===== */
 function BioMobileOverlay({ open, onClose, imageSrc }) {
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -558,13 +558,13 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
     </svg>
   );
 
-  /* Геометрия: опускаем окно на 5% ниже (top 15svh вместо 10svh), сохраняя высоту */
+  /* Геометрия окна: ещё чуть ниже, чтобы верх не «резался» */
   const SIDE_INSET = "6%";
-  const TOP_GAP    = "15svh";
+  const TOP_GAP    = "16svh";  // было 15svh
   const BOT_GAP    = "5svh";
 
-  /* Текст: опустить на 6 строк */
-  const LINES_ABOVE = 6;
+  /* Текст: опустить на 5 строк */
+  const LINES_ABOVE = 5;
   const LINE_HEIGHT = 1.28;
 
   return (
@@ -595,7 +595,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
           boxShadow: "0 30px 80px rgba(0,0,0,0.55)"
         }}
       >
-        {/* Фото — опускаем чуть ниже */}
+        {/* Фото — ещё ниже, чтобы верхняя часть влезла комфортно */}
         <img
           src={imageSrc}
           alt="bio-mobile"
@@ -605,11 +605,11 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            objectPosition: "50% 42%" /* было 35%, опустил ниже */
+            objectPosition: "50% 46%" /* было 42% */
           }}
         />
 
-        {/* Текст: ABC_TypeWriterRussian, чёрный, без теней; сверху 6 строк, снизу 5% окна */}
+        {/* Текст: ABC_TypeWriterRussian, чёрный, без теней; сверху 5 строк, снизу 5% окна */}
         <div
           className="bio-scroll-m"
           style={{
@@ -644,14 +644,14 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         </div>
       </div>
 
-      {/* Кнопки над окном справа: Mute ближе к крестику */}
+      {/* Кнопки над окном справа: поднял выше; Mute ближе к крестику */}
       <button
         aria-label={isMuted ? "Unmute" : "Mute"}
         onClick={() => setIsMuted((m) => !m)}
         style={{
           position: "absolute",
-          top: `calc(${TOP_GAP} - 18px)`,
-          right: `calc(${SIDE_INSET} + 46px)`, /* было 56px, придвинул ближе */
+          top: `calc(${TOP_GAP} - 28px)`,      /* было -18px → выше */
+          right: `calc(${SIDE_INSET} + 46px)`, /* ближе к крестику */
           width: 40,
           height: 40,
           borderRadius: 999,
@@ -672,7 +672,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         onClick={onClose}
         style={{
           position: "absolute",
-          top: `calc(${TOP_GAP} - 18px)`,
+          top: `calc(${TOP_GAP} - 28px)`, /* было -18px → выше */
           right: SIDE_INSET,
           width: 40,
           height: 40,

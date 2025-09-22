@@ -1,56 +1,131 @@
+/* ========= Tailwind ========= */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ========= Fonts (GLOBAL, вне любых @media!) ========= */
+/* — ABC_TypeWriterRussian (используется в мобильной и десктопной биографии) */
+@font-face {
+  font-family: "ABC_TypeWriterRussian";
+  src:
+    url("/rustam-site/assents/fonts/ABC_TypeWriterRussian.woff2") format("woff2"),
+    url("/rustam-site/assents/fonts/ABC_TypeWriterRussian.woff") format("woff"),
+    url("/rustam-site/assents/fonts/ABC_TypeWriterRussian.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* — Rostov (для имени на десктопе/мобилке) */
+@font-face {
+  font-family: "Rostov";
+  src:
+    url("/rustam-site/assents/fonts/Rostov.woff2") format("woff2"),
+    url("/rustam-site/assents/fonts/Rostov.woff") format("woff"),
+    url("/rustam-site/assents/fonts/Rostov.otf") format("opentype");
+  font-weight: 800; /* подгони под фактический вес */
+  font-style: normal;
+  font-display: swap;
+}
+
+/* — Royal Crescent (для DIRECTOR'S SHOWREEL и BIOGRAPHY) */
+@font-face {
+  font-family: "Royal Crescent";
+  src:
+    url("/rustam-site/assents/fonts/RoyalCrescent.woff2") format("woff2"),
+    url("/rustam-site/assents/fonts/RoyalCrescent.woff") format("woff"),
+    url("/rustam-site/assents/fonts/RoyalCrescent.ttf") format("truetype");
+  font-weight: 400; /* скорректируй при необходимости */
+  font-style: normal;
+  font-display: swap;
+}
+
+/* — Uni Sans Heavy (два имени семейства на случай разночтений в коде) */
+@font-face {
+  font-family: "Uni Sans Heavy";
+  src:
+    url("/rustam-site/assents/fonts/UniSans-Heavy.woff2") format("woff2"),
+    url("/rustam-site/assents/fonts/UniSans-Heavy.woff") format("woff"),
+    url("/rustam-site/assents/fonts/Uni%20Sans%20Heavy.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Uni Sans Heavy";
+  src:
+    url("/rustam-site/assents/fonts/UniSans-Heavy-Italic.woff2") format("woff2"),
+    url("/rustam-site/assents/fonts/UniSans-Heavy-Italic.woff") format("woff"),
+    url("/rustam-site/assents/fonts/Uni%20Sans%20Heavy%20Italic.otf") format("opentype");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* алиас под имя "UniSans-Heavy", если где-то в коде встречается именно такое */
 @font-face {
   font-family: "UniSans-Heavy";
-  src: url("/rustam-site/assents/fonts/Uni%20Sans%20Heavy.otf") format("opentype");
+  src:
+    url("/rustam-site/assents/fonts/UniSans-Heavy.woff2") format("woff2"),
+    url("/rustam-site/assents/fonts/UniSans-Heavy.woff") format("woff"),
+    url("/rustam-site/assents/fonts/Uni%20Sans%20Heavy.otf") format("opentype");
   font-weight: 800;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "UniSans-Heavy";
-  src: url("/rustam-site/assents/fonts/Uni%20Sans%20Heavy%20Italic.otf") format("opentype");
+  src:
+    url("/rustam-site/assents/fonts/UniSans-Heavy-Italic.woff2") format("woff2"),
+    url("/rustam-site/assents/fonts/UniSans-Heavy-Italic.woff") format("woff"),
+    url("/rustam-site/assents/fonts/Uni%20Sans%20Heavy%20Italic.otf") format("opentype");
   font-weight: 800;
   font-style: italic;
   font-display: swap;
 }
 
-/* Jura — плашки с фактами */
+/* — Uni Sans Thin (опционально, как у тебя было) */
+@font-face {
+  font-family: "Uni Sans Thin";
+  src:
+    url("/rustam-site/assents/fonts/UniSans-Thin.woff2") format("woff2"),
+    url("/rustam-site/assents/fonts/UniSans-Thin.woff") format("woff"),
+    url("/rustam-site/assents/fonts/Uni%20Sans%20Thin.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Uni Sans Thin";
+  src:
+    url("/rustam-site/assents/fonts/UniSans-Thin-Italic.woff2") format("woff2"),
+    url("/rustam-site/assents/fonts/UniSans-Thin-Italic.woff") format("woff"),
+    url("/rustam-site/assents/fonts/Uni%20Sans%20Thin%20Italic.otf") format("opentype");
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* — Jura (как у тебя) */
 @font-face {
   font-family: "Jura-Ofont";
-  src: url("/rustam-site/assents/fonts/ofont.ru_Jura.ttf") format("truetype");
+  src:
+    url("/rustam-site/assents/fonts/ofont.ru_Jura.woff2") format("woff2"),
+    url("/rustam-site/assents/fonts/ofont.ru_Jura.woff") format("woff"),
+    url("/rustam-site/assents/fonts/ofont.ru_Jura.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
-/* (опционально) Uni Sans Thin — если где-то пригодится */
-@font-face {
-  font-family: "UniSans-Thin";
-  src: url("/rustam-site/assents/fonts/Uni%20Sans%20Thin.otf") format("opentype");
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "UniSans-Thin";
-  src: url("/rustam-site/assents/fonts/Uni%20Sans%20Thin%20Italic.otf") format("opentype");
-  font-weight: 300;
-  font-style: italic;
-  font-display: swap;
-}
-
-/* ===== Базовые переменные/тема ===== */
+/* ========= Base Theme / Resets ========= */
 :root {
   color-scheme: dark;
   --bg: #000;
   --fg: #fff;
-  overscroll-behavior: none; /* убираем «отскок» */
+  overscroll-behavior: none;
 }
 
-/* ===== Нормализация/базовая типографика ===== */
 *,
 *::before,
 *::after { box-sizing: border-box; }
@@ -67,31 +142,23 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  touch-action: manipulation; /* фикс для мобилок */
+  touch-action: manipulation;
 }
 
-#root {
-  isolation: isolate; /* модалки и z-index слои независимы */
-}
+#root { isolation: isolate; }
 
 ::selection {
   background: rgba(255,255,255,0.18);
   color: #fff;
 }
 
-/* Медиа по умолчанию адаптивные */
 img, svg, video, canvas {
   display: block;
   max-width: 100%;
 }
 
-/* Ссылки без подчёркиваний/синих цветов (мы красим вручную) */
-a {
-  color: inherit;
-  text-decoration: none;
-}
+a { color: inherit; text-decoration: none; }
 
-/* Формы наследуют шрифт */
 button, input, select, textarea {
   font: inherit;
   color: inherit;
@@ -99,13 +166,11 @@ button, input, select, textarea {
   border: none;
 }
 
-/* Доступность: видимый фокус */
 :focus-visible {
   outline: 2px solid rgba(255,255,255,0.35);
   outline-offset: 2px;
 }
 
-/* Корневой контейнер приложения */
 .app {
   position: relative;
   width: 100vw;
@@ -114,7 +179,10 @@ button, input, select, textarea {
   background: var(--bg);
 }
 
-/* === Вспомогательные утилити (если вдруг понадобятся) === */
-.font-uni-heavy { font-family: "UniSans-Heavy", "Uni Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
-.font-jura      { font-family: "Jura-Ofont", Jura, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
-.font-uni-thin  { font-family: "UniSans-Thin", "Uni Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+/* ========= Utility helpers ========= */
+.font-abc          { font-family: "ABC_TypeWriterRussian", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.font-rostov       { font-family: "Rostov", "Uni Sans Heavy", "UniSans-Heavy", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.font-royal        { font-family: "Royal Crescent", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.font-uni-heavy    { font-family: "Uni Sans Heavy", "UniSans-Heavy", "Uni Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.font-uni-thin     { font-family: "Uni Sans Thin", "Uni Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.font-jura         { font-family: "Jura-Ofont", Jura, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
