@@ -155,7 +155,6 @@ export default function MosaicBackground() {
     const edgeBoost = 0.35 + 0.65 * Math.abs(pan);
     const master = ctx.createGain();
     master.gain.setValueAtTime(0.0001, t0);
-    // ТИХО
     const peak = (0.2 + 0.1 * strength) * edgeBoost;
     master.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
     master.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
@@ -466,7 +465,6 @@ export default function MosaicBackground() {
       const ring=Math.max(Math.abs(tile.c-oc),Math.abs(tile.r-or));
       tile.nextChange = t0 + ring*WAVE_STEP + Math.random()*60;
       tile.targetTag = target;
-      // гарантируем, что не завис на прошлой фазе
       tile.fading = false;
     }
 
@@ -509,7 +507,6 @@ export default function MosaicBackground() {
     const seq  = targetTag==="mobile" ? mobileSeqRef.current  : desktopSeqRef.current;
     if(!pool?.length) return {img:null, seq:null};
 
-    // исключаем текущий кадр из кандидатов
     const candIdx=[];
     for(let i=0;i<pool.length;i++){
       const im = pool[i];
@@ -518,7 +515,6 @@ export default function MosaicBackground() {
       candIdx.push(i);
     }
     if(!candIdx.length){
-      // если всё совпало самим с собой — хотя бы любой другой возьмём
       for(let i=0;i<pool.length;i++){ if(pool[i] && pool[i]!==excludeImg){ candIdx.push(i); break; } }
       if(!candIdx.length) return {img:null, seq:null};
     }
@@ -539,7 +535,7 @@ export default function MosaicBackground() {
   function start(){
     if(rafRef.current) return;
     const step=(t)=>{
-      rafRef.current = requestAnimationFrame(step); // бронируем заранее
+      rafRef.current = requestAnimationFrame(step);
       try { draw(t); } catch(e){ /* no-op */ }
     };
     rafRef.current = requestAnimationFrame(step);
@@ -670,7 +666,6 @@ export default function MosaicBackground() {
               ? t + randInt(2500,5500) + (tile.c+tile.r)*5
               : t + 1e8;
           } else {
-            // если вдруг не удалось подобрать новый — попробуем ещё чуть позже в этой же волне
             tile.nextChange = t + 120 + Math.random()*60;
           }
         } else {
@@ -702,21 +697,47 @@ export default function MosaicBackground() {
         const img=tile.img;
         const mx=mouseRef.current.x, my=mouseRef.current.y;
         const pm=prevMouseRef.current; const dmx=isFinite(pm.x)?(mx-pm.x):0; prevMouseRef.current={x:mx,y:my};
-        const dx=tile.c*tileW, dy=tile.r*tileH;
-        const cover=computeCover(img.width,img.height,tileW,tileH,tile.scale);
-        const left=dx+(tileW-cover.drawW)/2, top=dy+(tileH-cover.drawH)/2;
-        const u=clamp01((mx-left)/cover.drawW), v=clamp01((my-top)/cover.drawH);
-        const imgX=cover.sx + u*cover.sw, imgY=cover.sy + v*cover.sh;
-        const drawW=Math.floor(img.width*ZOOM_NATIVE_FACTOR), drawH=Math.floor(img.height*ZOOM_NATIVE_FACTOR);
-        const drawX=mx - imgX*ZOOM_NATIVE_FACTOR, drawY=my - imgY*ZOOM_NATIVE_FACTOR;
-        const angle=clamp(-dmx*ROT_SENS, -ZOOM_MAX_ROT, ZOOM_MAX_ROT);
 
-        ctx.save();
-        ctx.beginPath(); roundedRect(ctx,Math.floor(drawX),Math.floor(drawY),drawW,drawH,ZOOM_RADIUS); ctx.clip();
-        ctx.translate(mx,my); ctx.rotate(angle); ctx.translate(-mx,-my);
-        ctx.imageSmoothingEnabled=true;
-        ctx.drawImage(img,0,0,img.width,img.height,Math.floor(drawX),Math.floor(drawY),drawW,drawH);
-        ctx.restore();
+        // >>>>>>> НОВОЕ ПОВЕДЕНИЕ ДЛЯ МОБИЛКИ (якорение к верху/низу, «в край») <<<<<<<
+        if (isMobile) {
+          // Определяем, где центр тайла относительно середины экрана
+          const tileCenterY = tile.r * tileH + tileH / 2;
+          const anchorTop = tileCenterY < (h / 2);
+
+          // Масштаб «cover» на весь вьюпорт (без уменьшения), чтобы было "по самые края"
+          const scale = Math.max(w / img.width, h / img.height);
+          const drawW = Math.floor(img.width * scale);
+          const drawH = Math.floor(img.height * scale);
+
+          // По центру по X, а по Y — к верхнему или нижнему краю
+          const drawX = Math.floor((w - drawW) / 2);
+          const drawY = anchorTop ? 0 : Math.floor(h - drawH);
+
+          ctx.save();
+          roundedRect(ctx, drawX, drawY, drawW, drawH, ZOOM_RADIUS);
+          ctx.clip();
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(img, 0, 0, img.width, img.height, drawX, drawY, drawW, drawH);
+          ctx.restore();
+        } else {
+          // >>>>>>> СТАРОЕ ПОВЕДЕНИЕ (ДЕСKTOP) — БЕЗ ИЗМЕНЕНИЙ <<<<<<<
+          const { tileW, tileH } = gridRef.current;
+          const dx=tile.c*tileW, dy=tile.r*tileH;
+          const cover=computeCover(img.width,img.height,tileW,tileH,tile.scale);
+          const left=dx+(tileW-cover.drawW)/2, top=dy+(tileH-cover.drawH)/2;
+          const u=clamp01((mx-left)/cover.drawW), v=clamp01((my-top)/cover.drawH);
+          const imgX=cover.sx + u*cover.sw, imgY=cover.sy + v*cover.sh;
+          const drawW=Math.floor(img.width*ZOOM_NATIVE_FACTOR), drawH=Math.floor(img.height*ZOOM_NATIVE_FACTOR);
+          const drawX=mx - imgX*ZOOM_NATIVE_FACTOR, drawY=my - imgY*ZOOM_NATIVE_FACTOR;
+          const angle=clamp(-dmx*ROT_SENS, -ZOOM_MAX_ROT, ZOOM_MAX_ROT);
+
+          ctx.save();
+          ctx.beginPath(); roundedRect(ctx,Math.floor(drawX),Math.floor(drawY),drawW,drawH,ZOOM_RADIUS); ctx.clip();
+          ctx.translate(mx,my); ctx.rotate(angle); ctx.translate(-mx,-my);
+          ctx.imageSmoothingEnabled=true;
+          ctx.drawImage(img,0,0,img.width,img.height,Math.floor(drawX),Math.floor(drawY),drawW,drawH);
+          ctx.restore();
+        }
       }
     }
     if(ct>=0 && ct!==hoveredId) clickedTileIdRef.current=-1;

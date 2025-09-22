@@ -183,6 +183,8 @@ function Circle2Overlay({ open, onClose, diameter }) {
 
   const COLOR = "rgba(255,255,255,0.95)";
   const maxTextWidth = Math.round(D * 0.86);
+  const TEXT_SHIFT = Math.round(D * 0.06); // 6% диаметра вниз. Меняй число под себя
+
 
   function FitHeader({ text, baseRatio = 0.0416, minPx = 12 }) {
     const ref = React.useRef(null);
@@ -349,7 +351,7 @@ function Circle2Overlay({ open, onClose, diameter }) {
               padding: "clamp(16px,3.6vw,42px)"
             }}
           >
-            <div style={{ maxWidth: maxTextWidth, color: "rgba(255,255,255,0.95)" }}>
+            <div style={{ maxWidth: maxTextWidth, color: "rgba(255,255,255,0.95)", transform: `translateY(${TEXT_SHIFT}px)` }}>
               <FitHeader text="Режиссёр · Продюсер · Сценарист" />
               <BodyLine>
                 100+ артистов · 200+ проектов · 2+ млрд просмотров
