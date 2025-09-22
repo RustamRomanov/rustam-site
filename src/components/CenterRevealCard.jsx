@@ -168,16 +168,20 @@ function PrePlate({ active, children, expandX=14, expandY=8, radius=12, centerOp
   );
 }
 
-/* ===== Overlay КРУГ 2 — теперь с variant ===== */
-function Circle2Overlay({ open, onClose, diameter, variant="desktop" }) {
+/* ===== Overlay КРУГ 2 (c вариантами для desktop/mobile) ===== */
+function Circle2Overlay({
+  open,
+  onClose,
+  diameter,
+  hideClose = false,           // mobile: true (убираем крестик)
+  backdropClose = false        // mobile: true (закрытие тапом вне круга)
+}) {
   const [imgSrc, setImgSrc] = React.useState("/rustam-site/assents/foto/circle2.jpg");
   if (!open) return null;
 
-  // На мобильнике уменьшаем всё на 15%
-  const scale = variant === "mobile" ? 0.85 : 1;
-  const D = Math.round(diameter * scale);
+  const D = Math.round(diameter);
 
-  // семейства шрифта
+  // семейства шрифта — как на desktop
   const FAMILY_HEADER =
     "'Uni Sans Heavy','UniSans-Heavy','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
   const FAMILY_BODY =
@@ -218,7 +222,6 @@ function Circle2Overlay({ open, onClose, diameter, variant="desktop" }) {
   }
 
   const BODY_FS = Math.max(12, Math.round(D * 0.0225));
-
   const BodyLine = ({ children, delay = 180, mt = Math.round(D * 0.018) }) => (
     <div
       style={{
@@ -248,8 +251,11 @@ function Circle2Overlay({ open, onClose, diameter, variant="desktop" }) {
     </div>
   );
 
+  const handleBackdrop = backdropClose ? onClose : undefined;
+
   return (
     <div
+      onClick={handleBackdrop}
       style={{
         position: "fixed",
         inset: 0,
@@ -262,6 +268,7 @@ function Circle2Overlay({ open, onClose, diameter, variant="desktop" }) {
       }}
     >
       <div
+        onClick={(e)=>e.stopPropagation()}
         style={{
           position: "relative",
           width: D,
@@ -276,30 +283,32 @@ function Circle2Overlay({ open, onClose, diameter, variant="desktop" }) {
           willChange: "transform,opacity"
         }}
       >
-        {/* Крестик */}
-        <button
-          aria-label="Close"
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: -20,
-            right: -20,
-            width: 38,
-            height: 38,
-            borderRadius: 999,
-            background: "rgba(0,0,0,0.6)",
-            border: "1px solid rgba(255,255,255,0.45)",
-            cursor: "pointer",
-            display: "grid",
-            placeItems: "center",
-            boxShadow: "0 12px 28px rgba(0,0,0,0.5)",
-            zIndex: 3
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
+        {/* Крестик — показываем только если не скрыт */}
+        {!hideClose && (
+          <button
+            aria-label="Close"
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: -20,
+              right: -20,
+              width: 38,
+              height: 38,
+              borderRadius: 999,
+              background: "rgba(0,0,0,0.6)",
+              border: "1px solid rgba(255,255,255,0.45)",
+              cursor: "pointer",
+              display: "grid",
+              placeItems: "center",
+              boxShadow: "0 12px 28px rgba(0,0,0,0.5)",
+              zIndex: 3
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
 
         {/* Круг */}
         <div
@@ -328,7 +337,6 @@ function Circle2Overlay({ open, onClose, diameter, variant="desktop" }) {
               transform: "translateZ(0)"
             }}
           />
-          {/* Матовое стекло */}
           <div
             style={{
               position: "absolute",
@@ -371,7 +379,6 @@ function Circle2Overlay({ open, onClose, diameter, variant="desktop" }) {
             </div>
           </div>
 
-          {/* лёгкие блики */}
           <div
             style={{
               position: "absolute",
@@ -402,11 +409,9 @@ function BioOverlay({ open, onClose, imageSrc }) {
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
 
-  // Настраиваемые значения
   const TEXT_FONT        = "'ABC_TypeWriterRussian', system-ui, -apple-system, 'Segoe UI', Roboto";
   const TEXT_TOP_EXTRA   = "clamp(12px, 1.6vw, 28px)";
   const TEXT_RIGHT_INSET = "clamp(18px, 2.4vw, 48px)";
-  // Поменяли места: теперь звук крайний справа, крестик левее
   const MUTE_OFFSETS   = { top: -34, right: -34 };
   const CLOSE_OFFSETS  = { top: -34, right: -78 };
 
@@ -492,7 +497,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
 
         {/* Mute — крайний правый */}
         <button aria-label={isMuted ? "Unmute" : "Mute"} onClick={()=>setIsMuted(m=>!m)}
-          style={{ position:"absolute", top:MUTE_OFFSETS.top, right:MUTE_OFFSETS.right, width:36, height:36,
+          style={{ position:"absolute", top:-34, right:-34, width:36, height:36,
                    borderRadius:999, background: isMuted ? "rgba(255,255,255,0.78)" : "rgba(0,0,0,0.65)",
                    border: isMuted ? "1px solid rgba(0,0,0,0.35)" : "1px solid rgba(255,255,255,0.45)",
                    cursor:"pointer", display:"grid", placeItems:"center", boxShadow:"0 12px 26px rgba(0,0,0,0.5)", zIndex:12 }}>
@@ -501,7 +506,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
 
         {/* Крестик — левее звука */}
         <button aria-label="Close" onClick={onClose}
-          style={{ position:"absolute", top:CLOSE_OFFSETS.top, right:CLOSE_OFFSETS.right, width:36, height:36,
+          style={{ position:"absolute", top:-34, right:-78, width:36, height:36,
                    borderRadius:999, background:"rgba(0,0,0,0.65)", border:"1px solid rgba(255,255,255,0.45)",
                    cursor:"pointer", display:"grid", placeItems:"center", boxShadow:"0 12px 26px rgba(0,0,0,0.5)", zIndex:13 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
@@ -519,7 +524,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
 }
 
 
-/* ===== BIO Mobile overlay — шрифт ABC_TypeWriterRussian (как desktop) ===== */
+/* ===== BIO Mobile overlay — почти полный экран в окне с радиусом, 10% поля сверху/снизу ===== */
 function BioMobileOverlay({ open, onClose, imageSrc }) {
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -576,88 +581,66 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         zIndex: 2147485600,
         display: "flex",
         alignItems: "center",
-        justifyContent: "center"
+        justifyContent: "center",
+        padding: "10svh 4vw" // 10% сверху/снизу
       }}
     >
       <audio ref={audioRef} src="/rustam-site/assents/music/bio.mp3" preload="auto" loop />
-      <div style={{ position: "relative", width: "100vw", height: "100svh", overflow: "hidden", background: "#000" }}>
+      <div style={{ position: "relative", width: "92vw", height: "80svh", borderRadius: 22, overflow: "hidden", background: "#000", boxShadow: "0 24px 72px rgba(0,0,0,0.55)" }}>
         <img
           src={imageSrc}
           alt="bio-mobile"
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "50% 65%" }}
         />
-
-        {/* Текст (только биография), скролл снизу */}
+        {/* затемнение поверх картинки для читаемости */}
+        <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25))" }}/>
+        {/* Текст (биография) */}
         <div
           className="bio-scroll-m"
           style={{
             position: "absolute",
             left: "6%",
             right: "6%",
-            top: "calc(28% + 4.5em)",
-            bottom: 0,
+            top: "14%",
+            bottom: "10%",
             overflow: "auto",
             color: "#2f2f33",
-            fontFamily: "'ABC_TypeWriterRussian', system-ui",
+            fontFamily: "'ABC_TypeWriterRussian', system-ui, -apple-system, 'Segoe UI', Roboto", // как desktop
             fontSize: 16,
             lineHeight: 1.32,
             paddingRight: 12,
-            paddingBottom: "12vh",
             whiteSpace: "pre-wrap",
             textShadow: "0 2px 8px rgba(255,255,255,0.6)"
           }}
         >
           {textBio}
         </div>
-
-        {/* Кнопка Mute — слева от крестика */}
-        <button
-          aria-label={isMuted ? "Unmute" : "Mute"}
-          onClick={() => setIsMuted((m) => !m)}
-          style={{
-            position: "absolute",
-            top: "calc(env(safe-area-inset-top) + 8px)",
-            right: 60,
-            width: 40,
-            height: 40,
-            borderRadius: 999,
-            background: isMuted ? "rgba(255,255,255,0.78)" : "rgba(0,0,0,0.55)",
-            border: isMuted ? "1px solid rgba(0,0,0,0.35)" : "1px solid rgba(255,255,255,0.4)",
-            cursor: "pointer",
-            display: "grid",
-            placeItems: "center",
-            boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
-            zIndex: 4
-          }}
-        >
-          <IconSpeaker muted={isMuted} color={isMuted ? "#222" : "white"} />
-        </button>
-
-        {/* Крестик — справа сверху */}
-        <button
-          aria-label="Close"
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: "calc(env(safe-area-inset-top) + 8px)",
-            right: 12,
-            width: 40,
-            height: 40,
-            borderRadius: 999,
-            background: "rgba(0,0,0,0.55)",
-            border: "1px solid rgba(255,255,255,0.4)",
-            cursor: "pointer",
-            display: "grid",
-            placeItems: "center",
-            boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
-            zIndex: 5
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
       </div>
+
+      {/* Крестик — вне окна, справа сверху */}
+      <button
+        aria-label="Close"
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          top: "calc(env(safe-area-inset-top) + 6svh)",
+          right: "4vw",
+          width: 40,
+          height: 40,
+          borderRadius: 999,
+          background: "rgba(0,0,0,0.55)",
+          border: "1px solid rgba(255,255,255,0.4)",
+          cursor: "pointer",
+          display: "grid",
+          placeItems: "center",
+          boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+          zIndex: 5
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </button>
 
       <style>{`
         .bio-scroll-m { scrollbar-width: none; -ms-overflow-style: none; }
@@ -710,7 +693,7 @@ function DotButton({ n, onClick, onHoverSound, animate=false, delayMs=0, hoverEx
   );
 }
 
-/* ===== DESKTOP Card ===== */
+/* ===== DESKTOP Card (как было) + лёгкий hover для кликабельных слов ===== */
 function DesktopCard() {
   const { playHoverSoft, playDot } = useAudio();
 
@@ -736,7 +719,7 @@ function DesktopCard() {
       if(Math.abs(next-a)>0.001){ 
         plateAlphaRef.current=next; 
         setPlateAlpha(next); 
-        const norm = clamp((next-BASE_OPACITY)/(PLATE_OPACITY_MAX-BASE_OPITY),0,1);
+        const norm = clamp((next-BASE_OPACITY)/(PLATE_OPACITY_MAX-BASE_OPACITY),0,1);
         setPlateProx(norm);
       }
       raf=requestAnimationFrame(tick);
@@ -780,9 +763,7 @@ function DesktopCard() {
 
   const baseDiam = Math.min(rectRef.current.w, rectRef.current.h);
   const circleDiam = Math.round(baseDiam * 1.10);
-
   const circleScale = 1 + 0.20 * plateProx;
-
   const plateStyle = { position:"absolute", width:circleDiam, height:circleDiam, left:"50%", top:"50%", transform:`translate(-50%,-50%) scale(${circleScale})`, transformOrigin:"50% 50%", borderRadius:"50%", opacity: plateAlpha, transition:"opacity 60ms linear", pointerEvents:"none" };
 
   const showreelText="DIRECTOR'S SHOWREEL";
@@ -817,9 +798,6 @@ function DesktopCard() {
 
   const circle2Diam = Math.round(circleDiam * 1.5);
 
-  // << NEW: hover-подсказка клика на десктопе >>
-  const [nameHover, setNameHover] = useState(false);
-
   return (
     <>
       <div style={wrapper}>
@@ -837,8 +815,8 @@ function DesktopCard() {
               <div ref={showreelRef}
                    onMouseLeave={() => setSrStick(Array.from(showreelText).map(()=>false))}
                    style={{ position:"relative", display:"inline-block", marginTop: Math.round(titleFS*0.3), marginBottom: Math.round(directedFS*0.2), cursor: `url(${CURSOR_URL}) 10 10, default` }}>
-                <h2 style={{ margin:0, fontSize: directedFS, letterSpacing:"0.08em", whiteSpace:"nowrap", userSelect:"none", position:"relative", zIndex:1, fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
-                              transition:"transform 160ms ease, text-shadow 160ms ease" }}>
+                <h2 className="hover-click" /* добавлен hover-класс */
+                    style={{ margin:0, fontSize: directedFS, letterSpacing:"0.08em", whiteSpace:"nowrap", userSelect:"none", position:"relative", zIndex:1, fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" }}>
                   {Array.from(showreelText).map((ch,i)=>(
                     <span key={`sr-${i}`}
                       onMouseEnter={()=>{ if(!srStick[i]) { playHoverSoft(); } setSrStick(s=>{const a=[...s]; a[i]=true; return a;}); setSrColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); }}
@@ -863,17 +841,14 @@ function DesktopCard() {
 
             <PrePlate active={!isInside}>
               <h1
+                className="hover-click" /* добавлен hover-класс */
                 ref={nameRef}
-                onMouseEnter={()=>setNameHover(true)}
-                onMouseLeave={()=>setNameHover(false)}
+                onMouseLeave={() => setNameStick(Array.from(nameLatin).map(()=>false))}
                 onClick={()=> setCircle2Open(true)}
                 style={{
                   margin:0, fontSize:nameFS, letterSpacing:"0.02em", whiteSpace:"nowrap",
                   userSelect:"none", cursor:"pointer",
                   fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
-                  transition:"transform 160ms ease, text-shadow 160ms ease",
-                  transform: nameHover ? "scale(1.04)" : "scale(1)",
-                  textShadow: nameHover ? "0 2px 6px rgba(0,0,0,0.45)" : "0 1px 2px rgba(0,0,0,0.25)"
                 }}
                 title="Подробнее"
               >
@@ -884,7 +859,8 @@ function DesktopCard() {
                     <span key={`n-${i}`}
                       onMouseEnter={()=>{ if(!nameStick[i]) { playHoverSoft(); } setNameStick(s=>{const a=[...s]; a[i]=true; return a;}); setNameColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); }}
                       style={{ display:"inline-block", whiteSpace:"pre", color: nameStick[i] ? nameColors[i] : "#cfcfcf",
-                               transform: nameStick[i] ? "scale(1.3)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease" }}>
+                               transform: nameStick[i] ? "scale(1.3)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease",
+                               textShadow:"0 1px 2px rgba(0,0,0,0.25)" }}>
                       {show}
                     </span>
                   );
@@ -894,8 +870,7 @@ function DesktopCard() {
 
             <div style={{ marginTop: Math.round(titleFS*0.9) }}>
               <PrePlate active={!isInside}>
-                {/* << NEW: общий hover-скейл + тень для BIOGRAPHY на десктопе >> */}
-                <BiographyWordPerLetter onOpen={()=>setBioOpen(true)} hoverAffordance />
+                <BiographyWordPerLetter onOpen={()=>setBioOpen(true)} />
               </PrePlate>
             </div>
 
@@ -918,13 +893,15 @@ function DesktopCard() {
 
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full={false}/>
       <BioOverlay   open={bioOpen}   onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio.jpg"/>
-      {/* variant='desktop' */}
-      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={circle2Diam} variant="desktop"/>
+      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={circle2Diam}/>
 
       <style>{`
         .glass-plate.circle{ background: rgba(255,255,255,0.07); -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2); box-shadow: 0 12px 28px rgba(0,0,0,0.22); border-radius: 50%; overflow:hidden;}
         .glass-plate.circle::before{ content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none; -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02); backdrop-filter: blur(30px) saturate(1.25) brightness(1.02); -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%); mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);}
         .glass-plate.circle::after{ content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; background: radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%), radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%), radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%), radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%), linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);}
+        /* Лёгкий hover для кликабельных слов */
+        .hover-click{ transition: transform 140ms ease, text-shadow 140ms ease; }
+        .hover-click:hover{ transform: scale(1.035); text-shadow: 0 8px 26px rgba(0,0,0,0.35); }
         @keyframes shimmerGray { 0%,100% { color: #cfcfcf } 50% { color: #7a7a7a } }
         @keyframes waveGray { 0%,100% { color: #bfbfbf } 50% { color: #e0e0e0 } }
       `}</style>
@@ -933,19 +910,17 @@ function DesktopCard() {
 }
 
 /* ===== BIOGRAPHY per-letter (desktop) — Royal Crescent ===== */
-function BiographyWordPerLetter({ onOpen, hoverAffordance=false }) {
+function BiographyWordPerLetter({ onOpen }) {
   const { playIcon } = useAudio();
   const latin = Array.from("BIOGRAPHY");
   const map = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
   const [stick,setStick]=useState(latin.map(()=>false));
   const [colors,setColors]=useState(latin.map(()=>"#ffffff"));
-  const [hovered, setHovered] = useState(false); // общий ховер для подсказки клика
-
   return (
     <h2
+      className="hover-click"
       onClick={onOpen}
-      onMouseEnter={()=>setHovered(true)}
-      onMouseLeave={()=>{ setHovered(false); setStick(latin.map(()=>false)); }}
+      onMouseLeave={()=>setStick(latin.map(()=>false))}
       style={{
         margin:0,
         cursor:"pointer",
@@ -954,12 +929,8 @@ function BiographyWordPerLetter({ onOpen, hoverAffordance=false }) {
         display:"inline-block",
         whiteSpace:"nowrap",
         letterSpacing:"0.08em",
-        fontFamily:"'Royal Crescent',system-ui",
-        transition:"transform 160ms ease, text-shadow 160ms ease",
-        transform: hoverAffordance && hovered ? "scale(1.04)" : "scale(1)",
-        textShadow: hoverAffordance && hovered ? "0 2px 6px rgba(0,0,0,0.45)" : "none"
+        fontFamily:"'Royal Crescent',system-ui"
       }}
-      title="Biography"
     >
       {latin.map((ch,i)=>(
         <span
@@ -980,7 +951,7 @@ function BiographyWordPerLetter({ onOpen, hoverAffordance=false }) {
   );
 }
 
-/* ===== Mobile Card (шрифты как на десктопе + чуть меньшие размеры) ===== */
+/* ===== Mobile Card (шрифты как на десктопе, дыхание круга, позиция элементов) ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
   const [bioOpen,setBioOpen]=useState(false);
@@ -1011,10 +982,17 @@ function MobileCard() {
   };
 
   const circleDiam = Math.round(Math.min(size.w, size.h) * 1.35);
-  const plateStyle = {
+
+  // дышащая анимация для основного круга
+  const plateOuter = {
     position:"absolute",
+    left:"50%", top:"48%",
+    transform:"translate(-50%,-50%)",
+    animation: "mBreath 3200ms ease-in-out infinite"
+  };
+  const plateStyle = {
+    position:"relative",
     width:circleDiam, height:circleDiam,
-    left:"50%", top:"48%", transform:"translate(-50%,-50%)",
     borderRadius:"50%", opacity: PLATE_OPACITY_MAX, pointerEvents:"none"
   };
 
@@ -1072,8 +1050,8 @@ function MobileCard() {
   const ONE_LINE = "1.2em";
   const HALF_LINE = "0.6em";
 
-  // Круг 2 — 15% меньше для мобильника (и текст пропорционально меньше).
-  const circle2Diam = Math.round(circleDiam * 1.7 * 0.85); // ⬅️ 0.85 = минус 15%
+  // Круг 2 — больше на 5% (mobile)
+  const circle2Diam = Math.round(circleDiam * 1.7 * 1.05);
 
   return (
     <>
@@ -1084,9 +1062,12 @@ function MobileCard() {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
-        <div className="glass-plate circle" style={plateStyle}>
-          <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
-          <i className="bend side top" /><i className="bend side bottom" />
+        {/* Дышащий основной круг */}
+        <div style={plateOuter}>
+          <div className="glass-plate circle" style={plateStyle}>
+            <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
+            <i className="bend side top" /><i className="bend side bottom" />
+          </div>
         </div>
 
         {/* Колонка по центру */}
@@ -1094,9 +1075,9 @@ function MobileCard() {
           position:"relative", zIndex:1, width:"100%", height:"100%",
           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
           color:"#fff",
-          fontFamily:"UniSans-Heavy, 'Uni Sans'",
+          fontFamily:"UniSans-Heavy, 'Uni Sans'", // как на десктопе
           textShadow:"0 1px 2px rgba(0,0,0,0.25)",
-          transform:"translateY(-1em)"
+          transform:"translateY(-0.6em)" // чуть выше базовой линии, т.к. элементы опускаем ниже отдельно
         }}>
           {/* BIO — тот же шрифт, что и на Desktop */}
           <PrePlate active={true}>
@@ -1109,7 +1090,7 @@ function MobileCard() {
                 fontSize:"clamp(15px, 4.8vw, 20px)",
                 letterSpacing:"0.08em",
                 userSelect:"none",
-                fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui"
+                fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" // тот же набор
               }}
             >
               {lettersBio.map((ch,i)=>(
@@ -1122,7 +1103,7 @@ function MobileCard() {
             </h2>
           </PrePlate>
 
-          {/* Имя — как на Desktop: Rostov → Uni Sans Heavy */}
+          {/* Имя — тот же шрифт, что и на Desktop */}
           <PrePlate active={true}>
             <h1
               data-name
@@ -1134,7 +1115,7 @@ function MobileCard() {
                 userSelect:"none",
                 cursor:"pointer",
                 title:"Подробнее",
-                fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui"
+                fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui" // тот же набор
               }}
             >
               {nameLatin.map((ch,i)=>(
@@ -1152,12 +1133,12 @@ function MobileCard() {
             </h1>
           </PrePlate>
 
-          {/* Showreel — тот же шрифт, что и на Desktop, и поменьше */}
+          {/* Showreel — опустить чуть ниже */}
           <PrePlate active={true}>
             <h3
               data-sr
               style={{
-                margin:`${HALF_LINE} 0 0`,
+                margin:`calc(${HALF_LINE} + 8px) 0 0`,  // ниже на ~8px
                 fontSize:"clamp(13px, 4.2vw, 17px)",
                 letterSpacing:"0.08em",
                 color:"#cfcfcf",
@@ -1175,10 +1156,10 @@ function MobileCard() {
             </h3>
           </PrePlate>
 
-          {/* Кружочки */}
-          <div ref={dotsRef} style={{ marginTop:`calc(${HALF_LINE} + 6px)`, display:"flex", gap:16, alignItems:"center" }}>
+          {/* Кружочки — ниже, и №2 ещё чуть ниже */}
+          <div ref={dotsRef} style={{ marginTop:`calc(${HALF_LINE} + 14px)`, display:"flex", gap:16, alignItems:"flex-end" }}>
             {[1,2,3].map((n,idx)=>(
-              <div key={n} data-dot>
+              <div key={n} data-dot style={{ marginTop: idx===1 ? 8 : 0 /* №2 ниже на 8px */ }}>
                 <DotButton
                   n={n}
                   delayMs={idx*200}
@@ -1192,7 +1173,7 @@ function MobileCard() {
         </div>
       </div>
 
-      {/* Соц-иконки — внизу (как было), только ничего лишнего не менял */}
+      {/* Соц-иконки — внизу */}
       <div style={{
         position:"fixed", left:"50%", transform:"translateX(-50%)",
         bottom:"calc(10vh - 1.2em + env(safe-area-inset-bottom, 0px))",
@@ -1220,8 +1201,8 @@ function MobileCard() {
       {/* Оверлеи */}
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
-      {/* ⬇️ передаю variant="mobile" и диаметр уже уменьшен на 15% */}
-      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={circle2Diam} variant="mobile" />
+      {/* Круг 2: +5%, без крестика, закрытие тапом по фону */}
+      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={circle2Diam} hideClose backdropClose />
 
       <style>{`
         .glass-plate.circle{
