@@ -524,7 +524,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
 }
 
 
-/* ===== BIO Mobile overlay — почти полный экран в окне с радиусом, 10% поля сверху/снизу ===== */
+/* ===== BIO Mobile overlay — окно почти на весь экран с ABC_TypeWriterRussian ===== */
 function BioMobileOverlay({ open, onClose, imageSrc }) {
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -545,6 +545,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
 
   if (!open) return null;
 
+  // Кнопки: как на десктопе (иконка динамика)
   const IconSpeaker = ({ muted, color = "white" }) => (
     <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M4 9v6h4l5 4V5l-5 4H4z" fill={color}/>
@@ -558,7 +559,82 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
     </svg>
   );
 
-  const textBio = `В начале 2000-х я сделал свой первый клип. Камера Hi8, магнитофон и видеоплеер — как монтажный стол. Это была настоящая магия без компьютера.
+  // Геометрия окна: оставляем по 10% сверху и снизу
+  const SIDE_INSET = "6%";     // боковые поля
+  const TOP_GAP    = "10svh";  // верхний зазор
+  const BOT_GAP    = "10svh";  // нижний зазор
+
+  // 5 строк отступа сверху: line-height = 1.28, делаю через em
+  const LINES_ABOVE = 5;
+  const LINE_HEIGHT = 1.28;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.86)",
+        zIndex: 2147485600,
+        display: "flex",
+        alignItems: "stretch",
+        justifyContent: "stretch"
+      }}
+    >
+      <audio ref={audioRef} src="/rustam-site/assents/music/bio.mp3" preload="auto" loop />
+
+      {/* Само окно биографии */}
+      <div
+        style={{
+          position: "absolute",
+          left: SIDE_INSET,
+          right: SIDE_INSET,
+          top: TOP_GAP,
+          bottom: BOT_GAP,
+          borderRadius: 20,
+          overflow: "hidden",
+          background: "#000", // подложка под фото на всякий случай
+          boxShadow: "0 30px 80px rgba(0,0,0,0.55)"
+        }}
+      >
+        {/* Фото: сдвинуто так, чтобы была видна верхняя часть изображения */}
+        <img
+          src={imageSrc}
+          alt="bio-mobile"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "50% 35%" // показываем верхнюю часть кадра
+          }}
+        />
+
+        {/* Текстовый блок: чёрный шрифт без теней, ABC_TypeWriterRussian */}
+        <div
+          style={{
+            position: "absolute",
+            left: "6%",
+            right: "6%",
+            // Отступ сверху на 5 строк
+            top: `calc(${LINES_ABOVE} * ${LINE_HEIGHT}em)`,
+            // Нижний край заканчивается за 5% до низа окна
+            bottom: "5%",
+            overflow: "auto",
+            color: "#000",
+            fontFamily: "'ABC_TypeWriterRussian', system-ui, -apple-system, 'Segoe UI', Roboto",
+            fontSize: 16,
+            lineHeight: LINE_HEIGHT,
+            paddingRight: 12,
+            // НИКАКИХ подсветок/теней
+            textShadow: "none",
+            whiteSpace: "pre-wrap",
+            textAlign: "justify",
+            textAlignLast: "left"
+          }}
+          className="bio-scroll-m"
+        >
+{`В начале 2000-х я сделал свой первый клип. Камера Hi8, магнитофон и видеоплеер — как монтажный стол. Это была настоящая магия без компьютера.
 
 В 2009-м я переехал в Москву. Снимал рэп-клипы на «зеркалку» с горящими глазами и верой, что всё получится. Получилось. 
 
@@ -570,61 +646,41 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
 
 Дальше — сотни проектов, работа с топовыми артистами разных жанров и масштабов: от Макса Коржа, Iowa, Pizza до Стаса Михайлова, Николая Баскова и Филиппа Киркорова. 
 
-Сегодня мой багаж - 200+ проектов, более 2-х миллиардов просмотров на Youtube и более сотни артистов с кем мне довелось поработать.`;
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.86)",
-        zIndex: 2147485600,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "10svh 4vw" // 10% сверху/снизу
-      }}
-    >
-      <audio ref={audioRef} src="/rustam-site/assents/music/bio.mp3" preload="auto" loop />
-      <div style={{ position: "relative", width: "92vw", height: "80svh", borderRadius: 22, overflow: "hidden", background: "#000", boxShadow: "0 24px 72px rgba(0,0,0,0.55)" }}>
-        <img
-          src={imageSrc}
-          alt="bio-mobile"
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "50% 65%" }}
-        />
-        {/* затемнение поверх картинки для читаемости */}
-        <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25))" }}/>
-        {/* Текст (биография) */}
-        <div
-          className="bio-scroll-m"
-          style={{
-            position: "absolute",
-            left: "6%",
-            right: "6%",
-            top: "14%",
-            bottom: "10%",
-            overflow: "auto",
-            color: "#2f2f33",
-            fontFamily: "'ABC_TypeWriterRussian', system-ui, -apple-system, 'Segoe UI', Roboto", // как desktop
-            fontSize: 16,
-            lineHeight: 1.32,
-            paddingRight: 12,
-            whiteSpace: "pre-wrap",
-            textShadow: "0 2px 8px rgba(255,255,255,0.6)"
-          }}
-        >
-          {textBio}
+Сегодня мой багаж - 200+ проектов, более 2-х миллиардов просмотров на Youtube и более сотни артистов с кем мне довелось поработать.`}
         </div>
       </div>
 
-      {/* Крестик — вне окна, справа сверху */}
+      {/* Кнопки вне окна: справа сверху над рамкой */}
+      <button
+        aria-label={isMuted ? "Unmute" : "Mute"}
+        onClick={() => setIsMuted((m) => !m)}
+        style={{
+          position: "absolute",
+          // Чуть выше окна: от верха окна отступаем "минус"
+          top: `calc(${TOP_GAP} - 18px)`,
+          right: `calc(${SIDE_INSET} + 56px)`,
+          width: 40,
+          height: 40,
+          borderRadius: 999,
+          background: isMuted ? "rgba(255,255,255,0.78)" : "rgba(0,0,0,0.55)",
+          border: isMuted ? "1px solid rgba(0,0,0,0.35)" : "1px solid rgba(255,255,255,0.4)",
+          cursor: "pointer",
+          display: "grid",
+          placeItems: "center",
+          boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+          zIndex: 2147485602
+        }}
+      >
+        <IconSpeaker muted={isMuted} color={isMuted ? "#222" : "white"} />
+      </button>
+
       <button
         aria-label="Close"
         onClick={onClose}
         style={{
           position: "absolute",
-          top: "calc(env(safe-area-inset-top) + 6svh)",
-          right: "4vw",
+          top: `calc(${TOP_GAP} - 18px)`,
+          right: SIDE_INSET,
           width: 40,
           height: 40,
           borderRadius: 999,
@@ -634,7 +690,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
           display: "grid",
           placeItems: "center",
           boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
-          zIndex: 5
+          zIndex: 2147485603
         }}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
