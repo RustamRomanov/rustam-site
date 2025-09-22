@@ -1104,7 +1104,7 @@ function MobileCard() {
   const HALF_LINE = "0.6em";
 
   // Круг 2 — больше на 5% (mobile)
-  const circle2Diam = Math.round(circleDiam * 1.5 * 1.05);
+  const circle2Diam = Math.round(circleDiam * 1.4 * 1.05);
 
   return (
     <>
