@@ -1132,7 +1132,7 @@ function MobileCard() {
           textShadow:"0 1px 2px rgba(0,0,0,0.25)",
           transform:"translateY(-0.6em)" // чуть выше базовой линии, т.к. элементы опускаем ниже отдельно
         }}>
-          {/* BIO — тот же шрифт, что и на Desktop */}
+          {/* BIO — Royal Crescent (вес 400, без синтеза) */}
 <PrePlate active={true}>
   <h2
     data-bio
@@ -1143,8 +1143,9 @@ function MobileCard() {
       fontSize: "clamp(15px, 4.8vw, 20px)",
       letterSpacing: "0.08em",
       userSelect: "none",
-      fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
-      fontWeight: 400,
+      fontFamily: "'Royal Crescent', serif",   // временно убрал Uni Sans из fallback
+      fontWeight: 400,                         // реальный вес для Royal Crescent
+      fontSynthesis: "none",                   // отключить фейковый жир/наклон
     }}
   >
     {lettersBio.map((ch,i)=>(
@@ -1165,7 +1166,7 @@ function MobileCard() {
   </h2>
 </PrePlate>
 
-{/* Имя — тот же шрифт, что и на Desktop */}
+{/* Имя — Rostov (вес 800, без синтеза) */}
 <PrePlate active={true}>
   <h1
     data-name
@@ -1177,8 +1178,9 @@ function MobileCard() {
       userSelect: "none",
       cursor: "pointer",
       title: "Подробнее",
-      fontFamily: "'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
-      fontWeight: 800,
+      fontFamily: "'Rostov', serif",           // временно без Uni Sans, чтобы сразу видеть подмену
+      fontWeight: 800,                         // реальный вес для Rostov
+      fontSynthesis: "none",
     }}
   >
     {nameLatin.map((ch,i)=>(
@@ -1199,6 +1201,40 @@ function MobileCard() {
     ))}
   </h1>
 </PrePlate>
+
+{/* Showreel — Royal Crescent (вес 400, без синтеза) */}
+<PrePlate active={true}>
+  <h3
+    data-sr
+    style={{
+      margin: `calc(${HALF_LINE} + 8px) 0 0`,
+      fontSize: "clamp(13px, 4.2vw, 17px)",
+      letterSpacing: "0.08em",
+      color: "#cfcfcf",
+      userSelect: "none",
+      fontFamily: "'Royal Crescent', serif",   // временно без Uni Sans
+      fontWeight: 400,
+      fontSynthesis: "none",
+    }}
+  >
+    {srLetters.map((ch,i)=>(
+      <span
+        key={i}
+        data-idx={i}
+        style={{
+          display:"inline-block",
+          whiteSpace:"pre",
+          color: srStick[i] ? srColors[i] : "#cfcfcf",
+          transform: srStick[i] ? "scale(1.2)" : "scale(1)",
+          transition:"transform 140ms ease, color 160ms ease"
+        }}
+      >
+        {ch===" " ? "\u00A0" : ch}
+      </span>
+    ))}
+  </h3>
+</PrePlate>
+
 
 {/* Showreel — опустить чуть ниже */}
 <PrePlate active={true}>
