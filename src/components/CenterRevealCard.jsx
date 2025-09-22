@@ -1256,39 +1256,20 @@ function MobileCard() {
 
 
 
-          {/* Кружочки */}
-<div
-  ref={dotsRef}
-  style={{
-    marginTop: `calc(${HALF_LINE} + 6px)`,
-    display: "flex",
-    gap: 16,
-    alignItems: "center",
-  }}
->
-  {[1,2,3].map((n,idx)=>(
-    <div
-      key={n}
-      data-dot
-      style={{
-        // индивидуальное смещение
-        marginTop: n === 2 ? "12px" : "-8px", // 1 и 3 вверх, 2 вниз
-      }}
-    >
-      <DotButton
-        n={n}
-        delayMs={idx*200}
-        hoverExternal={hoverDot===idx}
-        onHoverSound={playDot}
-        onClick={()=>{
-          setVimeoId({1:"1118465522",2:"1118467509",3:"1001147905"}[n]);
-          setPlayerOpen(true);
-        }}
-      />
-    </div>
-  ))}
-</div>
-
+          {/* Кружочки — ниже, и №2 ещё чуть ниже */}
+          <div ref={dotsRef} style={{ marginTop:`calc(${HALF_LINE} + 14px)`, display:"flex", gap:16, alignItems:"flex-end" }}>
+            {[1,2,3].map((n,idx)=>(
+              <div key={n} data-dot style={{ marginTop: idx===1 ? 8 : 0 /* №2 ниже на 8px */ }}>
+                <DotButton
+                  n={n}
+                  delayMs={idx*200}
+                  hoverExternal={hoverDot===idx}
+                  onHoverSound={playDot}
+                  onClick={()=>{ setVimeoId({1:"1118465522",2:"1118467509",3:"1001147905"}[n]); setPlayerOpen(true); }}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
