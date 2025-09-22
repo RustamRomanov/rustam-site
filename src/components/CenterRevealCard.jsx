@@ -1257,7 +1257,7 @@ function MobileCard() {
 
 
           {/* Кружочки — ниже, и №2 ещё чуть ниже */}
-          <div ref={dotsRef} style={{ marginTop:`calc(${HALF_LINE} + 6px)`, display:"flex", gap:16, alignItems:"flex-end" }}>
+          <div ref={dotsRef} style={{ marginTop:`calc(${HALF_LINE} + 2px)`, display:"flex", gap:16, alignItems:"flex-end" }}>
             {[1,2,3].map((n,idx)=>(
               <div key={n} data-dot style={{ marginTop: idx===1 ? 8 : 0 /* №2 ниже на 8px */ }}>
                 <DotButton
