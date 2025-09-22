@@ -740,7 +740,6 @@ if (isMobile) {
   ctx.restore();
 }
 
-        }
       }
     }
     if(ct>=0 && ct!==hoveredId) clickedTileIdRef.current=-1;
@@ -787,7 +786,7 @@ if (isMobile) {
       onPointerCancel={onPointerUp}
     />
   );
-
+}
 
 /* ===========================================================
    МОБИЛЬНАЯ ВЕРСИЯ — быстрые правки тут:
