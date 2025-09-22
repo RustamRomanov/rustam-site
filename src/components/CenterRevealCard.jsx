@@ -524,7 +524,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
 }
 
 
-/* ===== BIO Mobile overlay — окно почти на весь экран с ABC_TypeWriterRussian ===== */
+/* ===== BIO Mobile overlay — окно с ABC_TypeWriterRussian и новыми отступами ===== */
 function BioMobileOverlay({ open, onClose, imageSrc }) {
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -545,7 +545,6 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
 
   if (!open) return null;
 
-  // Кнопки: как на десктопе (иконка динамика)
   const IconSpeaker = ({ muted, color = "white" }) => (
     <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M4 9v6h4l5 4V5l-5 4H4z" fill={color}/>
@@ -559,13 +558,13 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
     </svg>
   );
 
-  // Геометрия окна: оставляем по 10% сверху и снизу
-  const SIDE_INSET = "6%";     // боковые поля
-  const TOP_GAP    = "10svh";  // верхний зазор
-  const BOT_GAP    = "10svh";  // нижний зазор
+  /* Геометрия: опускаем окно на 5% ниже (top 15svh вместо 10svh), сохраняя высоту */
+  const SIDE_INSET = "6%";
+  const TOP_GAP    = "15svh";
+  const BOT_GAP    = "5svh";
 
-  // 5 строк отступа сверху: line-height = 1.28, делаю через em
-  const LINES_ABOVE = 5;
+  /* Текст: опустить на 6 строк */
+  const LINES_ABOVE = 6;
   const LINE_HEIGHT = 1.28;
 
   return (
@@ -582,7 +581,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
     >
       <audio ref={audioRef} src="/rustam-site/assents/music/bio.mp3" preload="auto" loop />
 
-      {/* Само окно биографии */}
+      {/* Окно биографии */}
       <div
         style={{
           position: "absolute",
@@ -592,11 +591,11 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
           bottom: BOT_GAP,
           borderRadius: 20,
           overflow: "hidden",
-          background: "#000", // подложка под фото на всякий случай
+          background: "#000",
           boxShadow: "0 30px 80px rgba(0,0,0,0.55)"
         }}
       >
-        {/* Фото: сдвинуто так, чтобы была видна верхняя часть изображения */}
+        {/* Фото — опускаем чуть ниже */}
         <img
           src={imageSrc}
           alt="bio-mobile"
@@ -606,19 +605,18 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            objectPosition: "50% 35%" // показываем верхнюю часть кадра
+            objectPosition: "50% 42%" /* было 35%, опустил ниже */
           }}
         />
 
-        {/* Текстовый блок: чёрный шрифт без теней, ABC_TypeWriterRussian */}
+        {/* Текст: ABC_TypeWriterRussian, чёрный, без теней; сверху 6 строк, снизу 5% окна */}
         <div
+          className="bio-scroll-m"
           style={{
             position: "absolute",
             left: "6%",
             right: "6%",
-            // Отступ сверху на 5 строк
             top: `calc(${LINES_ABOVE} * ${LINE_HEIGHT}em)`,
-            // Нижний край заканчивается за 5% до низа окна
             bottom: "5%",
             overflow: "auto",
             color: "#000",
@@ -626,17 +624,13 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
             fontSize: 16,
             lineHeight: LINE_HEIGHT,
             paddingRight: 12,
-            // НИКАКИХ подсветок/теней
             textShadow: "none",
             whiteSpace: "pre-wrap",
             textAlign: "justify",
             textAlignLast: "left"
           }}
-          className="bio-scroll-m"
         >
-{`В начале 2000-х я сделал свой первый клип. Камера Hi8, магнитофон и видеоплеер — как монтажный стол. Это была настоящая магия без компьютера.
-
-В 2009-м я переехал в Москву. Снимал рэп-клипы на «зеркалку» с горящими глазами и верой, что всё получится. Получилось. 
+{`В 2009-м я переехал в Москву. Снимал рэп-клипы на «зеркалку» с горящими глазами и верой, что всё получится. Получилось. 
 
 В 2010 году я оказался в команде Gazgolder, а в 2011-м отправился с Бастой в тур по Америке. 
 
@@ -650,15 +644,14 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         </div>
       </div>
 
-      {/* Кнопки вне окна: справа сверху над рамкой */}
+      {/* Кнопки над окном справа: Mute ближе к крестику */}
       <button
         aria-label={isMuted ? "Unmute" : "Mute"}
         onClick={() => setIsMuted((m) => !m)}
         style={{
           position: "absolute",
-          // Чуть выше окна: от верха окна отступаем "минус"
           top: `calc(${TOP_GAP} - 18px)`,
-          right: `calc(${SIDE_INSET} + 56px)`,
+          right: `calc(${SIDE_INSET} + 46px)`, /* было 56px, придвинул ближе */
           width: 40,
           height: 40,
           borderRadius: 999,
@@ -705,6 +698,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
     </div>
   );
 }
+
 
 
 /* ===== Кнопка-точка ===== */
