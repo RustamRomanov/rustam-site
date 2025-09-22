@@ -650,7 +650,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         onClick={() => setIsMuted((m) => !m)}
         style={{
           position: "absolute",
-          top: `calc(${TOP_GAP} - 72px)`,   // ← чуть выше
+          top: `calc(${TOP_GAP} - 55px)`,   // ← чуть выше
           right: `calc(${SIDE_INSET} + 46px)`,
           width: 40,
           height: 40,
@@ -672,7 +672,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         onClick={onClose}
         style={{
           position: "absolute",
-          top: `calc(${TOP_GAP} - 72px)`,   // ← чуть выше
+          top: `calc(${TOP_GAP} - 55px)`,   // ← чуть выше
           right: SIDE_INSET,
           width: 40,
           height: 40,
