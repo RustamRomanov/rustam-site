@@ -698,45 +698,48 @@ export default function MosaicBackground() {
         const mx=mouseRef.current.x, my=mouseRef.current.y;
         const pm=prevMouseRef.current; const dmx=isFinite(pm.x)?(mx-pm.x):0; prevMouseRef.current={x:mx,y:my};
 
-        // >>>>>>> НОВОЕ ПОВЕДЕНИЕ ДЛЯ МОБИЛКИ (якорение к верху/низу, «в край») <<<<<<<
-        if (isMobile) {
-          // Определяем, где центр тайла относительно середины экрана
-          const tileCenterY = tile.r * tileH + tileH / 2;
-          const anchorTop = tileCenterY < (h / 2);
+        // >>>>>>> МОБИЛЬНОЕ ПОВЕДЕНИЕ: ширина во весь экран, якорение по верх/низ <<<<<<<
+if (isMobile) {
+  // Центр тайла относительно середины экрана
+  const tileCenterY = tile.r * tileH + tileH / 2;
+  const anchorTop = tileCenterY < (h / 2);
 
-          // Масштаб «cover» на весь вьюпорт (без уменьшения), чтобы было "по самые края"
-          const scale = Math.max(w / img.width, h / img.height);
-          const drawW = Math.floor(img.width * scale);
-          const drawH = Math.floor(img.height * scale);
+  // Масштаб по ШИРИНЕ экрана (встык по бокам)
+  const scale = w / img.width;
+  const drawW = Math.floor(img.width * scale);   // будет ровно w, но через расчёт — на всякий
+  const drawH = Math.floor(img.height * scale);
 
-          // По центру по X, а по Y — к верхнему или нижнему краю
-          const drawX = Math.floor((w - drawW) / 2);
-          const drawY = anchorTop ? 0 : Math.floor(h - drawH);
+  // По X — от края до края, по Y — к верху или к низу
+  const drawX = 0;
+  const drawY = anchorTop ? 0 : (h - drawH);
 
-          ctx.save();
-          roundedRect(ctx, drawX, drawY, drawW, drawH, ZOOM_RADIUS);
-          ctx.clip();
-          ctx.imageSmoothingEnabled = true;
-          ctx.drawImage(img, 0, 0, img.width, img.height, drawX, drawY, drawW, drawH);
-          ctx.restore();
-        } else {
-          // >>>>>>> СТАРОЕ ПОВЕДЕНИЕ (ДЕСKTOP) — БЕЗ ИЗМЕНЕНИЙ <<<<<<<
-          const { tileW, tileH } = gridRef.current;
-          const dx=tile.c*tileW, dy=tile.r*tileH;
-          const cover=computeCover(img.width,img.height,tileW,tileH,tile.scale);
-          const left=dx+(tileW-cover.drawW)/2, top=dy+(tileH-cover.drawH)/2;
-          const u=clamp01((mx-left)/cover.drawW), v=clamp01((my-top)/cover.drawH);
-          const imgX=cover.sx + u*cover.sw, imgY=cover.sy + v*cover.sh;
-          const drawW=Math.floor(img.width*ZOOM_NATIVE_FACTOR), drawH=Math.floor(img.height*ZOOM_NATIVE_FACTOR);
-          const drawX=mx - imgX*ZOOM_NATIVE_FACTOR, drawY=my - imgY*ZOOM_NATIVE_FACTOR;
-          const angle=clamp(-dmx*ROT_SENS, -ZOOM_MAX_ROT, ZOOM_MAX_ROT);
+  // Рисуем с мягкими скруглениями как раньше
+  ctx.save();
+  roundedRect(ctx, drawX, drawY, drawW, drawH, ZOOM_RADIUS);
+  ctx.clip();
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(img, 0, 0, img.width, img.height, drawX, drawY, drawW, drawH);
+  ctx.restore();
+} else {
+  // >>>>>>> СТАРОЕ ПОВЕДЕНИЕ (ДЕСКTOP) — БЕЗ ИЗМЕНЕНИЙ <<<<<<<
+  const { tileW, tileH } = gridRef.current;
+  const dx=tile.c*tileW, dy=tile.r*tileH;
+  const cover=computeCover(img.width,img.height,tileW,tileH,tile.scale);
+  const left=dx+(tileW-cover.drawW)/2, top=dy+(tileH-cover.drawH)/2;
+  const u=clamp01((mx-left)/cover.drawW), v=clamp01((my-top)/cover.drawH);
+  const imgX=cover.sx + u*cover.sw, imgY=cover.sy + v*cover.sh;
+  const drawW=Math.floor(img.width*ZOOM_NATIVE_FACTOR), drawH=Math.floor(img.height*ZOOM_NATIVE_FACTOR);
+  const drawX=mx - imgX*ZOOM_NATIVE_FACTOR, drawY=my - imgY*ZOOM_NATIVE_FACTOR;
+  const angle=clamp(-dmx*ROT_SENS, -ZOOM_MAX_ROT, ZOOM_MAX_ROT);
 
-          ctx.save();
-          ctx.beginPath(); roundedRect(ctx,Math.floor(drawX),Math.floor(drawY),drawW,drawH,ZOOM_RADIUS); ctx.clip();
-          ctx.translate(mx,my); ctx.rotate(angle); ctx.translate(-mx,-my);
-          ctx.imageSmoothingEnabled=true;
-          ctx.drawImage(img,0,0,img.width,img.height,Math.floor(drawX),Math.floor(drawY),drawW,drawH);
-          ctx.restore();
+  ctx.save();
+  ctx.beginPath(); roundedRect(ctx,Math.floor(drawX),Math.floor(drawY),drawW,drawH,ZOOM_RADIUS); ctx.clip();
+  ctx.translate(mx,my); ctx.rotate(angle); ctx.translate(-mx,-my);
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(img,0,0,img.width,img.height,Math.floor(drawX),Math.floor(drawY),drawW,drawH);
+  ctx.restore();
+}
+
         }
       }
     }
@@ -784,7 +787,7 @@ export default function MosaicBackground() {
       onPointerCancel={onPointerUp}
     />
   );
-}
+
 
 /* ===========================================================
    МОБИЛЬНАЯ ВЕРСИЯ — быстрые правки тут:
