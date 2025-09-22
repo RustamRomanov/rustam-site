@@ -1,7 +1,7 @@
 /* === Локальный Montserrat Black (900) ===
    Путь учитывает base: '/rustam-site/' */
 @font-face {
-  font-family: "MontserratLocal";
+  font-family: "MontserratLocal, Arkiv_Bold";
   src: url("/rustam-site/assents/fonts/montserrat-black.woff2") format("woff2");
   font-weight: 900;
   font-style: normal;

@@ -30,7 +30,7 @@ const MAX_INDEX_SCAN = 10000;
 const NEI_RADIUS = 10;
 const NEI_DELTA  = 15;
 
-/* ===== ВУАЛЬ (оставляем — нравится эффект) ===== */
+/* ===== ВУАЛЬ (тёмная пелена с «дыркой» у курсора) ===== */
 const VEIL_ENABLED = true;
 const VEIL_ALPHA   = 0.55;
 const VEIL_HOLE_R  = 140;
@@ -48,27 +48,26 @@ const shuffle = (a)=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+
 export default function MosaicBackground() {
   const canvasRef = useRef(null), ctxRef = useRef(null);
 
-  /* ===== Пулы изображений (три ступени) ===== */
-  const img1Ref        = useRef(null);   // одиночный Image для img1.*
-  const mobileUrlsRef  = useRef([]);     // строки URL
-  const mobilePoolRef  = useRef([]);     // Image[]
-  const mobileSeqRef   = useRef([]);     // номера для анти-близости
+  /* ===== Пулы изображений (3 этапа) ===== */
+  const img1Ref        = useRef(null);
+  const mobileUrlsRef  = useRef([]);
+  const mobilePoolRef  = useRef([]);
+  const mobileSeqRef   = useRef([]);
   const desktopUrlsRef = useRef([]);
   const desktopPoolRef = useRef([]);
   const desktopSeqRef  = useRef([]);
-
-  const useCntRef      = useRef([]);     // счётчики для ТЕКУЩЕГО активного пула при обычной жизни
 
   /* ===== Текущая сетка/тайлы ===== */
   const tilesRef  = useRef([]);
   const gridRef   = useRef({ cols:0, rows:0, tileW:BASE_TILE_W, tileH:BASE_TILE_H });
 
-  /* ===== Режимы и управление волнами ===== */
+  /* ===== Фазы и волны ===== */
   const rafRef    = useRef(0);
   const waveRef   = useRef({ nextWaveAt: 0 });
-  const allowRandomRef = useRef(false);   // включаем только после второй волны (десктоп)
-  const phaseRef  = useRef("img1");       // "img1" -> "mobile" -> "desktop"
-  const doingWaveRef = useRef(false);     // чтобы волна не «обрывалась»
+  const allowRandomRef = useRef(false);
+  const phaseRef  = useRef("img1"); // img1 -> mobile -> desktop
+  const doingWaveRef = useRef(false);
+  const pendingPhasesRef = useRef([]); // очередь фаз: ["mobile","desktop"]
 
   /* Наведение / клик */
   const mouseRef = useRef({ x:-1e6, y:-1e6 });
@@ -78,13 +77,12 @@ export default function MosaicBackground() {
   const prevHoverRowRef = useRef(-1);
   const clickedTileIdRef = useRef(-1);
 
-  /* Прочее */
   const readySentRef = useRef(false);
   const [isMobile, setIsMobile] = useState(
     typeof window!=="undefined" ? window.innerWidth<=MOBILE_BREAKPOINT : false
   );
 
-  /* ===== AUDIO (как было) ===== */
+  /* ===== AUDIO ===== */
   const audioCtxRef    = useRef(null);
   const convolverRef   = useRef(null);
   const masterCompRef  = useRef(null);
@@ -139,7 +137,13 @@ export default function MosaicBackground() {
       document.removeEventListener("visibilitychange",onVis);
     };
   },[]);
-  const playDirectionalAir = async (strength = 1, pan = 0, dirX = 0, v = 0.5, dirY = 0) => {
+  const playDirectionalAir = async (_strength = 1, _pan = 0, _dirX = 0, _v = 0.5, _dirY = 0) => {
+    const strength = Number.isFinite(_strength) ? _strength : 1;
+    const pan      = Number.isFinite(_pan)      ? _pan      : 0;
+    const dirX     = Number.isFinite(_dirX)     ? _dirX     : 0;
+    const v        = Number.isFinite(_v)        ? _v        : 0.5;
+    const dirY     = Number.isFinite(_dirY)     ? _dirY     : 0;
+
     const nowMs = performance.now();
     if (nowMs - lastSoundAtRef.current < SOUND_MIN_GAP_MS) return;
     lastSoundAtRef.current = nowMs;
@@ -151,11 +155,12 @@ export default function MosaicBackground() {
     const edgeBoost = 0.35 + 0.65 * Math.abs(pan);
     const master = ctx.createGain();
     master.gain.setValueAtTime(0.0001, t0);
-    const peak = (0.2 + 0.10 * strength) * edgeBoost;
+    // ТИХО
+    const peak = (0.2 + 0.1 * strength) * edgeBoost;
     master.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
     master.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
 
-    const vert = (v - 0.5) * 2; // -1..+1
+    const vert = (v - 0.5) * 2;
     const baseHz = 1700 + 700 * Math.max(0, pan) + 200 * dirX * Math.abs(pan) + 600 * vert;
 
     const ping = ctx.createOscillator(); ping.type = "sine";
@@ -166,11 +171,13 @@ export default function MosaicBackground() {
     sparkle.frequency.setValueAtTime(baseHz * 2.02, t0);
     sparkle.frequency.exponentialRampToValueAtTime(baseHz * 1.6, t0 + 0.09);
 
-    const pingGain = ctx.createGain(); pingGain.gain.setValueAtTime(0.0001, t0);
+    const pingGain = ctx.createGain();
+    pingGain.gain.setValueAtTime(0.0001, t0);
     pingGain.gain.exponentialRampToValueAtTime(1.0, t0 + 0.008);
     pingGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
 
-    const sparkGain = ctx.createGain(); sparkGain.gain.setValueAtTime(0.0001, t0);
+    const sparkGain = ctx.createGain();
+    sparkGain.gain.setValueAtTime(0.0001, t0);
     sparkGain.gain.exponentialRampToValueAtTime(0.45, t0 + 0.006);
     sparkGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
 
@@ -250,7 +257,7 @@ export default function MosaicBackground() {
 
   /* ===== РАЗМЕР / СЕТКА ===== */
   useEffect(()=>{
-    const onResize=()=>setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT);
+    const onResize=()=>{ setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT); tryScheduleNextPhase(); };
     window.addEventListener("resize",onResize);
     window.addEventListener("orientationchange",onResize);
     return ()=>{
@@ -290,7 +297,8 @@ export default function MosaicBackground() {
         tileH=Math.ceil(h/rows);
       }
       gridRef.current={ cols, rows, tileW, tileH };
-      initTiles(); // перегенерируем холст под размер
+      initTiles();
+      tryScheduleNextPhase();
     };
 
     resize();
@@ -298,9 +306,8 @@ export default function MosaicBackground() {
     return ()=>window.removeEventListener("resize",resize);
   },[]);
 
-  /* ===== Списки URL (для mobile и desktop) ===== */
+  /* ===== Списки URL для mobile/desktop ===== */
   const fetchListForBase = useCallback(async (base)=>{
-    // manifest.json предпочтительно
     try{
       const res = await fetch(`${base}manifest.json`, { cache:"no-store" });
       if(res.ok){
@@ -309,7 +316,6 @@ export default function MosaicBackground() {
         if(names.length) return names.map(n=>`${base}${n}`);
       }
     }catch{}
-    // иначе последовательный HEAD-скан
     const found=[]; let misses=0;
     for(let i=1;i<=MAX_INDEX_SCAN;i++){
       let hit=false;
@@ -322,7 +328,7 @@ export default function MosaicBackground() {
     return found;
   },[]);
 
-  /* ===== Прелоадеры ===== */
+  /* ===== Прелоад ===== */
   const loadImage = (url)=> new Promise((resolve)=>{
     const img = new Image(); img.decoding="async"; img.loading="eager";
     img.onload = ()=> resolve(img);
@@ -347,20 +353,18 @@ export default function MosaicBackground() {
       };
       next();
     });
-    // фильтруем неуспехи
     const okIndexes=[];
     for(let k=0;k<pool.length;k++) if(pool[k] && pool[k].width) okIndexes.push(k);
     const poolOk = okIndexes.map(k=>pool[k]);
     const seqOk  = okIndexes.map(k=>seq[k]);
-
     return { pool: poolOk, seq: seqOk };
   };
 
-  /* ===== Инициализация: 1) рисуем img1, 2) готовим списки, 3) волны ===== */
+  /* ===== Инициализация загрузки и фаз ===== */
   useEffect(()=>{
     let cancelled=false;
     (async()=>{
-      // 1) ищем img1 в любом каталоге (mobile предпочтительнее)
+      // img1 (mobile приоритет)
       const tryImg1 = async (base)=>{
         for(const ext of TRY_EXTS){
           const url=`${base}img1.${ext}`;
@@ -376,44 +380,62 @@ export default function MosaicBackground() {
       allowRandomRef.current = false;
       doingWaveRef.current = false;
 
-      // 2) параллельно тянем списки
+      // параллельно тянем списки
       const [mobileUrls, desktopUrls] = await Promise.all([
         fetchListForBase(MOBILE_DIR),
         fetchListForBase(DESKTOP_DIR)
       ]);
       if(cancelled) return;
-
       mobileUrlsRef.current = mobileUrls||[];
       desktopUrlsRef.current = desktopUrls||[];
 
-      // 3) старт рисования и инициализация сетки тайлов под img1
+      // Старт rAF
       if(!rafRef.current) start();
 
-      // 4) прелоад мобильного пула → волна mobile
+      // Прелоад mobile → фаза mobile
       if((mobileUrlsRef.current?.length||0) > 0){
         const { pool, seq } = await preloadPool(mobileUrlsRef.current);
         if(cancelled) return;
         mobilePoolRef.current = pool; mobileSeqRef.current = seq;
-        // запускаем контролируемую волну замены img1 → mobile
-        schedulePhaseWave("mobile");
+        enqueuePhase("mobile");
       }
 
-      // 5) прелоад десктоп пула → волна desktop, затем включаем обычные рандом замены
+      // Прелоад desktop → фаза desktop
       if((desktopUrlsRef.current?.length||0) > 0){
         const { pool, seq } = await preloadPool(desktopUrlsRef.current);
         if(cancelled) return;
         desktopPoolRef.current = pool; desktopSeqRef.current = seq;
-        // если мобильная волна уже прошла или не было mobile — запускаем десктопную
-        schedulePhaseWave("desktop");
+        enqueuePhase("desktop");
       }
     })();
-
     return ()=>{ cancelled=true; };
   },[]);
 
-  /* ===== Тайлы и их первичная инициализация под img1 ===== */
+  function enqueuePhase(tag){
+    const q = pendingPhasesRef.current;
+    if(!q.includes(tag)) q.push(tag);
+    tryScheduleNextPhase();
+  }
+  function tryScheduleNextPhase(){
+    if(doingWaveRef.current) return;
+    const { cols, rows } = gridRef.current;
+    if(!cols || !rows) return;
+    if(!tilesRef.current.length) return;
+    const q = pendingPhasesRef.current;
+    if(!q.length) return;
+
+    const target = q.shift();
+    if(target==="mobile" && !(mobilePoolRef.current?.length)) return;
+    if(target==="desktop" && !(desktopPoolRef.current?.length)) return;
+    schedulePhaseWave(target);
+  }
+
+  /* ===== Тайлы под img1 ===== */
   function initTiles(){
     const { cols, rows } = gridRef.current; if(!cols || !rows) return;
+    if(!img1Ref.current) return; // ждём img1
+    if(tilesRef.current.length) return;
+
     const total = cols*rows;
     const now = performance.now();
 
@@ -421,51 +443,44 @@ export default function MosaicBackground() {
     for(let id=0;id<total;id++){
       tiles[id] = {
         id, c:id%cols, r:Math.floor(id/cols),
-        img: img1Ref.current || null,   // картинка напрямую
-        poolTag: "img1",                // помечаем из какого «источника»
+        img: img1Ref.current, poolTag: "img1",
         prevImg:null, fading:false, fadeStart:0,
-        scale:1, nextChange: now + 1e8, // случайные замены выключены до фазовых волн
-        frozen:false
+        scale:1, nextChange: now + 1e8, frozen:false,
+        _seq: 1
       };
     }
     tilesRef.current = tiles;
   }
 
-  /* ===== Управляемая волна для фазы ===== */
+  /* ===== Управляемая волна ===== */
   function schedulePhaseWave(target){
-    // если уже идёт волна — перезапускать не будем, просто пометим, что целевая фаза последняя
-    // упрощаем: запустим, только если не идёт волна
-    if(doingWaveRef.current) return;
     const { cols, rows } = gridRef.current; if(!cols||!rows) return;
     const tiles = tilesRef.current; if(!tiles.length) return;
-
-    // если нет нужного пула — не запускаем
-    if(target==="mobile" && !(mobilePoolRef.current?.length)) return;
-    if(target==="desktop" && !(desktopPoolRef.current?.length)) return;
 
     doingWaveRef.current = true;
     phaseRef.current = target;
 
-    // центр
     const oc = Math.floor(cols/2), or = Math.floor(rows/2);
-    const t0 = performance.now() + 120; // лёгкая задержка, чтобы не «обрывалось»
+    const t0 = performance.now() + 120;
     for(const tile of tiles){
       const ring=Math.max(Math.abs(tile.c-oc),Math.abs(tile.r-or));
       tile.nextChange = t0 + ring*WAVE_STEP + Math.random()*60;
-      tile.targetTag = target; // куда менять
+      tile.targetTag = target;
+      // гарантируем, что не завис на прошлой фазе
+      tile.fading = false;
     }
-    // после прохода волны — если это desktop, включим обычный режим
+
+    const waveTime = WAVE_STEP * Math.max(cols, rows) + 2200;
     setTimeout(()=>{
       doingWaveRef.current = false;
       if(target==="desktop"){
         allowRandomRef.current = true;
-        // подготовим счётчики для desktop-пула
-        useCntRef.current = new Array(desktopPoolRef.current.length).fill(0);
       }
-    }, WAVE_STEP * Math.max(cols, rows) + 1500);
+      tryScheduleNextPhase();
+    }, waveTime);
   }
 
-  /* ===== Анти-близость/подбор кадра из нужного пула ===== */
+  /* ===== Анти-близость и гарантированная смена ===== */
   function neighborsOf(id, cols, rows){
     const r=Math.floor(id/cols), c=id%cols;
     const list=[];
@@ -477,7 +492,6 @@ export default function MosaicBackground() {
     }
     return list;
   }
-
   function penaltyForImg(candidateImg, candidateSeq, id, tiles, cols, rows){
     let pen=0;
     for(const j of neighborsOf(id, cols, rows)){
@@ -485,23 +499,34 @@ export default function MosaicBackground() {
       const a = t.fading ? (t.img || t.prevImg) : t.img;
       if(!a) continue;
       if(a === candidateImg){ pen += 10000; continue; }
-      // если у соседа есть seq — сравним
       const neighborSeq = t._seq;
       if(neighborSeq!=null && candidateSeq!=null && Math.abs(neighborSeq - candidateSeq) <= NEI_DELTA) pen += 1;
     }
     return pen;
   }
-
-  function pickFromPoolFor(id, targetTag){
+  function pickFromPoolFor(id, targetTag, excludeImg){
     const pool = targetTag==="mobile" ? mobilePoolRef.current : desktopPoolRef.current;
     const seq  = targetTag==="mobile" ? mobileSeqRef.current  : desktopSeqRef.current;
     if(!pool?.length) return {img:null, seq:null};
 
-    // старайся равномерно и с анти-близостью
+    // исключаем текущий кадр из кандидатов
+    const candIdx=[];
+    for(let i=0;i<pool.length;i++){
+      const im = pool[i];
+      if(!im) continue;
+      if(excludeImg && im === excludeImg) continue;
+      candIdx.push(i);
+    }
+    if(!candIdx.length){
+      // если всё совпало самим с собой — хотя бы любой другой возьмём
+      for(let i=0;i<pool.length;i++){ if(pool[i] && pool[i]!==excludeImg){ candIdx.push(i); break; } }
+      if(!candIdx.length) return {img:null, seq:null};
+    }
+
     let best=[], bestPen=Infinity;
     const tiles=tilesRef.current, { cols, rows } = gridRef.current;
-    for(let i=0;i<pool.length;i++){
-      const img=pool[i]; if(!img) continue;
+    for(const i of candIdx){
+      const img=pool[i];
       const p = penaltyForImg(img, seq[i], id, tiles, cols, rows);
       if(p < bestPen){ bestPen = p; best = [i]; }
       else if(p === bestPen){ best.push(i); }
@@ -511,7 +536,14 @@ export default function MosaicBackground() {
   }
 
   /* ===== Рендер ===== */
-  function start(){ if(rafRef.current) return; const step=(t)=>{ draw(t); rafRef.current=requestAnimationFrame(step); }; rafRef.current=requestAnimationFrame(step); }
+  function start(){
+    if(rafRef.current) return;
+    const step=(t)=>{
+      rafRef.current = requestAnimationFrame(step); // бронируем заранее
+      try { draw(t); } catch(e){ /* no-op */ }
+    };
+    rafRef.current = requestAnimationFrame(step);
+  }
   useEffect(()=>()=>cancelAnimationFrame(rafRef.current),[]);
 
   function computeCover(imgW,imgH,dw,dh,s=1){
@@ -569,27 +601,19 @@ export default function MosaicBackground() {
     const w=window.innerWidth,h=window.innerHeight;
     ctx.clearRect(0,0,w,h); ctx.fillStyle="#000"; ctx.fillRect(0,0,w,h);
 
-    const tiles=tilesRef.current;
-    if(!tiles.length){
-      // при первом цикле (до initTiles) — нарисуем img1 фоном
-      if(img1Ref.current){
-        // создаём временную сетку и тайлы
-        initTiles();
-      } else {
-        // ничего — пусть будет чёрный + вуаль
-        drawVeil(ctx);
-        return;
-      }
-    }
+    if(!tilesRef.current.length) initTiles();
 
-    if(!readySentRef.current && mobilePoolRef.current.length){
+    const tiles=tilesRef.current;
+    if(!tiles.length){ drawVeil(ctx); return; }
+
+    if(!readySentRef.current && (mobilePoolRef.current.length || desktopPoolRef.current.length)){
       readySentRef.current=true;
       setTimeout(()=>window.dispatchEvent(new Event("mosaic:ready")),0);
     }
 
     const { tileW,tileH,cols,rows } = gridRef.current;
 
-    // === аудио при входе в новый тайл (как было) ===
+    // звук при входе в новый тайл
     const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH);
     const hoveredId=(mc>=0 && mr>=0) ? (mr*cols + mc) : -1;
     if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
@@ -610,11 +634,11 @@ export default function MosaicBackground() {
       const dist=Math.min(1,Math.hypot(dx,dy));
       const strength=1 - 0.6*dist;
 
-      playDirectionalAir(strength, pan, dirX, v, dirY);
+      try { playDirectionalAir(strength, pan, dirX, v, dirY); } catch {}
       prevHoverIdRef.current=hoveredId;
     }
 
-    // === масштаб от ховера ===
+    // масштаб
     const HOVER_MUL = isMobile ? HOVER_BOOST_MOBILE : HOVER_BOOST;
     const order=new Array(tiles.length);
     for(let i=0;i<tiles.length;i++){
@@ -631,31 +655,32 @@ export default function MosaicBackground() {
       if(tile.frozen) target*=CLICK_MULT;
       tile.scale += (target - tile.scale)*LERP;
 
-      // Управляемые фазы: меняем картинку только по расписанию nextChange
+      // подмена по расписанию
       if(t>=tile.nextChange){
         const tag = tile.targetTag || phaseRef.current;
         if(tag==="mobile" || tag==="desktop"){
-          const { img, seq } = pickFromPoolFor(tile.id, tag);
-          if(img){
-            tile.prevImg = tile.img || img;
+          const { img, seq } = pickFromPoolFor(tile.id, tag, tile.img);
+          if(img && img !== tile.img){
+            tile.prevImg = tile.img;
             tile.img = img;
             tile._seq = seq;
             tile.fading = true; tile.fadeStart = t;
             tile.poolTag = tag;
-            // после смены — отложим следующий случайный (если разрешено) либо «очень далеко»
             tile.nextChange = (allowRandomRef.current && tag==="desktop")
               ? t + randInt(2500,5500) + (tile.c+tile.r)*5
               : t + 1e8;
+          } else {
+            // если вдруг не удалось подобрать новый — попробуем ещё чуть позже в этой же волне
+            tile.nextChange = t + 120 + Math.random()*60;
           }
         } else {
-          // img1 фаза — do nothing
           tile.nextChange = t + 1e8;
         }
       }
     }
     order.sort((a,b)=>b.ring - a.ring);
 
-    // Рисуем
+    // рисуем
     for(const o of order){
       const tile=tiles[o.idx]; if(!tile.img) continue;
       const dx=tile.c*tileW, dy=tile.r*tileH;
@@ -664,13 +689,13 @@ export default function MosaicBackground() {
         const p=Math.min(1,(t - tile.fadeStart)/FADE_MS);
         if(tile.prevImg){ ctx.globalAlpha=1-p; drawCoverRounded(ctx,tile.prevImg,dx,dy,tileW,tileH,tile.scale); }
         ctx.globalAlpha=p; drawCoverRounded(ctx,tile.img,dx,dy,tileW,tileH,tile.scale); ctx.globalAlpha=1;
-        if(p>=1){ tile.fading=false; /* nextChange уже установлен выше */ }
+        if(p>=1){ tile.fading=false; }
       } else {
         drawCoverRounded(ctx,tile.img,dx,dy,tileW,tileH,tile.scale);
       }
     }
 
-    // Клик-зум (как было)
+    // клик-зум
     const ct=clickedTileIdRef.current;
     if(ct>=0){
       const tile=tiles[ct]; if(tile && tile.img){
@@ -696,7 +721,7 @@ export default function MosaicBackground() {
     }
     if(ct>=0 && ct!==hoveredId) clickedTileIdRef.current=-1;
 
-    // Во время обычной жизни (после desktop-волны) можно запускать случайные волны
+    // «живая» случайная жизнь — только после desktop-фазы
     if(allowRandomRef.current && !doingWaveRef.current && t>=waveRef.current.nextWaveAt){
       const oc=randInt(0,cols-1), or=randInt(0,rows-1);
       const start=t;
@@ -708,7 +733,6 @@ export default function MosaicBackground() {
       waveRef.current.nextWaveAt = t + randInt(WAVE_PERIOD_MIN, WAVE_PERIOD_MAX);
     }
 
-    // Вуаль поверх
     drawVeil(ctx);
   }
 
