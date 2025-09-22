@@ -566,7 +566,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
   /* Текст: ровно 5 строк ниже (надёжно — в пикселях) */
   const FS_PX       = 16;     // кегль текста
   const LINE_HEIGHT = 1.28;   // межстрочный
-  const LINES_ABOVE = 20;      // требуемые 5 строк
+  const LINES_ABOVE = 5;      // требуемые 5 строк
   const TEXT_TOP_PX = Math.round(FS_PX * LINE_HEIGHT * LINES_ABOVE); // ~102px
 
   return (
@@ -605,7 +605,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            objectPosition: "70% 22%"  // ← как просил
+            objectPosition: "80% 22%"  // ← как просил
           }}
         />
 
