@@ -182,21 +182,18 @@ function Circle2Overlay({ open, onClose, diameter }) {
     "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
 
   const COLOR = "rgba(255,255,255,0.95)";
-  const maxTextWidth = Math.round(D * 0.86);
-  const TEXT_SHIFT = Math.round(D * 0.06); // 6% диаметра вниз
+  const maxTextWidth = Math.round(D * 0.80);          // было 0.86 — сузил, чтобы текст не выходил за круг
+  const TEXT_SHIFT = Math.round(D * 0.05);            // чуть меньше смещения вниз
 
-  function FitHeader({ text, baseRatio = 0.0416, minPx = 12 }) {
+  // Заголовок по кругу с авто-ужатием
+  function FitHeader({ text, baseRatio = 0.040, minPx = 12 }) {
     const ref = React.useRef(null);
     const [fs, setFs] = React.useState(Math.max(minPx, Math.round(D * baseRatio)));
     React.useEffect(() => { setFs(Math.max(minPx, Math.round(D * baseRatio))); }, [D, baseRatio, text]);
     React.useEffect(() => {
       const el = ref.current; if (!el) return;
       const w = el.getBoundingClientRect().width;
-      if (w > maxTextWidth && fs > minPx) {
-        const over = w / maxTextWidth;
-        const step = over > 1.15 ? 2 : 1;
-        setFs((s) => Math.max(minPx, s - step));
-      }
+      if (w > maxTextWidth && fs > minPx) setFs(s => Math.max(minPx, s - (w/maxTextWidth>1.15?2:1)));
     }, [fs, maxTextWidth, text]);
     return (
       <div style={{ textAlign: "center", animation: "c2breath 6200ms ease-in-out 0ms infinite" }}>
@@ -208,7 +205,7 @@ function Circle2Overlay({ open, onClose, diameter }) {
             fontFamily: FAMILY_HEADER,
             fontWeight: 800,
             fontSize: fs,
-            lineHeight: 1.22,
+            lineHeight: 1.18,
             letterSpacing: "0.02em",
             color: COLOR
           }}
@@ -219,12 +216,13 @@ function Circle2Overlay({ open, onClose, diameter }) {
     );
   }
 
-  const BODY_FS = Math.max(12, Math.round(D * 0.0256));
+  // Тело поменьше, плотнее
+  const BODY_FS = Math.max(12, Math.round(D * 0.0225));   // было 0.0256 — сделал компактней
 
-  const BodyLine = ({ children, delay = 180, mt = Math.round(D * 0.022) }) => (
+  const BodyLine = ({ children, delay = 180, mt = Math.round(D * 0.018) }) => (
     <div
       style={{
-        marginTop: mt,
+        marginTop: mt,                                 // компактнее межстрочный интервал
         textAlign: "center",
         animation: `c2breath 6200ms ease-in-out ${delay}ms infinite`,
         willChange: "transform"
@@ -236,10 +234,11 @@ function Circle2Overlay({ open, onClose, diameter }) {
           maxWidth: maxTextWidth,
           whiteSpace: "normal",
           wordBreak: "break-word",
+          hyphens: "auto",
           fontFamily: FAMILY_BODY,
           fontWeight: 700,
           fontSize: BODY_FS,
-          lineHeight: 1.28,
+          lineHeight: 1.24,                            // плотнее
           letterSpacing: "0.02em",
           color: COLOR
         }}
@@ -259,7 +258,7 @@ function Circle2Overlay({ open, onClose, diameter }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "3vw"
+        padding: 0                                     // убрал 3vw, чтобы круг мог выходить за бока
       }}
     >
       <div
@@ -267,11 +266,14 @@ function Circle2Overlay({ open, onClose, diameter }) {
           position: "relative",
           width: D,
           height: D,
+          aspectRatio: "1 / 1",                        // железно круг
           borderRadius: "50%",
           overflow: "visible",
           transform: "scale(0.6)",
           opacity: 0,
-          animation: "c2pop 320ms cubic-bezier(.18,.8,.2,1) forwards"
+          flex: "0 0 auto",
+          animation: "c2pop 320ms cubic-bezier(.18,.8,.2,1) forwards",
+          willChange: "transform,opacity"
         }}
       >
         {/* Крестик — ближе к краю круга */}
@@ -305,12 +307,13 @@ function Circle2Overlay({ open, onClose, diameter }) {
             position: "relative",
             width: "100%",
             height: "100%",
+            aspectRatio: "1 / 1",
             borderRadius: "50%",
             overflow: "hidden",
             boxShadow: "0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.08)"
           }}
         >
-          {/* Фон — ещё темнее, без блюра */}
+          {/* Фон — темнее, без блюра */}
           <img
             src={imgSrc}
             alt="circle2"
@@ -321,7 +324,9 @@ function Circle2Overlay({ open, onClose, diameter }) {
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              filter: "brightness(0.38) saturate(1.02)"
+              objectPosition: "50% 50%",
+              filter: "brightness(0.38) saturate(1.02)",
+              transform: "translateZ(0)"
             }}
           />
           {/* Матовое стекло */}
@@ -347,24 +352,21 @@ function Circle2Overlay({ open, onClose, diameter }) {
               alignItems: "center",
               justifyContent: "center",
               textAlign: "center",
-              padding: "clamp(16px,3.6vw,42px)"
+              padding: "clamp(14px,3vw,36px)"
             }}
           >
             <div style={{ maxWidth: maxTextWidth, color: "rgba(255,255,255,0.95)", transform: `translateY(${TEXT_SHIFT}px)` }}>
               <FitHeader text="Режиссёр · Продюсер · Сценарист" />
               <BodyLine>
-                100+ артистов · 200+ проектов
-              </BodyLine>
-              <BodyLine>
-                2+ млрд просмотров
+                100+ артистов · 200+ проектов · 2+ млрд просмотров
               </BodyLine>
               <BodyLine>
                 Огромный опыт работы с топовыми артистами и селебрити-блогерами.
               </BodyLine>
-              <BodyLine mt={Math.round(D * 0.028)}>
+              <BodyLine mt={Math.round(D * 0.022)}>
                 Оперативно пишу тритменты и соблюдаю дедлайны.
               </BodyLine>
-              <BodyLine mt={Math.round(D * 0.028)}>
+              <BodyLine mt={Math.round(D * 0.022)}>
                 Буду рад сотрудничеству!
               </BodyLine>
             </div>
@@ -396,7 +398,7 @@ function Circle2Overlay({ open, onClose, diameter }) {
 }
 
 
-/* ===== BIO overlay (desktop) — ABC_TypeWriterRussian, чёрный текст, скрытый скроллбар, Mute справа ===== */
+/* ===== BIO overlay (desktop) — ABC_TypeWriterRussian ===== */
 function BioOverlay({ open, onClose, imageSrc }) {
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -431,11 +433,11 @@ function BioOverlay({ open, onClose, imageSrc }) {
 
 В 2012-м я снял первый документальный фильм о Тимати. Так началась большая глава с Black Star, а вместе с ней и десятки громких клипов.
 
-2014 год стал переломным — клип L’One — «Океан» открыл для меня новые горизонты. А в 2015-м работа Doni feat. Натали — «Ты такой» побила все рекорды, став первым клипом в России, преодолевшим 100 млн просмотров на YouTube.
+2014 год стал переломным - клип L’One «Океан» открыл для меня новые горизонты. А в 2015-м работа Doni feat. Натали — «Ты такой» побила все рекорды, став первым клипом в России, преодолевшим 100 млн просмотров на YouTube.
 
-Дальше — сотни проектов, работа с артистами разных жанров и масштабов: от Макса Коржа, Iowa, Pizza до Стаса Михайлова,   Николая Баскова и Филиппа Киркорова. 
+Дальше — сотни проектов, работа с топовыми артистами разных жанров и масштабов: от Макса Коржа, Iowa, Pizza до Стаса Михайлова, Николая Баскова и Филиппа Киркорова. 
 
-Сегодня мой багаж — 200+ проектов, более 2-х миллиардов просмотров и более сотни артистов.`;
+Сегодня мой багаж - 200+ проектов, более 2-х миллиардов просмотров на Youtube и более сотни артистов с кем мне довелось поработать.`;
 
   const inset = "clamp(10px,1.2vw,18px)";
   const leftPart = "40%";
@@ -518,7 +520,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
 }
 
 
-/* ===== BIO Mobile overlay — только текст, Mute слева от крестика, шрифт ABC_TypeWriterRussian ===== */
+/* ===== BIO Mobile overlay — шрифт ABC_TypeWriterRussian (как desktop) ===== */
 function BioMobileOverlay({ open, onClose, imageSrc }) {
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -560,11 +562,11 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
 
 В 2012-м я снял первый документальный фильм о Тимати. Так началась большая глава с Black Star, а вместе с ней и десятки громких клипов.
 
-2014 год стал переломным — клип L’One — «Океан» открыл для меня новые горизонты. А в 2015-м работа Doni feat. Натали — «Ты такой» побила все рекорды, став первым клипом в России, преодолевшим 100 млн просмотров на YouTube.
+2014 год стал переломным - клип L’One «Океан» открыл для меня новые горизонты. А в 2015-м работа Doni feat. Натали — «Ты такой» побила все рекорды, став первым клипом в России, преодолевшим 100 млн просмотров на YouTube.
 
-Дальше — сотни проектов, работа с артистами разных жанров и масштабов: от Макса Коржа, Iowa, Pizza до Стаса Михайлова,   Николая Баскова и Филиппа Киркорова. 
+Дальше — сотни проектов, работа с топовыми артистами разных жанров и масштабов: от Макса Коржа, Iowa, Pizza до Стаса Михайлова, Николая Баскова и Филиппа Киркорова. 
 
-Сегодня мой багаж — 200+ проектов, более 2-х миллиардов просмотров и более сотни артистов.`;
+Сегодня мой багаж - 200+ проектов, более 2-х миллиардов просмотров на Youtube и более сотни артистов с кем мне довелось поработать.`;
 
   return (
     <div
@@ -593,7 +595,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
             position: "absolute",
             left: "6%",
             right: "6%",
-            top: "calc(28% + 4.5em)", /* ↓ опустили верхнюю границу на ~4.5 строки */
+            top: "calc(28% + 4.5em)",
             bottom: 0,
             overflow: "auto",
             color: "#2f2f33",
@@ -930,12 +932,32 @@ function BiographyWordPerLetter({ onOpen }) {
   const [stick,setStick]=useState(latin.map(()=>false));
   const [colors,setColors]=useState(latin.map(()=>"#ffffff"));
   return (
-    <h2 onClick={onOpen} onMouseLeave={()=>setStick(latin.map(()=>false))}
-        style={{ margin:0, cursor:"pointer", fontSize:"clamp(12px,1.2vw,18px)", userSelect:"none", display:"inline-block", whiteSpace:"nowrap", letterSpacing:"0.08em", fontFamily:"'Royal Crescent',system-ui" }}>
+    <h2
+      onClick={onOpen}
+      onMouseLeave={()=>setStick(latin.map(()=>false))}
+      style={{
+        margin:0,
+        cursor:"pointer",
+        fontSize:"clamp(12px,1.2vw,18px)",
+        userSelect:"none",
+        display:"inline-block",
+        whiteSpace:"nowrap",
+        letterSpacing:"0.08em",
+        fontFamily:"'Royal Crescent',system-ui"
+      }}
+    >
       {latin.map((ch,i)=>(
-        <span key={`bio-${i}`}
+        <span
+          key={`bio-${i}`}
           onMouseEnter={()=>{ if(!stick[i]) { playIcon(); } setStick(s=>{const a=[...s]; a[i]=true; return a;}); setColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); }}
-          style={{ display:"inline-block", transformOrigin:"50% 50%", transform: stick[i] ? "scale(1.35)" : "scale(1)", color: stick[i] ? colors[i] : "#ffffff", transition:"transform 140ms ease, color 160ms ease" }}>
+          style={{
+            display:"inline-block",
+            transformOrigin:"50% 50%",
+            transform: stick[i] ? "scale(1.35)" : "scale(1)",
+            color: stick[i] ? colors[i] : "#ffffff",
+            transition:"transform 140ms ease, color 160ms ease"
+          }}
+        >
           {stick[i] ? (map[ch] || ch) : ch}
         </span>
       ))}
@@ -943,7 +965,7 @@ function BiographyWordPerLetter({ onOpen }) {
   );
 }
 
-/* ===== Mobile Card ===== */
+/* ===== Mobile Card (шрифты как на десктопе + чуть меньшие размеры) ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
   const [bioOpen,setBioOpen]=useState(false);
@@ -1035,8 +1057,8 @@ function MobileCard() {
   const ONE_LINE = "1.2em";
   const HALF_LINE = "0.6em";
 
-  // Диаметр круга 2 — больше круга 1, может заходить за бока (но круг, не овал)
-  const circle2Diam = Math.round(circleDiam * 1.7); // ↑ было 1.5
+  // Круг 2 — больше круга 1. Это именно круг (width===height), может выходить за бока.
+  const circle2Diam = Math.round(circleDiam * 1.7);
 
   return (
     <>
@@ -1056,18 +1078,23 @@ function MobileCard() {
         <div style={{
           position:"relative", zIndex:1, width:"100%", height:"100%",
           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-          color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans'", textShadow:"0 1px 2px rgba(0,0,0,0.25)",
-          transform:"translateY(-1em)" // ↑ подняли контент круга 1 на «одну строку»
+          color:"#fff",
+          fontFamily:"UniSans-Heavy, 'Uni Sans'",
+          textShadow:"0 1px 2px rgba(0,0,0,0.25)",
+          transform:"translateY(-1em)"
         }}>
+          {/* BIO — тот же шрифт, что и на Desktop */}
           <PrePlate active={true}>
             <h2
               data-bio
               onClick={()=>setBioOpen(true)}
               style={{
-                margin:0, marginTop:`calc(${ONE_LINE} * 2)`,
-                fontSize:"clamp(16px, 5.2vw, 22px)",
-                letterSpacing:"0.08em", userSelect:"none",
-                fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" // как на desktop
+                margin:0,
+                marginTop:`calc(${ONE_LINE} * 2)`,
+                fontSize:"clamp(15px, 4.8vw, 20px)",   // ↓ чуть меньше
+                letterSpacing:"0.08em",
+                userSelect:"none",
+                fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui"
               }}
             >
               {lettersBio.map((ch,i)=>(
@@ -1080,16 +1107,19 @@ function MobileCard() {
             </h2>
           </PrePlate>
 
+          {/* Имя — как на Desktop: Rostov → Uni Sans Heavy */}
           <PrePlate active={true}>
             <h1
               data-name
               onClick={()=> setCircle2Open(true)}
               style={{
                 margin:`${ONE_LINE} 0 0`,
-                fontSize:"clamp(20px, 7.2vw, 32px)",
-                letterSpacing:"0.02em", userSelect:"none", cursor:"pointer",
+                fontSize:"clamp(18px, 6.6vw, 28px)",  // ↓ чуть меньше
+                letterSpacing:"0.02em",
+                userSelect:"none",
+                cursor:"pointer",
                 title:"Подробнее",
-                fontFamily:"'Uni Sans Heavy','Uni Sans',system-ui" // как на desktop
+                fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui"
               }}
             >
               {nameLatin.map((ch,i)=>(
@@ -1107,14 +1137,17 @@ function MobileCard() {
             </h1>
           </PrePlate>
 
+          {/* Showreel — тот же шрифт, что и на Desktop, и поменьше */}
           <PrePlate active={true}>
             <h3
               data-sr
               style={{
                 margin:`${HALF_LINE} 0 0`,
-                fontSize:"clamp(14px, 4.6vw, 18px)",
-                letterSpacing:"0.08em", color:"#cfcfcf", userSelect:"none",
-                fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" // как на desktop
+                fontSize:"clamp(13px, 4.2vw, 17px)", // ↓ чуть меньше
+                letterSpacing:"0.08em",
+                color:"#cfcfcf",
+                userSelect:"none",
+                fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui"
               }}
             >
               {srLetters.map((ch,i)=>(
@@ -1127,6 +1160,7 @@ function MobileCard() {
             </h3>
           </PrePlate>
 
+          {/* Кружочки */}
           <div ref={dotsRef} style={{ marginTop:`calc(${HALF_LINE} + 6px)`, display:"flex", gap:16, alignItems:"center" }}>
             {[1,2,3].map((n,idx)=>(
               <div key={n} data-dot>
@@ -1143,10 +1177,10 @@ function MobileCard() {
         </div>
       </div>
 
-      {/* Соц-иконки — внизу экрана, ниже на «одну строку» */}
+      {/* Соц-иконки — внизу (как было), только ничего лишнего не менял */}
       <div style={{
         position:"fixed", left:"50%", transform:"translateX(-50%)",
-        bottom:"calc(10vh - 1.2em + env(safe-area-inset-bottom, 0px))", // ↓ смещены ниже
+        bottom:"calc(10vh - 1.2em + env(safe-area-inset-bottom, 0px))",
         display:"flex", justifyContent:"center", gap:20,
         zIndex:2147483601
       }}>
@@ -1205,7 +1239,7 @@ function MobileCard() {
   );
 }
 
-/* ===== Vimeo overlay ===== */
+/* ===== Vimeo overlay — без изменений логики ===== */
 function VideoOverlay({ open, onClose, vimeoId, full=true }) {
   const dragRef = useRef({active:false,startY:0,dy:0});
   const iframeRef = useRef(null);
@@ -1236,7 +1270,7 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
     : { position:"relative", width:"60vw", maxWidth:1200, height:"60vh", borderRadius:12, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.55)", background:"#000" };
 
   const queryMuted = full ? 1 : 0;
-
+  
   return (
     <div onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
          style={{ position:"fixed", inset:0, zIndex:2147486000, background:"rgba(0,0,0,0.96)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vw" }}>
