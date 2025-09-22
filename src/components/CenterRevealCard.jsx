@@ -1148,17 +1148,20 @@ function MobileCard() {
   }
 `}</style>
 
-{/* BIO — Royal Crescent (как на desktop) */}
+{/* BIO — как на Desktop: Royal Crescent (400) */}
 <PrePlate active={true}>
   <h2
     data-bio
     onClick={()=>setBioOpen(true)}
-    className="m-royal"
     style={{
       margin: 0,
       marginTop: `calc(${ONE_LINE} * 2)`,
       fontSize: "clamp(15px, 4.8vw, 20px)",
+      letterSpacing: "0.08em",
       userSelect: "none",
+      fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
+      fontWeight: 400,
+      fontSynthesis: "none",
     }}
   >
     {lettersBio.map((ch,i)=>(
@@ -1179,18 +1182,21 @@ function MobileCard() {
   </h2>
 </PrePlate>
 
-{/* Имя — Rostov (как на desktop) */}
+{/* Имя — как на Desktop: Rostov (800) */}
 <PrePlate active={true}>
   <h1
     data-name
     onClick={()=> setCircle2Open(true)}
-    className="m-rostov"
     style={{
       margin: `${ONE_LINE} 0 0`,
       fontSize: "clamp(18px, 6.6vw, 28px)",
+      letterSpacing: "0.02em",
       userSelect: "none",
       cursor: "pointer",
       title: "Подробнее",
+      fontFamily: "'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
+      fontWeight: 800,
+      fontSynthesis: "none",
     }}
   >
     {nameLatin.map((ch,i)=>(
@@ -1212,16 +1218,19 @@ function MobileCard() {
   </h1>
 </PrePlate>
 
-{/* Showreel — Royal Crescent (как на desktop) */}
+{/* Showreel — как на Desktop: Royal Crescent (400) */}
 <PrePlate active={true}>
   <h3
     data-sr
-    className="m-royal"
     style={{
       margin: `calc(${HALF_LINE} + 8px) 0 0`,
       fontSize: "clamp(13px, 4.2vw, 17px)",
+      letterSpacing: "0.08em",
       color: "#cfcfcf",
       userSelect: "none",
+      fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
+      fontWeight: 400,
+      fontSynthesis: "none",
     }}
   >
     {srLetters.map((ch,i)=>(
@@ -1241,6 +1250,7 @@ function MobileCard() {
     ))}
   </h3>
 </PrePlate>
+
 
 
           {/* Кружочки — ниже, и №2 ещё чуть ниже */}
