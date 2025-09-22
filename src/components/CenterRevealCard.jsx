@@ -183,8 +183,7 @@ function Circle2Overlay({ open, onClose, diameter }) {
 
   const COLOR = "rgba(255,255,255,0.95)";
   const maxTextWidth = Math.round(D * 0.86);
-  const TEXT_SHIFT = Math.round(D * 0.06); // 6% диаметра вниз. Меняй число под себя
-
+  const TEXT_SHIFT = Math.round(D * 0.06); // 6% диаметра вниз
 
   function FitHeader({ text, baseRatio = 0.0416, minPx = 12 }) {
     const ref = React.useRef(null);
@@ -275,14 +274,14 @@ function Circle2Overlay({ open, onClose, diameter }) {
           animation: "c2pop 320ms cubic-bezier(.18,.8,.2,1) forwards"
         }}
       >
-        {/* Крестик — снаружи справа-сверху */}
+        {/* Крестик — ближе к краю круга */}
         <button
           aria-label="Close"
           onClick={onClose}
           style={{
             position: "absolute",
-            top: -34,
-            right: -34,
+            top: -20,
+            right: -20,
             width: 38,
             height: 38,
             borderRadius: 999,
@@ -354,7 +353,10 @@ function Circle2Overlay({ open, onClose, diameter }) {
             <div style={{ maxWidth: maxTextWidth, color: "rgba(255,255,255,0.95)", transform: `translateY(${TEXT_SHIFT}px)` }}>
               <FitHeader text="Режиссёр · Продюсер · Сценарист" />
               <BodyLine>
-                100+ артистов · 200+ проектов · 2+ млрд просмотров
+                100+ артистов · 200+ проектов
+              </BodyLine>
+              <BodyLine>
+                2+ млрд просмотров
               </BodyLine>
               <BodyLine>
                 Огромный опыт работы с топовыми артистами и селебрити-блогерами.
@@ -591,7 +593,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
             position: "absolute",
             left: "6%",
             right: "6%",
-            top: "28%",
+            top: "calc(28% + 4.5em)", /* ↓ опустили верхнюю границу на ~4.5 строки */
             bottom: 0,
             overflow: "auto",
             color: "#2f2f33",
@@ -1033,8 +1035,8 @@ function MobileCard() {
   const ONE_LINE = "1.2em";
   const HALF_LINE = "0.6em";
 
-  // Диаметр круга 2
-  const circle2Diam = Math.round(circleDiam * 1.5);
+  // Диаметр круга 2 — больше круга 1, может заходить за бока (но круг, не овал)
+  const circle2Diam = Math.round(circleDiam * 1.7); // ↑ было 1.5
 
   return (
     <>
@@ -1054,13 +1056,19 @@ function MobileCard() {
         <div style={{
           position:"relative", zIndex:1, width:"100%", height:"100%",
           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-          color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans'", textShadow:"0 1px 2px rgba(0,0,0,0.25)"
+          color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans'", textShadow:"0 1px 2px rgba(0,0,0,0.25)",
+          transform:"translateY(-1em)" // ↑ подняли контент круга 1 на «одну строку»
         }}>
           <PrePlate active={true}>
             <h2
               data-bio
               onClick={()=>setBioOpen(true)}
-              style={{ margin:0, marginTop:`calc(${ONE_LINE} * 2)`, fontSize:"clamp(16px, 5.2vw, 22px)", letterSpacing:"0.08em", userSelect:"none" }}
+              style={{
+                margin:0, marginTop:`calc(${ONE_LINE} * 2)`,
+                fontSize:"clamp(16px, 5.2vw, 22px)",
+                letterSpacing:"0.08em", userSelect:"none",
+                fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" // как на desktop
+              }}
             >
               {lettersBio.map((ch,i)=>(
                 <span key={i} data-idx={i}
@@ -1076,8 +1084,13 @@ function MobileCard() {
             <h1
               data-name
               onClick={()=> setCircle2Open(true)}
-              style={{ margin:`${ONE_LINE} 0 0`, fontSize:"clamp(20px, 7.2vw, 32px)", letterSpacing:"0.02em", userSelect:"none", cursor:"pointer" }}
-              title="Подробнее"
+              style={{
+                margin:`${ONE_LINE} 0 0`,
+                fontSize:"clamp(20px, 7.2vw, 32px)",
+                letterSpacing:"0.02em", userSelect:"none", cursor:"pointer",
+                title:"Подробнее",
+                fontFamily:"'Uni Sans Heavy','Uni Sans',system-ui" // как на desktop
+              }}
             >
               {nameLatin.map((ch,i)=>(
                 <span key={i} data-idx={i}
@@ -1097,7 +1110,12 @@ function MobileCard() {
           <PrePlate active={true}>
             <h3
               data-sr
-              style={{ margin:`${HALF_LINE} 0 0`, fontSize:"clamp(14px, 4.6vw, 18px)", letterSpacing:"0.08em", color:"#cfcfcf", userSelect:"none" }}
+              style={{
+                margin:`${HALF_LINE} 0 0`,
+                fontSize:"clamp(14px, 4.6vw, 18px)",
+                letterSpacing:"0.08em", color:"#cfcfcf", userSelect:"none",
+                fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" // как на desktop
+              }}
             >
               {srLetters.map((ch,i)=>(
                 <span key={i} data-idx={i}
@@ -1125,10 +1143,10 @@ function MobileCard() {
         </div>
       </div>
 
-      {/* Соц-иконки — внизу экрана */}
+      {/* Соц-иконки — внизу экрана, ниже на «одну строку» */}
       <div style={{
         position:"fixed", left:"50%", transform:"translateX(-50%)",
-        bottom:"calc(10vh + env(safe-area-inset-bottom, 0px))",
+        bottom:"calc(10vh - 1.2em + env(safe-area-inset-bottom, 0px))", // ↓ смещены ниже
         display:"flex", justifyContent:"center", gap:20,
         zIndex:2147483601
       }}>
