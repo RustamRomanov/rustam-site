@@ -566,7 +566,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
   /* Текст: ровно 5 строк ниже (надёжно — в пикселях) */
   const FS_PX       = 16;     // кегль текста
   const LINE_HEIGHT = 1.28;   // межстрочный
-  const LINES_ABOVE = 10;      // требуемые 5 строк
+  const LINES_ABOVE = 12;      // требуемые 5 строк
   const TEXT_TOP_PX = Math.round(FS_PX * LINE_HEIGHT * LINES_ABOVE); // ~102px
 
   return (
@@ -627,7 +627,9 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
             textShadow: "none",
             whiteSpace: "pre-wrap",
             textAlign: "justify",
+            paddingLeft: `${FS_PX * 1}px`,  // 1 символ при font-size=16px ≈ 1 буква
             textAlignLast: "left"
+            
           }}
         >
 {`В 2009-м я переехал в Москву. Снимал рэп-клипы на «зеркалку» с горящими глазами и верой, что всё получится. Получилось. 
