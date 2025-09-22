@@ -603,7 +603,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            objectPosition: "50% 22%"   // ← было 28%, теперь ещё выше
+            objectPosition: "60% 22%"   // ← было 28%, теперь ещё выше
           }}
         />
 
