@@ -524,7 +524,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
 }
 
 
-/* ===== BIO Mobile overlay — прозрачный фон, фото выше, кнопки выше, текст на 5 строк ниже ===== */
+/* ===== BIO Mobile overlay — верх фото сильнее открыт, кнопки выше, текст точно на 6 строк ниже ===== */
 function BioMobileOverlay({ open, onClose, imageSrc }) {
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -558,21 +558,21 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
     </svg>
   );
 
-  /* Геометрия окна: оставляем поля, окно немного ниже, чтобы верх фото не резался */
+  /* Геометрия окна — НЕ двигаем (как сейчас) */
   const SIDE_INSET = "6%";
-  const TOP_GAP    = "16svh";   // окно ниже
+  const TOP_GAP    = "16svh";   // окно остаётся на месте
   const BOT_GAP    = "5svh";
 
-  /* Текст: 5 строк от верхнего края контента */
-  const LINES_ABOVE = 5;
-  const LINE_HEIGHT = 1.28;  // должен совпадать со style.lineHeight
+  /* Текст: 6 строк вниз от верхней границы окна, считаем пиксельно (надёжно для iOS/Android) */
+  const FS_PX = 16;      // базовый кегль текста
+  const LH    = 1.28;    // межстрочный интервал
 
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        background: "transparent",        // ← фон не затемняем
+        background: "transparent",   // фон не затемняем
         zIndex: 2147485600,
         pointerEvents: "auto"
       }}
@@ -593,7 +593,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
           boxShadow: "0 30px 80px rgba(0,0,0,0.55)"
         }}
       >
-        {/* Фото — «открываем» верх: двигаем фокус выше */}
+        {/* Фото — ещё сильнее открываем верх */}
         <img
           src={imageSrc}
           alt="bio-mobile"
@@ -603,24 +603,28 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            objectPosition: "50% 32%" /* было ~46%, теперь выше — лучше виден верх кадра */
+            objectPosition: "50% 22%"   // ← было 28%, теперь ещё выше
           }}
         />
 
-        {/* Текст: шрифт ABC_TypeWriterRussian, чёрный без теней; отступ сверху = 5 строк */}
+        {/* Текст — шрифт ABC_TypeWriterRussian, верх на 6 строк ниже (надёжный calc по пикселям) */}
         <div
           className="bio-scroll-m"
           style={{
             position: "absolute",
             left: "6%",
             right: "6%",
-            top: `calc(${LINES_ABOVE} * ${LINE_HEIGHT}em)`,  // ← реально 5 строк
+            // Используем CSS-переменные для точного вычисления:
+            // top = 6 строк * line-height * font-size
+            "--fs": `${FS_PX}px`,
+            "--lh": LH,
+            top: "calc(6 * var(--lh) * var(--fs))",
             bottom: "5%",
             overflow: "auto",
             color: "#000",
             fontFamily: "'ABC_TypeWriterRussian', system-ui, -apple-system, 'Segoe UI', Roboto",
-            fontSize: 16,
-            lineHeight: LINE_HEIGHT,
+            fontSize: FS_PX,
+            lineHeight: LH,
             paddingRight: 12,
             textShadow: "none",
             whiteSpace: "pre-wrap",
@@ -642,14 +646,14 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         </div>
       </div>
 
-      {/* Кнопки: поднял ещё выше над окном; Mute немного ближе к крестику */}
+      {/* Кнопки — ещё немного выше */}
       <button
         aria-label={isMuted ? "Unmute" : "Mute"}
         onClick={() => setIsMuted((m) => !m)}
         style={{
           position: "absolute",
-          top: `calc(${TOP_GAP} - 44px)`,        // ← выше
-          right: `calc(${SIDE_INSET} + 46px)`,   // ближе к крестику
+          top: `calc(${TOP_GAP} - 64px)`,        // ← поднял выше
+          right: `calc(${SIDE_INSET} + 46px)`,
           width: 40,
           height: 40,
           borderRadius: 999,
@@ -670,7 +674,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         onClick={onClose}
         style={{
           position: "absolute",
-          top: `calc(${TOP_GAP} - 44px)`,  // ← выше
+          top: `calc(${TOP_GAP} - 64px)`,        // ← поднял выше
           right: SIDE_INSET,
           width: 40,
           height: 40,
