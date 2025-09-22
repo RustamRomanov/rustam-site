@@ -1104,7 +1104,7 @@ function MobileCard() {
   const HALF_LINE = "0.6em";
 
   // Круг 2 — больше на 5% (mobile)
-  const circle2Diam = Math.round(circleDiam * 1.25 * 1.05);
+  const circle2Diam = Math.round(circleDiam * 1.35 * 1.05);
 
   return (
     <>
@@ -1132,7 +1132,7 @@ function MobileCard() {
           textShadow:"0 1px 2px rgba(0,0,0,0.25)",
           transform:"translateY(-0.6em)" // чуть выше базовой линии, т.к. элементы опускаем ниже отдельно
         }}>
-          {/* BIO — Royal Crescent (вес 400, без синтеза) */}
+          {/* BIO — Royal Crescent (вес 400) */}
 <PrePlate active={true}>
   <h2
     data-bio
@@ -1143,9 +1143,9 @@ function MobileCard() {
       fontSize: "clamp(15px, 4.8vw, 20px)",
       letterSpacing: "0.08em",
       userSelect: "none",
-      fontFamily: "'Royal Crescent', serif",   // временно убрал Uni Sans из fallback
-      fontWeight: 400,                         // реальный вес для Royal Crescent
-      fontSynthesis: "none",                   // отключить фейковый жир/наклон
+      fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
+      fontWeight: 400,
+      fontSynthesis: "none",
     }}
   >
     {lettersBio.map((ch,i)=>(
@@ -1166,7 +1166,7 @@ function MobileCard() {
   </h2>
 </PrePlate>
 
-{/* Имя — Rostov (вес 800, без синтеза) */}
+{/* Имя — Rostov (вес 800) */}
 <PrePlate active={true}>
   <h1
     data-name
@@ -1178,8 +1178,8 @@ function MobileCard() {
       userSelect: "none",
       cursor: "pointer",
       title: "Подробнее",
-      fontFamily: "'Rostov', serif",           // временно без Uni Sans, чтобы сразу видеть подмену
-      fontWeight: 800,                         // реальный вес для Rostov
+      fontFamily: "'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
+      fontWeight: 800,
       fontSynthesis: "none",
     }}
   >
@@ -1202,7 +1202,7 @@ function MobileCard() {
   </h1>
 </PrePlate>
 
-{/* Showreel — Royal Crescent (вес 400, без синтеза) */}
+{/* Showreel — Royal Crescent (вес 400) */}
 <PrePlate active={true}>
   <h3
     data-sr
@@ -1212,7 +1212,7 @@ function MobileCard() {
       letterSpacing: "0.08em",
       color: "#cfcfcf",
       userSelect: "none",
-      fontFamily: "'Royal Crescent', serif",   // временно без Uni Sans
+      fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
       fontWeight: 400,
       fontSynthesis: "none",
     }}
@@ -1235,38 +1235,6 @@ function MobileCard() {
   </h3>
 </PrePlate>
 
-
-{/* Showreel — опустить чуть ниже */}
-<PrePlate active={true}>
-  <h3
-    data-sr
-    style={{
-      margin: `calc(${HALF_LINE} + 8px) 0 0`,
-      fontSize: "clamp(13px, 4.2vw, 17px)",
-      letterSpacing: "0.08em",
-      color: "#cfcfcf",
-      userSelect: "none",
-      fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
-      fontWeight: 400,
-    }}
-  >
-    {srLetters.map((ch,i)=>(
-      <span
-        key={i}
-        data-idx={i}
-        style={{
-          display:"inline-block",
-          whiteSpace:"pre",
-          color: srStick[i] ? srColors[i] : "#cfcfcf",
-          transform: srStick[i] ? "scale(1.2)" : "scale(1)",
-          transition:"transform 140ms ease, color 160ms ease"
-        }}
-      >
-        {ch===" " ? "\u00A0" : ch}
-      </span>
-    ))}
-  </h3>
-</PrePlate>
 
 
           {/* Кружочки — ниже, и №2 ещё чуть ниже */}
