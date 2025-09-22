@@ -168,12 +168,14 @@ function PrePlate({ active, children, expandX=14, expandY=8, radius=12, centerOp
   );
 }
 
-/* ===== Overlay КРУГ 2 (универсальный для desktop/mobile) ===== */
-function Circle2Overlay({ open, onClose, diameter }) {
+/* ===== Overlay КРУГ 2 — теперь с variant ===== */
+function Circle2Overlay({ open, onClose, diameter, variant="desktop" }) {
   const [imgSrc, setImgSrc] = React.useState("/rustam-site/assents/foto/circle2.jpg");
   if (!open) return null;
 
-  const D = Math.round(diameter);
+  // На мобильнике уменьшаем всё на 15%
+  const scale = variant === "mobile" ? 0.85 : 1;
+  const D = Math.round(diameter * scale);
 
   // семейства шрифта
   const FAMILY_HEADER =
@@ -182,10 +184,9 @@ function Circle2Overlay({ open, onClose, diameter }) {
     "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
 
   const COLOR = "rgba(255,255,255,0.95)";
-  const maxTextWidth = Math.round(D * 0.80);          // было 0.86 — сузил, чтобы текст не выходил за круг
-  const TEXT_SHIFT = Math.round(D * 0.05);            // чуть меньше смещения вниз
+  const maxTextWidth = Math.round(D * 0.80);
+  const TEXT_SHIFT = Math.round(D * 0.05);
 
-  // Заголовок по кругу с авто-ужатием
   function FitHeader({ text, baseRatio = 0.040, minPx = 12 }) {
     const ref = React.useRef(null);
     const [fs, setFs] = React.useState(Math.max(minPx, Math.round(D * baseRatio)));
@@ -216,13 +217,12 @@ function Circle2Overlay({ open, onClose, diameter }) {
     );
   }
 
-  // Тело поменьше, плотнее
-  const BODY_FS = Math.max(12, Math.round(D * 0.0225));   // было 0.0256 — сделал компактней
+  const BODY_FS = Math.max(12, Math.round(D * 0.0225));
 
   const BodyLine = ({ children, delay = 180, mt = Math.round(D * 0.018) }) => (
     <div
       style={{
-        marginTop: mt,                                 // компактнее межстрочный интервал
+        marginTop: mt,
         textAlign: "center",
         animation: `c2breath 6200ms ease-in-out ${delay}ms infinite`,
         willChange: "transform"
@@ -238,7 +238,7 @@ function Circle2Overlay({ open, onClose, diameter }) {
           fontFamily: FAMILY_BODY,
           fontWeight: 700,
           fontSize: BODY_FS,
-          lineHeight: 1.24,                            // плотнее
+          lineHeight: 1.24,
           letterSpacing: "0.02em",
           color: COLOR
         }}
@@ -258,7 +258,7 @@ function Circle2Overlay({ open, onClose, diameter }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 0                                     // убрал 3vw, чтобы круг мог выходить за бока
+        padding: 0
       }}
     >
       <div
@@ -266,7 +266,7 @@ function Circle2Overlay({ open, onClose, diameter }) {
           position: "relative",
           width: D,
           height: D,
-          aspectRatio: "1 / 1",                        // железно круг
+          aspectRatio: "1 / 1",
           borderRadius: "50%",
           overflow: "visible",
           transform: "scale(0.6)",
@@ -276,7 +276,7 @@ function Circle2Overlay({ open, onClose, diameter }) {
           willChange: "transform,opacity"
         }}
       >
-        {/* Крестик — ближе к краю круга */}
+        {/* Крестик */}
         <button
           aria-label="Close"
           onClick={onClose}
@@ -313,7 +313,6 @@ function Circle2Overlay({ open, onClose, diameter }) {
             boxShadow: "0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.08)"
           }}
         >
-          {/* Фон — темнее, без блюра */}
           <img
             src={imgSrc}
             alt="circle2"
@@ -737,7 +736,7 @@ function DesktopCard() {
       if(Math.abs(next-a)>0.001){ 
         plateAlphaRef.current=next; 
         setPlateAlpha(next); 
-        const norm = clamp((next-BASE_OPACITY)/(PLATE_OPACITY_MAX-BASE_OPACITY),0,1);
+        const norm = clamp((next-BASE_OPACITY)/(PLATE_OPACITY_MAX-BASE_OPITY),0,1);
         setPlateProx(norm);
       }
       raf=requestAnimationFrame(tick);
@@ -810,13 +809,16 @@ function DesktopCard() {
       const overCR=cr?within(x,y,{left:cr.left,top:cr.top,right:cr.right,bottom:cr.bottom}):false;
       const overNM=nr?within(x,y,{left:nr.left,top:nr.top,right:nr.right,bottom:nr.bottom}):false;
       let next=last; if(overNM) next=false; else if(overSR||overCR) next=true;
-      if(next!==last){ setCirclesVisible(next); if(next) {/* порядок кружков не критичен */} last=next; } }); };
+      if(next!==last){ setCirclesVisible(next); last=next; } }); };
     window.addEventListener("mousemove",onMove,{passive:true}); return ()=>{ window.removeEventListener("mousemove",onMove); if(af) cancelAnimationFrame(af);} },[circlesVisible]);
 
   const contentWrap={ position:"relative", width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:1 };
   const headerWrap={ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap: Math.round(titleFS*0.42), marginTop: Math.round((titleFS/1.5) * 3.2), color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans', system-ui", textShadow:"0 1px 2px rgba(0,0,0,0.25)" };
 
   const circle2Diam = Math.round(circleDiam * 1.5);
+
+  // << NEW: hover-подсказка клика на десктопе >>
+  const [nameHover, setNameHover] = useState(false);
 
   return (
     <>
@@ -835,7 +837,8 @@ function DesktopCard() {
               <div ref={showreelRef}
                    onMouseLeave={() => setSrStick(Array.from(showreelText).map(()=>false))}
                    style={{ position:"relative", display:"inline-block", marginTop: Math.round(titleFS*0.3), marginBottom: Math.round(directedFS*0.2), cursor: `url(${CURSOR_URL}) 10 10, default` }}>
-                <h2 style={{ margin:0, fontSize: directedFS, letterSpacing:"0.08em", whiteSpace:"nowrap", userSelect:"none", position:"relative", zIndex:1, fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" }}>
+                <h2 style={{ margin:0, fontSize: directedFS, letterSpacing:"0.08em", whiteSpace:"nowrap", userSelect:"none", position:"relative", zIndex:1, fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
+                              transition:"transform 160ms ease, text-shadow 160ms ease" }}>
                   {Array.from(showreelText).map((ch,i)=>(
                     <span key={`sr-${i}`}
                       onMouseEnter={()=>{ if(!srStick[i]) { playHoverSoft(); } setSrStick(s=>{const a=[...s]; a[i]=true; return a;}); setSrColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); }}
@@ -861,12 +864,16 @@ function DesktopCard() {
             <PrePlate active={!isInside}>
               <h1
                 ref={nameRef}
-                onMouseLeave={() => setNameStick(Array.from(nameLatin).map(()=>false))}
+                onMouseEnter={()=>setNameHover(true)}
+                onMouseLeave={()=>setNameHover(false)}
                 onClick={()=> setCircle2Open(true)}
                 style={{
                   margin:0, fontSize:nameFS, letterSpacing:"0.02em", whiteSpace:"nowrap",
                   userSelect:"none", cursor:"pointer",
                   fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
+                  transition:"transform 160ms ease, text-shadow 160ms ease",
+                  transform: nameHover ? "scale(1.04)" : "scale(1)",
+                  textShadow: nameHover ? "0 2px 6px rgba(0,0,0,0.45)" : "0 1px 2px rgba(0,0,0,0.25)"
                 }}
                 title="Подробнее"
               >
@@ -877,8 +884,7 @@ function DesktopCard() {
                     <span key={`n-${i}`}
                       onMouseEnter={()=>{ if(!nameStick[i]) { playHoverSoft(); } setNameStick(s=>{const a=[...s]; a[i]=true; return a;}); setNameColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); }}
                       style={{ display:"inline-block", whiteSpace:"pre", color: nameStick[i] ? nameColors[i] : "#cfcfcf",
-                               transform: nameStick[i] ? "scale(1.3)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease",
-                               textShadow:"0 1px 2px rgba(0,0,0,0.25)" }}>
+                               transform: nameStick[i] ? "scale(1.3)" : "scale(1)", transition:"transform 140ms ease, color 160ms ease" }}>
                       {show}
                     </span>
                   );
@@ -888,7 +894,8 @@ function DesktopCard() {
 
             <div style={{ marginTop: Math.round(titleFS*0.9) }}>
               <PrePlate active={!isInside}>
-                <BiographyWordPerLetter onOpen={()=>setBioOpen(true)} />
+                {/* << NEW: общий hover-скейл + тень для BIOGRAPHY на десктопе >> */}
+                <BiographyWordPerLetter onOpen={()=>setBioOpen(true)} hoverAffordance />
               </PrePlate>
             </div>
 
@@ -911,7 +918,8 @@ function DesktopCard() {
 
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full={false}/>
       <BioOverlay   open={bioOpen}   onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio.jpg"/>
-      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={circle2Diam}/>
+      {/* variant='desktop' */}
+      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={circle2Diam} variant="desktop"/>
 
       <style>{`
         .glass-plate.circle{ background: rgba(255,255,255,0.07); -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2); box-shadow: 0 12px 28px rgba(0,0,0,0.22); border-radius: 50%; overflow:hidden;}
@@ -925,16 +933,19 @@ function DesktopCard() {
 }
 
 /* ===== BIOGRAPHY per-letter (desktop) — Royal Crescent ===== */
-function BiographyWordPerLetter({ onOpen }) {
+function BiographyWordPerLetter({ onOpen, hoverAffordance=false }) {
   const { playIcon } = useAudio();
   const latin = Array.from("BIOGRAPHY");
   const map = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
   const [stick,setStick]=useState(latin.map(()=>false));
   const [colors,setColors]=useState(latin.map(()=>"#ffffff"));
+  const [hovered, setHovered] = useState(false); // общий ховер для подсказки клика
+
   return (
     <h2
       onClick={onOpen}
-      onMouseLeave={()=>setStick(latin.map(()=>false))}
+      onMouseEnter={()=>setHovered(true)}
+      onMouseLeave={()=>{ setHovered(false); setStick(latin.map(()=>false)); }}
       style={{
         margin:0,
         cursor:"pointer",
@@ -943,8 +954,12 @@ function BiographyWordPerLetter({ onOpen }) {
         display:"inline-block",
         whiteSpace:"nowrap",
         letterSpacing:"0.08em",
-        fontFamily:"'Royal Crescent',system-ui"
+        fontFamily:"'Royal Crescent',system-ui",
+        transition:"transform 160ms ease, text-shadow 160ms ease",
+        transform: hoverAffordance && hovered ? "scale(1.04)" : "scale(1)",
+        textShadow: hoverAffordance && hovered ? "0 2px 6px rgba(0,0,0,0.45)" : "none"
       }}
+      title="Biography"
     >
       {latin.map((ch,i)=>(
         <span
@@ -1057,8 +1072,8 @@ function MobileCard() {
   const ONE_LINE = "1.2em";
   const HALF_LINE = "0.6em";
 
-  // Круг 2 — больше круга 1. Это именно круг (width===height), может выходить за бока.
-  const circle2Diam = Math.round(circleDiam * 1.7);
+  // Круг 2 — 15% меньше для мобильника (и текст пропорционально меньше).
+  const circle2Diam = Math.round(circleDiam * 1.7 * 0.85); // ⬅️ 0.85 = минус 15%
 
   return (
     <>
@@ -1091,7 +1106,7 @@ function MobileCard() {
               style={{
                 margin:0,
                 marginTop:`calc(${ONE_LINE} * 2)`,
-                fontSize:"clamp(15px, 4.8vw, 20px)",   // ↓ чуть меньше
+                fontSize:"clamp(15px, 4.8vw, 20px)",
                 letterSpacing:"0.08em",
                 userSelect:"none",
                 fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui"
@@ -1114,7 +1129,7 @@ function MobileCard() {
               onClick={()=> setCircle2Open(true)}
               style={{
                 margin:`${ONE_LINE} 0 0`,
-                fontSize:"clamp(18px, 6.6vw, 28px)",  // ↓ чуть меньше
+                fontSize:"clamp(18px, 6.6vw, 28px)",
                 letterSpacing:"0.02em",
                 userSelect:"none",
                 cursor:"pointer",
@@ -1143,7 +1158,7 @@ function MobileCard() {
               data-sr
               style={{
                 margin:`${HALF_LINE} 0 0`,
-                fontSize:"clamp(13px, 4.2vw, 17px)", // ↓ чуть меньше
+                fontSize:"clamp(13px, 4.2vw, 17px)",
                 letterSpacing:"0.08em",
                 color:"#cfcfcf",
                 userSelect:"none",
@@ -1205,7 +1220,8 @@ function MobileCard() {
       {/* Оверлеи */}
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
-      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={circle2Diam}/>
+      {/* ⬇️ передаю variant="mobile" и диаметр уже уменьшен на 15% */}
+      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={circle2Diam} variant="mobile" />
 
       <style>{`
         .glass-plate.circle{
@@ -1270,7 +1286,7 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
     : { position:"relative", width:"60vw", maxWidth:1200, height:"60vh", borderRadius:12, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.55)", background:"#000" };
 
   const queryMuted = full ? 1 : 0;
-  
+
   return (
     <div onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
          style={{ position:"fixed", inset:0, zIndex:2147486000, background:"rgba(0,0,0,0.96)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vw" }}>
