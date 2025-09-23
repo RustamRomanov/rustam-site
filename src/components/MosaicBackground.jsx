@@ -703,21 +703,27 @@ export default function MosaicBackground() {
 
         // >>>>>>> МОБИЛЬНОЕ ПОВЕДЕНИЕ: ширина во весь экран, якорение по верх/низ <<<<<<<
 if (isMobile) {
-  // Отступы сверху/снизу и по бокам = 5% экрана
-  const marginX = w * 0.05; // 5% ширины
-  const marginY = h * 0.05; // 5% высоты
+  // Отступы
+  const marginX = w * 0.05; // слева/справа
+  const marginY = h * 0.05; // сверху/снизу
 
+  // Доступная ширина
   const availW = w - marginX * 2;
-  const availH = h - marginY * 2;
 
-  // Масштабируем изображение так, чтобы вписалось в "рамку"
-  const scale = Math.min(availW / img.width, availH / img.height);
-  const drawW = Math.floor(img.width * scale);
+  // Масштаб по ширине
+  const scale = availW / img.width;
+  const drawW = availW;
   const drawH = Math.floor(img.height * scale);
 
-  // Центрируем внутри "рамки"
+  // X — центрируем по горизонтали с учётом отступов
   const drawX = Math.floor((w - drawW) / 2);
-  const drawY = Math.floor((h - drawH) / 2);
+
+  // Y — если картинка в верхней половине, то отступ сверху, иначе снизу
+  const tileCenterY = tile.r * tileH + tileH / 2;
+  const anchorTop = tileCenterY < (h / 2);
+  const drawY = anchorTop
+    ? Math.floor(marginY)              // сверху 5%
+    : Math.floor(h - drawH - marginY); // снизу 5%
 
   ctx.save();
   roundedRect(ctx, drawX, drawY, drawW, drawH, ZOOM_RADIUS);
@@ -744,6 +750,7 @@ if (isMobile) {
   ctx.drawImage(img,0,0,img.width,img.height,Math.floor(drawX),Math.floor(drawY),drawW,drawH);
   ctx.restore();
 }
+
 
 
 
