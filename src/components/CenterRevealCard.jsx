@@ -1110,7 +1110,7 @@ function MobileCard() {
               onClick={()=>{ playDot(); setBioOpen(true); }}
               style={{
                 margin: 0,
-                fontSize: "clamp(18px, 6.6vw, 28px)",
+                fontSize: "clamp(13px, 4.2vw, 17px)",
                 letterSpacing: "0.08em",
                 userSelect: "none",
                 fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
@@ -1146,12 +1146,12 @@ function MobileCard() {
               onClick={()=> { playDot(); setCircle2Open(true); }}
               style={{
                 margin: "0.7em 0 0",
-                fontSize: "clamp(18px, 6.6vw, 28px)",
+                fontSize: "clamp(22px, 6.6vw, 28px)",
                 letterSpacing: "0.02em",
                 userSelect: "none",
                 cursor: "pointer",
                 fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
-                fontWeight: 800,
+                fontWeight: 400,
                 fontSynthesis: "none",
               }}
               title="Подробнее"
@@ -1291,7 +1291,7 @@ function MobileCard() {
       opacity: 0.95; /* начальная плотность как раньше */
     }
     50% {
-      transform: translate(-50%,-50%) scale(1.06); /* было 1.02, теперь в 3 раза больше */
+      transform: translate(-50%,-50%) scale(1.08); /* было 1.02, теперь в 3 раза больше */
       opacity: 0.5; /* максимальная прозрачность на пике */
     }
   }
