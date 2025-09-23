@@ -172,8 +172,8 @@ function PrePlate({ active, children, expandX=14, expandY=8, radius=12, centerOp
   );
 }
 
-/* ===== Overlay «Круг 2» (как было, BODY +1px) ===== */
-function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropClose = false }) {
+/* ===== Overlay «Круг 2» (как было, BODY +1px, поддержка bodyInc) ===== */
+function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropClose = false, bodyInc = 0 }) {
   const [imgSrc, setImgSrc] = React.useState("/rustam-site/assents/foto/circle2.jpg");
   if (!open) return null;
 
@@ -226,7 +226,7 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
           hyphens: "auto",
           fontFamily: FAMILY_BODY,
           fontWeight: 700,
-          fontSize: BODY_FS + 1 + bodyInc, // <-- было BODY_FS+1, теперь можно добавить +bodyInc
+          fontSize: BODY_FS + 1 + bodyInc, // BODY +1px (как просил) + дополнительный инкремент, если передан
           lineHeight: 1.24,
           letterSpacing: "0.02em",
           color: COLOR
@@ -715,7 +715,7 @@ function BiographyWordPerLetter({ onOpen }) {
         display:"inline-block",
         whiteSpace:"nowrap",
         letterSpacing:"0.08em",
-        fontFamily:"'Royal Crescent',system-ui"
+        fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui"
       }}
     >
       {latin.map((ch,i)=>(
@@ -737,7 +737,7 @@ function BiographyWordPerLetter({ onOpen }) {
   );
 }
 
-/* ===== DESKTOP Card (кружков нет; SHOWREEL кликабелен) ===== */
+/* ===== DESKTOP Card (как было) ===== */
 function DesktopCard() {
   const { playHoverSoft, playDot } = useAudio();
 
@@ -754,7 +754,7 @@ function DesktopCard() {
   useEffect(()=>{ updateRect(); },[fixedSize]);
   useEffect(()=>{ const f=()=>updateRect(); window.addEventListener("resize",f); return ()=>window.removeEventListener("resize",f); },[]);
 
-  // Реакция круга 1 на близость курсора (как было)
+  // Реакция круга 1 на близость курсора
   const BASE_OPACITY = PLATE_OPACITY_MAX * 0.8;
   const plateTargetRef = useRef(BASE_OPACITY);
   const plateAlphaRef  = useRef(BASE_OPACITY);
@@ -956,7 +956,7 @@ function DesktopCard() {
   );
 }
 
-/* ===== Mobile Card (фикс только для мобилки по твоим пунктам) ===== */
+/* ===== Mobile Card (фикс для мобилки) ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
 
@@ -990,25 +990,19 @@ function MobileCard() {
     zIndex:2147483600, touchAction:"none"
   };
 
-  // КРУГ 1 — по центру, «дышит»
+  // КРУГ 1 — по центру, «дышит» (x3 амплитуда и до 50% прозрачности на пике)
   const baseDiam   = Math.min(size.w, size.h);
   const circleDiam = Math.round(baseDiam * 1.10);
-  const plateOuter = {
+
+  const plateStyle = {
     position:"absolute",
     left:"50%", top:"50%",
-    transform:"translate(-50%,-50%)",
-    animation: "mBreath 3200ms ease-in-out infinite"
+    transform:"translate(-50%,-50%) scale(1)",
+    width:circleDiam, height:circleDiam,
+    borderRadius:"50%",
+    pointerEvents:"none",
+    animation: "mBreath3x 3200ms ease-in-out infinite"
   };
-  const plateStyle = {
-  position:"absolute",
-  left:"50%", top:"50%",
-  transform:"translate(-50%,-50%) scale(1)",
-  width:circleDiam, height:circleDiam,
-  borderRadius:"50%",
-  pointerEvents:"none",
-  // дыхание: масштаб ↑ в 3 раза сильнее (до 1.06) и прозрачность падает до 0.5
-  animation: "mBreath3x 3200ms ease-in-out infinite"
-};
 
   // Тексты/буквы
   const lettersBio = Array.from("BIOGRAPHY");
@@ -1019,7 +1013,7 @@ function MobileCard() {
   const nameLatin = Array.from("RUSTAM ROMANOV");
   const mapName = { R:"Р", U:"У", S:"С", T:"Т", A:"А", M:"М", O:"О", N:"Н", V:"В", " ":"\u00A0" };
   const [stickName,setStickName]=useState(nameLatin.map(()=>false));
-  const [colorsName,setColorsName]=useState(nameLatin.map(()=>"#ffffff")); // изначально белый (волна на десктопе не нужна тут)
+  const [colorsName,setColorsName]=useState(nameLatin.map(()=>"#ffffff"));
 
   const srLetters = Array.from("SHOWREEL");
   const [srStick,setSrStick]=useState(srLetters.map(()=>false));
@@ -1051,13 +1045,10 @@ function MobileCard() {
   };
   const onPU = ()=>{ 
     draggingRef.current=false; 
-    // BIOGRAPHY — вернуть в белый и латиницу
     setStickBio(lettersBio.map(()=>false));
     setColorsBio(lettersBio.map(()=>"#ffffff"));
-    // SHOWREEL — вернуть в белый
     setSrStick(srLetters.map(()=>false));
     setSrColors(srLetters.map(()=>"#ffffff"));
-    // Имя — НИЧЕГО НЕ МЕНЯЕМ (по твоему ТЗ сейчас), только реакция при скролле по буквам
   };
   const onPM = (e)=>{
     if(!draggingRef.current) return;
@@ -1072,19 +1063,20 @@ function MobileCard() {
     }
   };
 
+  // Семейство шрифта как в тексте Круга 2 (BODY)
+  const FAMILY_BODY = "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
+
   return (
     <>
       <div style={wrapper}>
         {/* КРУГ 1 — стеклянная плашка с дыханием (по центру) */}
-<div style={plateOuter}>
-  <div className="glass-plate circle" style={plateStyle}>
-    <i className="bend ring" />
-    <i className="bend side left" />
-    <i className="bend side right" />
-    <i className="bend side top" />
-    <i className="bend side bottom" />
-  </div>
-</div>
+        <div className="glass-plate circle" style={plateStyle}>
+          <i className="bend ring" />
+          <i className="bend side left" />
+          <i className="bend side right" />
+          <i className="bend side top" />
+          <i className="bend side bottom" />
+        </div>
 
         {/* Контент — центр круга; drag по буквам */}
         <div
@@ -1104,7 +1096,7 @@ function MobileCard() {
             textShadow:"0 1px 2px rgba(0,0,0,0.25)"
           }}
         >
-          {/* BIOGRAPHY — кликабельно */}
+          {/* BIOGRAPHY — кликабельно. Шрифт = как BODY в Круге 2 */}
           <PrePlate active={true}>
             <h2
               onClick={()=>{ playDot(); setBioOpen(true); }}
@@ -1113,10 +1105,10 @@ function MobileCard() {
                 fontSize: "clamp(13px, 4.2vw, 17px)",
                 letterSpacing: "0.08em",
                 userSelect: "none",
-                fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
-                fontWeight: 400,
+                cursor: "pointer",
+                fontFamily: FAMILY_BODY,
+                fontWeight: 700,
                 fontSynthesis: "none",
-                cursor: "pointer"
               }}
               title="BIOGRAPHY"
             >
@@ -1140,7 +1132,7 @@ function MobileCard() {
             </h2>
           </PrePlate>
 
-          {/* Имя — РЕАГИРУЕТ ПО БУКВАМ при скролле (латиница→кириллица на активной букве) */}
+          {/* Имя — реагирует ПО БУКВАМ при скролле (латиница→кириллица по активной букве) */}
           <PrePlate active={true}>
             <h1
               onClick={()=> { playDot(); setCircle2Open(true); }}
@@ -1170,14 +1162,13 @@ function MobileCard() {
                     transition:"transform 140ms ease, color 160ms ease"
                   }}
                 >
-                  {/* замена по БУКВЕ, не всем словом */}
                   {stickName[i] ? (mapName[ch] || ch) : (ch===" " ? "\u00A0" : ch)}
                 </span>
               ))}
             </h1>
           </PrePlate>
 
-          {/* SHOWREEL — на строку ниже */}
+          {/* SHOWREEL — на строку ниже. Шрифт = как BODY в Круге 2 */}
           <PrePlate active={true}>
             <h3
               onClick={()=>{ playDot(); openShowreel(); }}
@@ -1188,8 +1179,8 @@ function MobileCard() {
                 color: "#ffffff",
                 userSelect: "none",
                 cursor:"pointer",
-                fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
-                fontWeight: 400,
+                fontFamily: FAMILY_BODY,
+                fontWeight: 700,
                 fontSynthesis: "none",
               }}
               title="Открыть шоу-рил"
@@ -1246,62 +1237,59 @@ function MobileCard() {
       {/* Оверлеи */}
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
-      {/* КРУГ 2: ДОПОЛНИТЕЛЬНО +5% ТОЛЬКО НА МОБИЛКЕ + ТЕКСТ ЕЩЁ +1 */}
+      {/* КРУГ 2: +5% ДОП на мобилке и текст ещё +1 (через bodyInc) */}
       <Circle2Overlay
         open={circle2Open}
         onClose={()=>setCircle2Open(false)}
-        diameter={Math.round(circleDiam * 1.25 * 1.10)}  // было +5% раньше, добавил ещё +5% (итого *1.10 от предыдущего)
+        diameter={Math.round(circleDiam * 1.25 * 1.05)}  // = базовый *1.25 и ещё +5%
         hideClose
         backdropClose
-        bodyInc={1}  // к прежнему +1 добавляем ещё +1
+        bodyInc={1}
       />
 
-      {/* ЛОКАЛЬНЫЕ СТИЛИ ДЛЯ МОБИЛКИ (Важно: стиль стеклянной плашки дублируем здесь, иначе круга "нет") */}
-     <style>{`
-  .glass-plate.circle{
-    background: rgba(255,255,255,0.07);
-    -webkit-backdrop-filter: blur(16px) saturate(1.2);
-    backdrop-filter: blur(16px) saturate(1.2);
-    box-shadow: 0 12px 28px rgba(0,0,0,0.22);
-    border-radius: 50%;
-    overflow:hidden;
-  }
-  .glass-plate.circle::before{
-    content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
-    -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
-    backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
-    -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
-    mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
-  }
-  .glass-plate.circle::after{
-    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-    background:
-      radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
-      radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
-      radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
-      radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
-      linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
-  }
+      {/* ЛОКАЛЬНЫЕ СТИЛИ ДЛЯ МОБИЛКИ (стеклянная плашка + дыхание 3x с прозрачностью до 0.5) */}
+      <style>{`
+        .glass-plate.circle{
+          background: rgba(255,255,255,0.07);
+          -webkit-backdrop-filter: blur(16px) saturate(1.2);
+          backdrop-filter: blur(16px) saturate(1.2);
+          box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+          border-radius: 50%;
+          overflow:hidden;
+        }
+        .glass-plate.circle::before{
+          content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
+          -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+          backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+          -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+          mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+        }
+        .glass-plate.circle::after{
+          content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+          background:
+            radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
+            radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
+            radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+            radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+            linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
+        }
 
-  /* Новое дыхание: масштаб x3 (до 1.06) и прозрачность до 0.5 на пике */
-  @keyframes mBreath3x {
-    0%, 100% {
-      transform: translate(-50%,-50%) scale(1);
-      opacity: 0.95; /* начальная плотность как раньше */
-    }
-    50% {
-      transform: translate(-50%,-50%) scale(1.08); /* было 1.02, теперь в 3 раза больше */
-      opacity: 0.5; /* максимальная прозрачность на пике */
-    }
-  }
-`}</style>
-
+        /* дыхание круга: масштаб x3 и прозрачность до 0.5 на пике */
+        @keyframes mBreath3x {
+          0%, 100% {
+            transform: translate(-50%,-50%) scale(1);
+            opacity: 0.95;
+          }
+          50% {
+            transform: translate(-50%,-50%) scale(1.08);
+            opacity: 0.5;
+          }
+        }
+      `}</style>
     </>
   );
 }
-
-
 
 /* ===== Экспорт (автосвитч) ===== */
 export default function CenterRevealCard() {
