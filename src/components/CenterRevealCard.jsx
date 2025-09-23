@@ -943,7 +943,7 @@ function DesktopCard() {
   );
 }
 
-/* ===== Mobile Card (круг 1 и шрифты — как на десктопе; без кружков; SHOWREEL кликабелен) ===== */
+/* ===== Mobile Card (дышит круг; волна имени; drag по буквам; SHOWREEL ниже) ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
   const [bioOpen,setBioOpen]=useState(false);
@@ -976,21 +976,23 @@ function MobileCard() {
     zIndex:2147483600, touchAction:"none"
   };
 
-  // Круг 1: такая же логика диаметра, как на десктопе
-  const baseDiam = Math.min(size.w, size.h);
+  // КРУГ 1 — идентичен десктопу, но «дышит»
+  const baseDiam   = Math.min(size.w, size.h);
   const circleDiam = Math.round(baseDiam * 1.10);
 
-  // Стеклянная плашка (без «дыхания», как на десктопе)
-  const plateStyle = {
+  const plateOuter = {
     position:"absolute",
     left:"50%", top:"50%",
-    transform:"translate(-50%,-50%) scale(1)",
-    transformOrigin:"50% 50%",
+    transform:"translate(-50%,-50%)",
+    animation: "mBreath 3200ms ease-in-out infinite" // дыхание круга
+  };
+  const plateStyle = {
+    position:"relative",
     width:circleDiam, height:circleDiam,
     borderRadius:"50%", opacity: PLATE_OPACITY_MAX, pointerEvents:"none"
   };
 
-  // Тексты (шрифты те же, что на десктопе)
+  // Состояния букв
   const lettersBio = Array.from("BIOGRAPHY");
   const mapBio = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
   const [stickBio,setStickBio]=useState(lettersBio.map(()=>false));
@@ -1002,25 +1004,49 @@ function MobileCard() {
 
   const srLetters = Array.from("SHOWREEL");
   const [srStick,setSrStick]=useState(srLetters.map(()=>false));
-  const [srColors,setSrColors]=useState(srLetters.map(()=>"#bfbfbf"));
+  const [srColors,setSrColors]=useState(srLetters.map(()=>"#cfcfcf"));
 
-  const hitLetter = (idx, setterStick, setterColor) => {
+  // «Подсветить» букву + звук
+  const hitLetter = (idx, setterStick, setterColor, sound = "hover") => {
     setterStick(prev=>{ if(!prev[idx]) { const a=[...prev]; a[idx]=true; return a; } return prev; });
     setterColor(c=>{ const a=[...c]; a[idx]=randColor(); return a; });
-    playHoverSoft();
+    if (sound === "click") playDot(); else playHoverSoft();
+  };
+
+  // Drag/scroll по буквам: обрабатываем перемещение пальца поверх спанов
+  const draggingRef = useRef(false);
+  const onPD = (e)=>{ draggingRef.current=true; e.currentTarget.setPointerCapture?.(e.pointerId); onPM(e); };
+  const onPU = (e)=>{ draggingRef.current=false; };
+  const onPM = (e)=>{
+    if(!draggingRef.current) return;
+    const x=e.clientX, y=e.clientY;
+    const el = document.elementFromPoint(x,y);
+    const idx = Number(el?.getAttribute?.("data-idx"));
+    const group = el?.getAttribute?.("data-group");
+    if(Number.isFinite(idx) && group){
+      if(group==="bio")  hitLetter(idx,setStickBio,setColorsBio);
+      if(group==="name") hitLetter(idx,setStickName,setColorsName);
+      if(group==="sr")   hitLetter(idx,setSrStick,setSrColors);
+    }
   };
 
   return (
     <>
       <div style={wrapper}>
-        {/* КРУГ 1 — идентичен десктопу */}
-        <div className="glass-plate circle" style={plateStyle}>
-          <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
-          <i className="bend side top" /><i className="bend side bottom" />
+        {/* КРУГ 1 — стеклянная плашка с дыханием */}
+        <div style={plateOuter}>
+          <div className="glass-plate circle" style={plateStyle}>
+            <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
+            <i className="bend side top" /><i className="bend side bottom" />
+          </div>
         </div>
 
-        {/* Контент (строго по центру круга 1) */}
+        {/* Контент строго по центру круга 1; ловим drag по буквам */}
         <div
+          onPointerDown={onPD}
+          onPointerMove={onPM}
+          onPointerUp={onPU}
+          onPointerCancel={onPU}
           style={{
             position:"absolute",
             left:"50%", top:"50%", transform:"translate(-50%,-50%)",
@@ -1033,10 +1059,10 @@ function MobileCard() {
             textShadow:"0 1px 2px rgba(0,0,0,0.25)"
           }}
         >
-          {/* BIOGRAPHY — шрифт Royal Crescent */}
+          {/* BIOGRAPHY — Royal Crescent */}
           <PrePlate active={true}>
             <h2
-              onClick={()=>setBioOpen(true)}
+              onClick={(e)=>{ playDot(); }}
               style={{
                 margin: 0,
                 fontSize: "clamp(15px, 4.8vw, 20px)",
@@ -1045,12 +1071,16 @@ function MobileCard() {
                 fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
                 fontWeight: 400,
                 fontSynthesis: "none",
+                cursor: "pointer"
               }}
+              title="BIOGRAPHY"
             >
               {lettersBio.map((ch,i)=>(
                 <span
                   key={i}
+                  data-idx={i} data-group="bio"
                   onMouseEnter={()=>hitLetter(i,setStickBio,setColorsBio)}
+                  onPointerDown={()=>hitLetter(i,setStickBio,setColorsBio,"click")}
                   style={{
                     display:"inline-block",
                     whiteSpace:"pre",
@@ -1065,12 +1095,12 @@ function MobileCard() {
             </h2>
           </PrePlate>
 
-          {/* Имя — шрифт Rostov, открывает Круг 2 */}
+          {/* Имя — Rostov; волновая переливка от белого к серому */}
           <PrePlate active={true}>
             <h1
-              onClick={()=> setCircle2Open(true)}
+              onClick={()=> { playDot(); setCircle2Open(true); }}
               style={{
-                margin: "0.6em 0 0",
+                margin: "0.7em 0 0",
                 fontSize: "clamp(18px, 6.6vw, 28px)",
                 letterSpacing: "0.02em",
                 userSelect: "none",
@@ -1084,13 +1114,16 @@ function MobileCard() {
               {nameLatin.map((ch,i)=>(
                 <span
                   key={i}
+                  data-idx={i} data-group="name"
                   onMouseEnter={()=>hitLetter(i,setStickName,setColorsName)}
+                  onPointerDown={()=>hitLetter(i,setStickName,setColorsName,"click")}
                   style={{
                     display:"inline-block",
                     whiteSpace:"pre",
-                    color: stickName[i] ? colorsName[i] : "#cfcfcf",
-                    transform: stickName[i] ? "scale(1.28)" : "scale(1)",
+                    color: stickName[i] ? colorsName[i] : "#ffffff",
+                    transform: stickName[i] ? "scale(1.22)" : "scale(1)",
                     transition:"transform 140ms ease, color 160ms ease",
+                    // волна, если буква ещё не «зафиксирована»
                     animation: stickName[i] ? "none" : `waveGray 1800ms ease-in-out ${i*90}ms infinite`
                   }}
                 >
@@ -1100,12 +1133,12 @@ function MobileCard() {
             </h1>
           </PrePlate>
 
-          {/* SHOWREEL — шрифт Royal Crescent, кликабельно */}
+          {/* SHOWREEL — на строку ниже + Royal Crescent */}
           <PrePlate active={true}>
             <h3
-              onClick={openShowreel}
+              onClick={()=>{ playDot(); openShowreel(); }}
               style={{
-                margin: "0.6em 0 0",
+                margin: "1.2em 0 0",                // ← опущено на строку ниже
                 fontSize: "clamp(13px, 4.2vw, 17px)",
                 letterSpacing: "0.08em",
                 color: "#cfcfcf",
@@ -1120,7 +1153,9 @@ function MobileCard() {
               {srLetters.map((ch,i)=>(
                 <span
                   key={i}
+                  data-idx={i} data-group="sr"
                   onMouseEnter={()=>hitLetter(i,setSrStick,setSrColors)}
+                  onPointerDown={()=>hitLetter(i,setSrStick,setSrColors,"click")}
                   style={{
                     display:"inline-block",
                     whiteSpace:"pre",
@@ -1170,36 +1205,21 @@ function MobileCard() {
       <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam * 1.25 * 1.05)} hideClose backdropClose />
 
       <style>{`
-        .glass-plate.circle{
-          background: rgba(255,255,255,0.07);
-          -webkit-backdrop-filter: blur(16px) saturate(1.2);
-          backdrop-filter: blur(16px) saturate(1.2);
-          box-shadow: 0 12px 28px rgba(0,0,0,0.22);
-          border-radius: 50%;
-          overflow:hidden;
+        /* дыхание основного круга на мобиле */
+        @keyframes mBreath { 
+          0%,100%{ transform:translate(-50%,-50%) scale(1) } 
+          50%{ transform:translate(-50%,-50%) scale(1.02) } 
         }
-        .glass-plate.circle::before{
-          content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
-          -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
-          backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
-          -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
-          mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+        /* волна белый → серый для имени (когда буква ещё не подсвечена) */
+        @keyframes waveGray { 
+          0%,100% { color: #ffffff } 
+          50% { color: #bfbfbf } 
         }
-        .glass-plate.circle::after{
-          content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-          background:
-            radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
-            radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
-            radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
-            radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
-            linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
-          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
-        }
-        @keyframes waveGray { 0%,100% { color: #bfbfbf } 50% { color: #e0e0e0 } }
       `}</style>
     </>
   );
 }
+
 
 /* ===== Экспорт (автосвитч) ===== */
 export default function CenterRevealCard() {
