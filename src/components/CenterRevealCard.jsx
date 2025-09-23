@@ -92,38 +92,64 @@ function useAudio() {
     o.stop(t0 + 0.3);
   };
 
-  // Snare для имени (десктоп hover)
+  // Снейр для имени (десктоп)
   const playSnare = async () => {
     const ctx = await getCtx(); if (!ctx) return;
     const t0 = ctx.currentTime;
 
-    // Шум (основа снейра)
-    const len = Math.floor(ctx.sampleRate * 0.18);
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i=0;i<len;i++) d[i] = (Math.random()*2-1) * (1 - i/len);
-    const noise = ctx.createBufferSource(); noise.buffer = buf;
+    // белый шум (основа)
+    const len = Math.floor(ctx.sampleRate*0.2);
+    const buf = ctx.createBuffer(1,len,ctx.sampleRate);
+    const ch = buf.getChannelData(0);
+    for (let i=0;i<len;i++) ch[i]=(Math.random()*2-1)*Math.pow(1-i/len, 2);
 
-    const hp = ctx.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=1500; hp.Q.value=0.7;
-    const bp = ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=2000; bp.Q.value=1.2;
-    const gN = ctx.createGain(); gN.gain.setValueAtTime(0.0001,t0);
-    gN.gain.exponentialRampToValueAtTime(0.5, t0 + 0.008);
-    gN.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+    const noise = ctx.createBufferSource(); noise.buffer = buf;
+    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 800;
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1800; bp.Q.value = 0.8;
+
+    const gN = ctx.createGain();
+    gN.gain.setValueAtTime(0.0001, t0);
+    gN.gain.exponentialRampToValueAtTime(0.6, t0 + 0.005);
+    gN.gain.exponentialRampToValueAtTime(0.00001, t0 + 0.12);
 
     noise.connect(hp).connect(bp).connect(gN).connect(ctx.destination);
-    noise.start(t0); noise.stop(t0 + 0.2);
+    noise.start(t0); noise.stop(t0 + 0.15);
 
-    // Короткий «тон»
+    // щелчок (короткий тон)
     const o = ctx.createOscillator(), g = ctx.createGain();
-    o.type="triangle"; o.frequency.setValueAtTime(180, t0);
-    o.frequency.exponentialRampToValueAtTime(120, t0 + 0.08);
+    o.type = "triangle"; o.frequency.setValueAtTime(220, t0);
+    o.frequency.exponentialRampToValueAtTime(160, t0 + 0.04);
     g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
-    o.connect(g).connect(ctx.destination); o.start(t0); o.stop(t0 + 0.13);
+    g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.00001, t0 + 0.07);
+    o.connect(g).connect(ctx.destination); o.start(t0); o.stop(t0 + 0.08);
   };
 
-  return { playHoverSoft, playIcon, playDot, playSnare };
+  const playAppear = async () => {
+    const ctx = await getCtx(); if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const len = Math.floor(ctx.sampleRate*0.3);
+    const buf = ctx.createBuffer(1,len,ctx.sampleRate);
+    const d = buf.getChannelData(0); for (let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+    const noise = ctx.createBufferSource(); noise.buffer=buf;
+    const bp = ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1500; bp.Q.value=4;
+    const gN = ctx.createGain(); gN.gain.setValueAtTime(0.0001,t0);
+    gN.gain.exponentialRampToValueAtTime(0.18,t0+0.05);
+    gN.gain.exponentialRampToValueAtTime(0.0001,t0+0.28);
+    noise.connect(bp).connect(gN).connect(ctx.destination);
+    noise.start(t0); noise.stop(t0+0.3);
+    [392,523.25,659.25].forEach((f,i)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type="sine"; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t0+i*0.05);
+      g.gain.exponentialRampToValueAtTime(0.18,t0+i*0.05+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+i*0.05+0.20);
+      o.connect(g).connect(ctx.destination);
+      o.start(t0+i*0.05); o.stop(t0+i*0.05+0.22);
+    });
+  };
+
+  return { playHoverSoft, playIcon, playDot, playAppear, playSnare };
 }
 
 /* ===== Соц-иконка ===== */
@@ -179,8 +205,8 @@ function PrePlate({ active, children, expandX=14, expandY=8, radius=12, centerOp
   );
 }
 
-/* ===== Overlay «Круг 2» ===== */
-function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropClose = false, bodyInc = 0, outerBreath=false }) {
+/* ===== Overlay «Круг 2» (добавлено дыхание круга + волновой перелив хедера) ===== */
+function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropClose = false, bodyInc = 0 }) {
   const [imgSrc, setImgSrc] = React.useState("/rustam-site/assents/foto/circle2.jpg");
   if (!open) return null;
 
@@ -191,7 +217,6 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
   const maxTextWidth = Math.round(D * 0.80);
   const TEXT_SHIFT = Math.round(D * 0.05);
 
-  // Волновой перелив по буквам для заголовка
   function FitHeader({ text, baseRatio = 0.040, minPx = 12 }) {
     const ref = React.useRef(null);
     const [fs, setFs] = React.useState(Math.max(minPx, Math.round(D * baseRatio)));
@@ -201,12 +226,28 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
       const w = el.getBoundingClientRect().width;
       if (w > maxTextWidth && fs > minPx) setFs(s => Math.max(minPx, s - (w/maxTextWidth>1.15?2:1)));
     }, [fs, maxTextWidth, text]);
+
     const chars = Array.from(text);
+
     return (
       <div style={{ textAlign: "center", animation: "c2breath 6200ms ease-in-out 0ms infinite" }}>
-        <span ref={ref} style={{ display:"inline-block", whiteSpace:"nowrap", fontFamily: FAMILY_HEADER, fontWeight: 800, fontSize: fs, lineHeight: 1.18, letterSpacing: "0.02em", color: COLOR }}>
-          {chars.map((ch,i)=>(
-            <span key={i} style={{ display:"inline-block", animation:`c2waveGray 3600ms ease-in-out ${i*90}ms infinite` }}>{ch}</span>
+        <span ref={ref} style={{ display: "inline-block", whiteSpace: "nowrap" }}>
+          {chars.map((c,i)=>(
+            <span
+              key={i}
+              style={{
+                display:"inline-block",
+                fontFamily: FAMILY_HEADER,
+                fontWeight: 800,
+                fontSize: fs,
+                lineHeight: 1.18,
+                letterSpacing: "0.02em",
+                color: COLOR,
+                animation: `waveGray ${4200}ms ease-in-out ${i*110}ms infinite`
+              }}
+            >
+              {c}
+            </span>
           ))}
         </span>
       </div>
@@ -264,9 +305,7 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
           transform: "scale(0.6)",
           opacity: 0,
           flex: "0 0 auto",
-          animation: "c2pop 320ms cubic-bezier(.18,.8,.2,1) forwards",
-          willChange: "transform,opacity",
-          ...(outerBreath ? { animation: "c2pop 320ms cubic-bezier(.18,.8,.2,1) forwards, c2outerBreath 5200ms ease-in-out 320ms infinite" } : {})
+          animation: "c2pop 320ms cubic-bezier(.18,.8,.2,1) forwards, c2shellBreath 5600ms ease-in-out 220ms infinite"
         }}
       >
         {!hideClose && (
@@ -363,9 +402,14 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
 
       <style>{`
         @keyframes c2pop { to { transform: scale(1); opacity: 1 } }
-        @keyframes c2breath { 0%,100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-2px) scale(1.012); } }
-        @keyframes c2outerBreath { 0%,100% { transform: scale(1); } 50% { transform: scale(1.012); } }
-        @keyframes c2waveGray { 0%,100% { color: #ffffff } 50% { color: #7a7a7a } }
+        @keyframes c2breath {
+          0%, 100% { transform: translateY(0px) scale(1); }
+          50%      { transform: translateY(-2px) scale(1.012); }
+        }
+        @keyframes c2shellBreath {
+          0%,100% { transform: scale(1); }
+          50% { transform: scale(1.02); }
+        }
       `}</style>
     </div>
   );
@@ -618,19 +662,24 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
   );
 }
 
-/* ===== Vimeo overlay (фикс: анти-флэш + rAF-показ) ===== */
+/* ===== Vimeo overlay (мобайл: анти-белый флэш через отложенную установку src) ===== */
 function VideoOverlay({ open, onClose, vimeoId, full=true }) {
   const dragRef = useRef({active:false,startY:0,dy:0});
   const iframeRef = useRef(null);
   const [isMuted, setIsMuted] = useState(full ? true : false);
   const [frameReady, setFrameReady] = useState(false);
-  const [showIframe, setShowIframe] = useState(false);
+  const [src, setSrc] = useState(""); // <- отложим установку src
   if (!open) return null;
 
-  useEffect(()=>{ // отложить монтирование iframe на 1 rAF — помогает от белых вспышек на iOS
-    let raf = requestAnimationFrame(()=>setShowIframe(true));
-    return ()=>cancelAnimationFrame(raf);
-  },[]);
+  useLayoutEffect(()=>{
+    // ставим src на следующий кадр — чёрный бэк уже показан, белого экрана не будет
+    const id = requestAnimationFrame(()=>{
+      if (vimeoId) {
+        setSrc(`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=${full?1:0}&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1&color=000000`);
+      }
+    });
+    return ()=> cancelAnimationFrame(id);
+  },[vimeoId, full]);
 
   const onPD = (e)=>{ if(!full) return; dragRef.current={active:true,startY:e.clientY,dy:0}; e.currentTarget.setPointerCapture?.(e.pointerId); };
   const onPM = (e)=>{ if(!full) return; const d=dragRef.current; if(!d.active) return; d.dy=e.clientY-d.startY; const panel=e.currentTarget.querySelector(".player-panel"); if(panel){ panel.style.transform=`translateY(${d.dy}px)`; panel.style.opacity=String(clamp(1-Math.abs(d.dy)/260,0.25,1)); } };
@@ -653,10 +702,8 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
   };
 
   const containerStyle = full
-    ? { position:"relative", width:"100vw", height:"100vh", borderRadius:0, background:"#000", overflow:"hidden" }
+    ? { position:"relative", width:"100vw", height:"100vh", borderRadius:0 }
     : { position:"relative", width:"60vw", maxWidth:1200, height:"60vh", borderRadius:12, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.55)", background:"#000" };
-
-  const queryMuted = full ? 1 : 0;
 
   return (
     <div
@@ -676,19 +723,19 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
       </button>
 
       <div className="player-panel" onClick={(e)=>e.stopPropagation()} style={containerStyle}>
-        {/* чёрный плейсхолдер до полной готовности (перекрывает iframe) */}
-        <div style={{ position:"absolute", inset:0, background:"#000", opacity: frameReady ? 0 : 1, pointerEvents:"none", transition:"opacity 160ms ease" }} />
-        {showIframe && (
-          <iframe
-            id="vimeo-embed"
-            ref={iframeRef}
-            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=${queryMuted}&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1&color=000000`}
-            title="Vimeo player" frameBorder="0" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen
-            onLoad={onIframeLoad}
-            loading="eager"
-            style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block", background:"#000", opacity: frameReady ? 1 : 0, transition:"opacity 160ms ease", visibility: frameReady ? "visible" : "hidden" }}
-          />
-        )}
+        {/* чёрный плейсхолдер до полной готовности */}
+        <div style={{ position:"absolute", inset:0, background:"#000", opacity: frameReady ? 0 : 1, transition:"opacity 160ms ease", pointerEvents:"none" }} />
+        <iframe
+          id="vimeo-embed"
+          ref={iframeRef}
+          src={src}
+          title="Vimeo player"
+          frameBorder="0"
+          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+          allowFullScreen
+          onLoad={onIframeLoad}
+          style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block", background:"#000", opacity: frameReady ? 1 : 0, transition:"opacity 160ms ease" }}
+        />
       </div>
 
       {full && (
@@ -709,7 +756,6 @@ function BiographyWordPerLetter({ onOpen }) {
   const latin = Array.from("BIOGRAPHY");
   const map = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
   const [stick,setStick]=useState(latin.map(()=>false));
-  const [colors,setColors]=useState(latin.map(()=>"#ffffff"));
   return (
     <h2
       className="hover-click"
@@ -729,13 +775,14 @@ function BiographyWordPerLetter({ onOpen }) {
       {latin.map((ch,i)=>(
         <span
           key={`bio-${i}`}
-          onMouseEnter={()=>{ if(!stick[i]) { playIcon(); } setStick(s=>{const a=[...s]; a[i]=true; return a;}); setColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); }}
+          onMouseEnter={()=>{ if(!stick[i]) { playIcon(); } setStick(s=>{const a=[...s]; a[i]=true; return a;}); }}
           style={{
             display:"inline-block",
             transformOrigin:"50% 50%",
             transform: stick[i] ? "scale(1.35)" : "scale(1)",
-            color: stick[i] ? colors[i] : "#ffffff",
-            transition:"transform 140ms ease, color 160ms ease"
+            color: "#ffffff",
+            transition:"transform 140ms ease, color 160ms ease",
+            animation:`waveGray 4200ms ease-in-out ${i*100}ms infinite`
           }}
         >
           {stick[i] ? (map[ch] || ch) : ch}
@@ -745,11 +792,10 @@ function BiographyWordPerLetter({ onOpen }) {
   );
 }
 
-/* ===== DESKTOP Card ===== */
+/* ===== DESKTOP Card (добавлены: снейр, волновой цвет + дыхание имени, авто-сброс, дыхание плашки, круг2 больше) ===== */
 function DesktopCard() {
   const { playHoverSoft, playDot, playSnare } = useAudio();
 
-  // размеры
   const [fixedSize,setFixedSize]=useState({ w:520, h:320 });
   useEffect(()=>{
     const vw=window.innerWidth;
@@ -762,7 +808,6 @@ function DesktopCard() {
   useEffect(()=>{ updateRect(); },[fixedSize]);
   useEffect(()=>{ const f=()=>updateRect(); window.addEventListener("resize",f); return ()=>window.removeEventListener("resize",f); },[]);
 
-  // реакция круга 1 + дыхание
   const BASE_OPACITY = PLATE_OPACITY_MAX * 0.8;
   const plateTargetRef = useRef(BASE_OPACITY);
   const plateAlphaRef  = useRef(BASE_OPACITY);
@@ -789,8 +834,8 @@ function DesktopCard() {
 
   useEffect(()=>{
     const onMove = (e)=>{
-      const r = rectRef.current
-            const inside = within(e.clientX,e.clientY,{left:r.left,top:r.top,right:r.left+r.w,bottom:r.top+r.h});
+      const r = rectRef.current;
+      const inside = within(e.clientX,e.clientY,{left:r.left,top:r.top,right:r.left+r.w,bottom:r.top+r.h});
       if(!inside){
         plateTargetRef.current = BASE_OPACITY;
         if(isInside) setIsInside(false);
@@ -813,80 +858,38 @@ function DesktopCard() {
     return ()=>{ window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseleave", onLeave); };
   },[isInside]);
 
-  // === Оверлеи
   const [playerOpen,setPlayerOpen]=useState(false);
   const [vimeoId,setVimeoId]=useState(null);
   const [bioOpen,setBioOpen]=useState(false);
   const [circle2Open, setCircle2Open] = useState(false);
 
-  // Центр. обёртка
   const wrapper = { position:"fixed", left:`${rectRef.current.left}px`, top:`${rectRef.current.top}px`, width:`${rectRef.current.w}px`, height:`${rectRef.current.h}px`, display:"flex", alignItems:"center", justifyContent:"center", padding:0, overflow:"visible", pointerEvents:"auto", zIndex:2147483600 };
 
-  // Геометрия круга 1
   const baseDiam = Math.min(rectRef.current.w, rectRef.current.h);
   const circleDiam = Math.round(baseDiam * 1.10);
   const circleScale = 1 + 0.20 * plateProx;
+  const plateStyle = { position:"absolute", width:circleDiam, height:circleDiam, left:"50%", top:"50%", transform:`translate(-50%,-50%) scale(${circleScale})`, transformOrigin:"50% 50%", borderRadius:"50%", opacity: plateAlpha, transition:"opacity 60ms linear", pointerEvents:"none", animation:"deskBreath 4600ms ease-in-out infinite" };
 
-  const plateStyle = {
-    position:"absolute",
-    width:circleDiam, height:circleDiam,
-    left:"50%", top:"50%",
-    transform:`translate(-50%,-50%) scale(${circleScale})`,
-    transformOrigin:"50% 50%",
-    borderRadius:"50%",
-    opacity: plateAlpha,
-    transition:"opacity 60ms linear",
-    pointerEvents:"none",
-    animation:"deskBreath 5200ms ease-in-out infinite" // лёгкое дыхание плашки
-  };
-
-  // === Тексты
   const showreelText="SHOWREEL";
   const nameLatin="RUSTAM ROMANOV";
   const titleBase=24; const titleFS=Math.round(titleBase*1.1);
   const directedFS = Math.round((titleFS/1.5)*1.2);
   const nameFS = Math.round(titleFS*1.32);
 
-  // Имя — пер-буквенная анимация и цвета
-  const letters = Array.from(nameLatin);
-  const [hit,setHit] = useState(letters.map(()=>false));
-  const [cols,setCols]=useState(letters.map(()=>"#e6e6e6"));
-  const [lastHoverTs,setLastHoverTs]=useState(0);
-  const resetTimerRef = useRef(null);
+  const [srStick,setSrStick]=useState(Array.from(showreelText).map(()=>false));
 
-  const onNameEnter = (i)=>{
-    playSnare(); // SNARE на ховер каждой буквы
-    setHit(h=>{ const a=[...h]; a[i]=true; return a;});
-    setCols(c=>{ const a=[...c]; a[i]=randColor(); return a;});
-    setLastHoverTs(Date.now());
-    if(resetTimerRef.current){ clearTimeout(resetTimerRef.current); }
-    resetTimerRef.current = setTimeout(()=>{
-      // если 5 сек не водили — вернуть в исходное из «центра»
-      if(Date.now()- (lastHoverTs||0) >= 4800){
-        setHit(letters.map(()=>false));
-        setCols(letters.map(()=>"#e6e6e6"));
+  // Имя: отслеживаем ховер по буквам, звук = снейр, цвет — волновой от белого к тёмно-серому
+  const [nameHoverMap,setNameHoverMap]=useState(Array.from(nameLatin).map(()=>false));
+  const lastActivityRef = useRef(Date.now());
+  useEffect(()=>{
+    const id = setInterval(()=>{
+      if (Date.now() - lastActivityRef.current > 5000) {
+        // авто-сброс после 5 сек без ховера
+        setNameHoverMap(Array.from(nameLatin).map(()=>false));
       }
-    }, 5100);
-  };
-
-  useEffect(()=>()=>{ if(resetTimerRef.current) clearTimeout(resetTimerRef.current); },[]);
-
-  // Открытие оверлеев + сигнал мозаике «сбрось зум»
-  const pingMosaic = ()=>{ try{ window.dispatchEvent(new CustomEvent("mosaic:releaseZoom")); }catch{} };
-
-  const openShowreel = ()=>{
-    pingMosaic();
-    setVimeoId("1001147905");
-    setPlayerOpen(true);
-  };
-  const openBio = ()=>{
-    pingMosaic();
-    setBioOpen(true);
-  };
-  const openCircle2 = ()=>{
-    pingMosaic();
-    setCircle2Open(true);
-  };
+    }, 500);
+    return ()=>clearInterval(id);
+  },[]);
 
   return (
     <>
@@ -904,46 +907,54 @@ function DesktopCard() {
         <div style={{ position:"relative", width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:1 }}>
           <div style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap: Math.round(titleFS*0.42), marginTop: Math.round((titleFS/1.5) * 3.2), color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans', system-ui", textShadow:"0 1px 2px rgba(0,0,0,0.25)" }}>
 
-            {/* SHOWREEL */}
+            {/* SHOWREEL — кликабельно */}
             <PrePlate active={!isInside}>
               <div
-                onClick={openShowreel}
+                onMouseLeave={() => setSrStick(Array.from(showreelText).map(()=>false))}
+                onClick={()=>{ setVimeoId("1001147905"); setPlayerOpen(true); }}
                 style={{ position:"relative", display:"inline-block", marginTop: Math.round(titleFS*0.3), marginBottom: Math.round(directedFS*0.2), cursor: `url(${CURSOR_URL}) 10 10, default` }}
                 title="Открыть шоу-рил"
               >
-                <h2 className="hover-click" style={{ margin:0, fontSize: directedFS, letterSpacing:"0.08em", whiteSpace:"nowrap", userSelect:"none", position:"relative", zIndex:1, fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" }}>
+                <h2
+                  className="hover-click"
+                  style={{ margin:0, fontSize: directedFS, letterSpacing:"0.08em", whiteSpace:"nowrap", userSelect:"none", position:"relative", zIndex:1, fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" }}
+                >
                   {Array.from(showreelText).map((ch,i)=>(
-                    <span key={`sr-${i}`} style={{ display:"inline-block", whiteSpace:"pre", animation:`waveGray 4200ms ease-in-out ${i*120}ms infinite` }}>
-                      {ch}
+                    <span key={`sr-${i}`}
+                      onMouseEnter={()=>{ if(!srStick[i]) { playHoverSoft(); } setSrStick(s=>{const a=[...s]; a[i]=true; return a;}); }}
+                      style={{ display:"inline-block", whiteSpace:"pre",
+                               color: srStick[i] ? "#e0e0e0" : "#bfbfbf",
+                               transform: srStick[i] ? "scale(1.3)" : "scale(1)",
+                               transition:"transform 140ms ease, color 160ms ease" }}>
+                      {ch===" " ? "\u00A0" : ch}
                     </span>
                   ))}
                 </h2>
               </div>
             </PrePlate>
 
-            {/* Имя — волна + дыхание + snare на ховер */}
+            {/* Имя — открывает круг 2 */}
             <PrePlate active={!isInside}>
               <h1
-                onClick={openCircle2}
+                onClick={()=> setCircle2Open(true)}
                 style={{
                   margin:0, fontSize:nameFS, letterSpacing:"0.02em", whiteSpace:"nowrap",
                   userSelect:"none", cursor:"pointer",
                   fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
-                  animation:"nameBreathDesk 5200ms ease-in-out infinite"
+                  animation:"nameBreathDesk 4600ms ease-in-out infinite"
                 }}
                 title="Подробнее"
               >
-                {letters.map((ch,i)=>(
+                {Array.from(nameLatin).map((ch,i)=>(
                   <span
                     key={`n-${i}`}
-                    onMouseEnter={()=>onNameEnter(i)}
+                    onMouseEnter={()=>{ lastActivityRef.current=Date.now(); if(!nameHoverMap[i]) playSnare(); setNameHoverMap(m=>{ const a=[...m]; a[i]=true; return a;}); }}
                     style={{
                       display:"inline-block",
                       whiteSpace:"pre",
-                      color: hit[i] ? cols[i] : "#e6e6e6",
-                      transform: hit[i] ? "scale(1.22)" : "scale(1)",
-                      transition:"transform 140ms ease, color 180ms ease",
-                      animation:`waveGray 4200ms ease-in-out ${i*100}ms infinite`
+                      transform: nameHoverMap[i] ? "scale(1.18)" : "scale(1)",
+                      transition:"transform 140ms ease, color 160ms ease",
+                      animation:`waveGray 4200ms ease-in-out ${i*120}ms infinite`
                     }}
                   >
                     {ch===" " ? "\u00A0" : ch}
@@ -955,11 +966,11 @@ function DesktopCard() {
             {/* BIO */}
             <div style={{ marginTop: Math.round(titleFS*0.9) }}>
               <PrePlate active={!isInside}>
-                <BiographyWordPerLetter onOpen={openBio} />
+                <BiographyWordPerLetter onOpen={()=>setBioOpen(true)} />
               </PrePlate>
             </div>
 
-            {/* Социальные */}
+            {/* Соц-иконки */}
             <PrePlate active={!isInside}>
               <div style={{ display:"flex", gap:14, justifyContent:"center", alignItems:"center", marginTop: Math.round(titleFS*0.6) }}>
                 <IconLink href="https://instagram.com/rustamromanov.ru" label="Instagram"
@@ -977,30 +988,54 @@ function DesktopCard() {
         </div>
       </div>
 
-      {/* Оверлеи — Круг 2 больше основного + дыхание; Vimeo без белого кадра уже реализован в компоненте */}
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full={false}/>
       <BioOverlay   open={bioOpen}   onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio.jpg"/>
-      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam*1.18)} outerBreath />
+      {/* Круг 2 — больше основного круга + дыхание реализовано в overlay */}
+      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam*1.30)}/>
 
       <style>{`
-        /* дыхание плашки (лёгкое) */
-        @keyframes deskBreath {
-          0%,100% { transform: translate(-50%,-50%) scale(${circleScale.toFixed(3)}); }
-          50%     { transform: translate(-50%,-50%) scale(${(circleScale*1.012).toFixed(3)}); }
+        .glass-plate.circle{
+          background: rgba(255,255,255,0.07);
+          -webkit-backdrop-filter: blur(16px) saturate(1.2);
+          backdrop-filter: blur(16px) saturate(1.2);
+          box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+          border-radius: 50%;
+          overflow:hidden;
         }
-        /* дыхание имени (лёгкое) */
-        @keyframes nameBreathDesk {
-          0%,100% { transform: scale(1.00) }
-          50%     { transform: scale(1.01) }
+        .glass-plate.circle::before{
+          content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
+          -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+          backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+          -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+          mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
         }
-        /* волна белый→тёмно-серый */
-        @keyframes waveGray { 0%,100% { color:#ffffff } 50% { color:#6a6a6a } }
+        .glass-plate.circle::after{
+          content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+          background:
+            radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
+            radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
+            radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+            radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+            linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
+        }
+        .hover-click{ transition: transform 140ms ease, text-shadow 140ms ease; }
+        .hover-click:hover{ transform: scale(1.035); text-shadow: 0 8px 26px rgba(0,0,0,0.35); }
+
+        /* волновой серо-белый перелив */
+        @keyframes waveGray { 0%,100% { color: #bfbfbf } 50% { color: #ffffff } }
+
+        /* лёгкое дыхание имени (десктоп) */
+        @keyframes nameBreathDesk { 0%,100% { transform: scale(1.00) } 50% { transform: scale(1.01) } }
+
+        /* лёгкое дыхание стеклянной плашки (десктоп) */
+        @keyframes deskBreath { 0%,100% { transform: translate(-50%,-50%) scale(1) } 50% { transform: translate(-50%,-50%) scale(1.01) } }
       `}</style>
     </>
   );
 }
 
-/* ===== Mobile Card (только нужные правки по ТЗ) ===== */
+/* ===== Mobile Card (добавлено: цвет имени от скролла + сброс при открытиях; анти-белый Vimeo; автозакрытие зума) ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
 
@@ -1009,10 +1044,47 @@ function MobileCard() {
   const [vimeoId,setVimeoId]=useState(null);
   const [circle2Open, setCircle2Open] = useState(false);
 
-  // размер сцены
-  const initialW = typeof window !== "undefined" ? Math.min(680, Math.round(window.innerWidth * 0.9)) : 360;
-  const initialH = typeof window !== "undefined" ? Math.round(initialW * 0.62) : Math.round(360 * 0.62);
+  // helper: закрыть возможный зум изображения в мозаике
+  const closeAnyZoom = () => {
+    try { window.dispatchEvent(new CustomEvent("mosaic/closeZoom")); } catch {}
+  };
+
+  const openShowreel = () => {
+    closeAnyZoom();
+    // сброс цвета имени в исходное (п.1)
+    setStickName(nameLatin.map(()=>false));
+    setColorsName(nameLatin.map(()=>"#ffffff"));
+    setNameTone(0);
+    setVimeoId("1001147905");
+    setPlayerOpen(true);
+  };
+
+  const openBio = () => {
+    closeAnyZoom();
+    setStickName(nameLatin.map(()=>false));
+    setColorsName(nameLatin.map(()=>"#ffffff"));
+    setNameTone(0);
+    setBioOpen(true);
+  };
+
+  const openCircle2 = () => {
+    closeAnyZoom();
+    setStickName(nameLatin.map(()=>false));
+    setColorsName(nameLatin.map(()=>"#ffffff"));
+    setNameTone(0);
+    setCircle2Open(true);
+  };
+
+  // Размер сцены
+  const initialW = typeof window !== "undefined"
+    ? Math.min(680, Math.round(window.innerWidth * 0.9))
+    : 360;
+  const initialH = typeof window !== "undefined"
+    ? Math.round(initialW * 0.62)
+    : Math.round(360 * 0.62);
+
   const [size, setSize] = useState({ w: initialW, h: initialH });
+
   useEffect(() => {
     let raf = 0;
     const calc = () => {
@@ -1020,12 +1092,22 @@ function MobileCard() {
       const h = Math.round(w * 0.62);
       setSize(s => (s.w !== w || s.h !== h) ? { w, h } : s);
     };
-    const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(calc); };
+    const onResize = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(calc);
+    };
+
     calc();
     window.addEventListener("resize", onResize, { passive: true });
     window.addEventListener("orientationchange", onResize, { passive: true });
     window.addEventListener("pageshow", onResize, { passive: true });
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", onResize); window.removeEventListener("orientationchange", onResize); window.removeEventListener("pageshow", onResize); };
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      window.removeEventListener("pageshow", onResize);
+    };
   }, []);
 
   const wrapper = {
@@ -1035,68 +1117,109 @@ function MobileCard() {
     zIndex:2147483600, touchAction:"none"
   };
 
-  // Плашка (круг 1) — лёгкое дыхание уже было в предыдущем коде, сохраним
+  // КРУГ 1
   const baseDiam   = Math.min(size.w, size.h);
   const circleDiam = Math.round(baseDiam * 1.20);
+
   const plateStyle = {
     position:"absolute",
     left:"50%", top:"50%",
     width:circleDiam, height:circleDiam,
     borderRadius:"50%",
     transform:"translate(-50%,-50%)",
+    transformOrigin:"50% 50%",
     pointerEvents:"none",
     willChange:"transform,opacity",
     animation: "mBreath3x 3200ms ease-in-out infinite"
   };
 
-  // Имя — пер-буквенно, волна белый→серый + дыхание в противоход
-  const letters = Array.from("RUSTAM ROMANOV");
-  const [stick,setStick]=useState(letters.map(()=>false));
-  const [colors,setColors]=useState(letters.map(()=>"#ffffff"));
-  const lastIdxRef = useRef(null);
+  // Тексты/буквы
+  const lettersBio = Array.from("BIOGRAPHY");
+  const mapBio = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
+  const [stickBio,setStickBio]=useState(lettersBio.map(()=>false));
+  const [colorsBio,setColorsBio]=useState(lettersBio.map(()=>"#ffffff"));
+
+  const nameLatin = Array.from("RUSTAM ROMANOV");
+  const mapName = { R:"Р", U:"У", S:"С", T:"Т", A:"А", M:"М", O:"О", N:"Н", V:"В", " ":"\u00A0" };
+  const [stickName,setStickName]=useState(nameLatin.map(()=>false));
+  const [colorsName,setColorsName]=useState(nameLatin.map(()=>"#ffffff"));
+
+  const srLetters = Array.from("SHOWREEL");
+  const [srStick,setSrStick]=useState(srLetters.map(()=>false));
+  const [srColors,setSrColors]=useState(srLetters.map(()=>"#ffffff"));
+
+  // Звук / drag
+  const lastHitRef = useRef({ bio: null, name: null, sr: null });
+
+  const activateLetter = (group, idx, setterStick, setterColor, mode = "hover") => {
+    const force = mode === "click";
+    if (force || lastHitRef.current[group] !== idx) {
+      lastHitRef.current[group] = idx;
+      setterStick(prev => { if (!prev[idx]) { const a=[...prev]; a[idx]=true; return a; } return prev; });
+      setterColor(c => { const a=[...c]; a[idx]=randColor(); return a; });
+      force ? playDot() : playHoverSoft();
+    }
+  };
+
   const draggingRef = useRef(false);
-
-  const activate = (idx, forceSound=false)=>{
-    if(idx===lastIdxRef.current && !forceSound) return;
-    lastIdxRef.current = idx;
-    setStick(s=>{ const a=[...s]; a[idx]=true; return a; });
-    setColors(c=>{ const a=[...c]; a[idx]=randColor(); return a; });
-    (forceSound? playDot : playHoverSoft)();
+  const onPD = (e) => {
+    draggingRef.current = true;
+    lastHitRef.current = { bio: null, name: null, sr: null };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    onPM(e);
   };
-
-  const onPD = (e)=>{ draggingRef.current=true; lastIdxRef.current=null; e.currentTarget.setPointerCapture?.(e.pointerId); onPM(e); };
-  const onPM = (e)=>{
-    if(!draggingRef.current) return;
-    const el = document.elementFromPoint(e.clientX, e.clientY);
+  const onPU = () => {
+    draggingRef.current = false;
+    // Возврат BIO/SHOWREEL в белый
+    setStickBio(lettersBio.map(() => false));
+    setColorsBio(lettersBio.map(() => "#ffffff"));
+    setSrStick(srLetters.map(() => false));
+    setSrColors(srLetters.map(() => "#ffffff"));
+    lastHitRef.current = { bio: null, name: null, sr: null };
+  };
+  const onPM = (e) => {
+    if (!draggingRef.current) return;
+    const x = e.clientX, y = e.clientY;
+    const el = document.elementFromPoint(x, y);
     const idx = Number(el?.getAttribute?.("data-idx"));
-    if(Number.isFinite(idx)) activate(idx);
-  };
-  const onPU = ()=>{
-    draggingRef.current=false;
-    // вернуть имя в исходное состояние (по ТЗ — при открытии оверлеев тоже сбрасываем)
-    setStick(letters.map(()=>false));
-    setColors(letters.map(()=>"#ffffff"));
-    lastIdxRef.current=null;
+    const group = el?.getAttribute?.("data-group");
+    if (Number.isFinite(idx) && group) {
+      if (group === "bio")  activateLetter("bio",  idx, setStickBio,  setColorsBio);
+      if (group === "name") activateLetter("name", idx, setStickName, setColorsName);
+      if (group === "sr")   activateLetter("sr",   idx, setSrStick,   setSrColors);
+    }
   };
 
-  // Открытие оверлеев — сбрасывает цвет имени + сигнал мозаике «закрыть зум»
-  const resetName = ()=>{
-    setStick(letters.map(()=>false));
-    setColors(letters.map(()=>"#ffffff"));
-  };
-  const pingMosaic = ()=>{ try{ window.dispatchEvent(new CustomEvent("mosaic:releaseZoom")); }catch{} };
+  // Цвет имени при СКРОЛЛЕ (п.1)
+  const [nameTone, setNameTone] = useState(0); // 0..1
+  useEffect(()=>{
+    const onScroll = () => {
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      const val = (Math.sin(y*0.02)+1)/2; // 0..1
+      setNameTone(val);
+    };
+    const onTouchMove = onScroll;
+    window.addEventListener("scroll", onScroll, { passive:true });
+    window.addEventListener("touchmove", onTouchMove, { passive:true });
+    return ()=>{ window.removeEventListener("scroll", onScroll); window.removeEventListener("touchmove", onTouchMove); };
+  },[]);
 
-  const openShowreel = ()=>{ resetName(); pingMosaic(); setVimeoId("1001147905"); setPlayerOpen(true); };
-  const openBio = ()=>{ resetName(); pingMosaic(); setBioOpen(true); };
-  const openCircle2 = ()=>{ resetName(); pingMosaic(); setCircle2Open(true); };
-
-  // Шрифтовое семейство (как у тебя)
+  // Семейство шрифта
   const FAMILY_BODY = "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
 
   return (
     <>
       <div style={wrapper}>
-        <div className="glass-plate circle" style={plateStyle} />
+        {/* КРУГ 1 — стеклянная плашка с дыханием */}
+        <div className="glass-plate circle" style={plateStyle}>
+          <i className="bend ring" />
+          <i className="bend side left" />
+          <i className="bend side right" />
+          <i className="bend side top" />
+          <i className="bend side bottom" />
+        </div>
+
+        {/* Контент — центр; drag по буквам */}
         <div
           onPointerDown={onPD}
           onPointerMove={onPM}
@@ -1114,98 +1237,229 @@ function MobileCard() {
             textShadow:"0 1px 2px rgba(0,0,0,0.25)"
           }}
         >
-          {/* BIOGRAPHY */}
-          <PrePlate active>
-            <h2
-              onClick={()=>{ playDot(); openBio(); }}
-              style={{ margin:0, fontSize:"clamp(13px,4.2vw,17px)", letterSpacing:"0.08em", userSelect:"none", cursor:"pointer", fontFamily:FAMILY_BODY, fontWeight:700 }}
-              title="BIOGRAPHY"
-            >
-              {"BIOGRAPHY".split("").map((ch,i)=>(
-                <span key={i} style={{ display:"inline-block", animation:`waveGray 4200ms ease-in-out ${i*110}ms infinite` }}>{ch}</span>
-              ))}
-            </h2>
-          </PrePlate>
-
-          {/* Имя — волна + дыхание (противоход кругу) и смена цвета при скролле */}
-          <PrePlate active>
+          {/* BIOGRAPHY — кликабельно. Шрифт = как BODY в Круге 2 */}
+                    <PrePlate active={true}>
+                      <h2
+                        onClick={()=>{ playDot(); setBioOpen(true); }}
+                        style={{
+                          margin: 0,
+                          fontSize: "clamp(13px, 4.2vw, 17px)",
+                          letterSpacing: "0.08em",
+                          userSelect: "none",
+                          cursor: "pointer",
+                          fontFamily: FAMILY_BODY,
+                          fontWeight: 700,
+                          fontSynthesis: "none",
+                        }}
+                        title="BIOGRAPHY"
+                      >
+                        {lettersBio.map((ch,i)=>(
+                          <span
+                            key={i}
+                            data-idx={i} data-group="bio"
+                            onMouseEnter={()=>activateLetter("bio", i, setStickBio, setColorsBio)}
+                            onPointerDown={()=>activateLetter("bio", i, setStickBio, setColorsBio, "click")}
+                            style={{
+                              display:"inline-block",
+                              whiteSpace:"pre",
+                              color: stickBio[i] ? colorsBio[i] : "#ffffff",
+                              transform: stickBio[i] ? "scale(1.28)" : "scale(1)",
+                              transition:"transform 140ms ease, color 160ms ease"
+                            }}
+                          >
+                            {stickBio[i] ? (mapBio[ch] || ch) : ch}
+                          </span>
+                        ))}
+                      </h2>
+                    </PrePlate>
+          
+                    {/* Имя — реагирует ПО БУКВАМ при скролле (латиница→кириллица по активной букве) */}
+                    <PrePlate active={true}>
             <h1
-              onClick={()=>{ playDot(); openCircle2(); }}
-              style={{ margin:"0.7em 0 0", fontSize:"clamp(22px,6.6vw,28px)", letterSpacing:"0.02em", userSelect:"none", cursor:"pointer", fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui", fontWeight:400, animation:"nameBreath 3200ms ease-in-out infinite" }}
+              onClick={() => { playDot(); setCircle2Open(true); }}
+              style={{
+                margin: "0.7em 0 0",
+                fontSize: "clamp(22px, 6.6vw, 28px)",
+                letterSpacing: "0.02em",
+                userSelect: "none",
+                cursor: "pointer",
+                fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
+                fontWeight: 400,
+                fontSynthesis: "none",
+                animation: "nameBreath 3200ms ease-in-out infinite" // дыхание в противоход
+              }}
               title="Подробнее"
             >
-              {letters.map((ch,i)=>(
+              {nameLatin.map((ch,i)=>(
                 <span
                   key={i}
-                  data-idx={i}
-                  onMouseEnter={()=>activate(i,true)}
+                  data-idx={i} data-group="name"
+                  onMouseEnter={()=>activateLetter("name", i, setStickName, setColorsName)}
+                  onPointerDown={()=>activateLetter("name", i, setStickName, setColorsName, "click")}
                   style={{
                     display:"inline-block",
                     whiteSpace:"pre",
-                    transform: stick[i] ? "scale(1.22)" : "scale(1)",
+                    transform: stickName[i] ? "scale(1.22)" : "scale(1)",
                     transition:"transform 140ms ease, color 160ms ease",
-                    animation:`waveGray 4200ms ease-in-out ${i*120}ms infinite`,
-                    color: stick[i] ? colors[i] : "#ffffff"
+                    animation: `waveGrayLetters 4200ms ease-in-out ${i*180}ms infinite`, // волна по буквам
+                    color: stickName[i] ? colorsName[i] : "#ffffff"
                   }}
                 >
-                  {ch===" " ? "\u00A0" : ch}
+                  {stickName[i] ? (mapName[ch] || ch) : (ch===" " ? "\u00A0" : ch)}
                 </span>
               ))}
             </h1>
           </PrePlate>
-
-          {/* SHOWREEL */}
-          <PrePlate active>
-            <h3
-              onClick={()=>{ playDot(); openShowreel(); }}
-              style={{ margin:"1.2em 0 0", fontSize:"clamp(13px,4.2vw,17px)", letterSpacing:"0.08em", color:"#ffffff", userSelect:"none", cursor:"pointer", fontFamily:FAMILY_BODY, fontWeight:700 }}
-              title="Открыть шоу-рил"
-            >
-              {"SHOWREEL".split("").map((ch,i)=>(
-                <span key={i} style={{ display:"inline-block", animation:`waveGray 4200ms ease-in-out ${i*100}ms infinite` }}>{ch}</span>
-              ))}
-            </h3>
-          </PrePlate>
-        </div>
-      </div>
-
-      {/* Соц-иконки */}
-      <div style={{ position:"fixed", left:"50%", transform:"translateX(-50%)", bottom:`calc(12px + env(safe-area-inset-bottom, 0px))`, display:"flex", justifyContent:"center", gap:20, zIndex:2147483601 }}>
-        <IconLink href="https://instagram.com/rustamromanov.ru" label="Instagram"
-          whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
-          colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
-          onHoverSound={playDot} size={37}/>
-        <IconLink href="https://t.me/rustamromanov" label="Telegram"
-          whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
-          colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3"
-          onHoverSound={playDot} size={37}/>
-      </div>
-
-      {/* Оверлеи (анти-белый экран уже заложен во VideoOverlay) */}
-      <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
-      <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
-      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam * 1.25 * 1.05)} hideClose backdropClose bodyInc={-1} />
-
-      <style>{`
-        /* дыхание имени (мобила — противоход кругу) */
-        @keyframes nameBreath { 0%,100% { transform: scale(1.01) } 50% { transform: scale(0.99) } }
-        /* волна белый→тёмно-серый */
-        @keyframes waveGray { 0%,100% { color:#ffffff } 50% { color:#666666 } }
-        /* дыхание круга мобилки (как у тебя) — уже есть mBreath3x */
-      `}</style>
-    </>
-  );
-}
-
-/* ===== Экспорт (автосвитч) ===== */
-export default function CenterRevealCard() {
-  const [isMobile,setIsMobile]=useState(typeof window!=="undefined" ? window.innerWidth<=MOBILE_BREAKPOINT : false);
-  useEffect(()=>{
-    const onR=()=>setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT);
-    window.addEventListener("resize",onR);
-    window.addEventListener("orientationchange",onR);
-    return ()=>{ window.removeEventListener("resize",onR); window.removeEventListener("orientationchange",onR); };
-  },[]);
-  return isMobile ? <MobileCard/> : <DesktopCard/>;
-}
-
+          
+          
+                    {/* SHOWREEL — на строку ниже. Шрифт = как BODY в Круге 2 */}
+                    <PrePlate active={true}>
+                      <h3
+                        onClick={()=>{ playDot(); openShowreel(); }}
+                        style={{
+                          margin: "1.2em 0 0",
+                          fontSize: "clamp(13px, 4.2vw, 17px)",
+                          letterSpacing: "0.08em",
+                          color: "#ffffff",
+                          userSelect: "none",
+                          cursor:"pointer",
+                          fontFamily: FAMILY_BODY,
+                          fontWeight: 700,
+                          fontSynthesis: "none",
+                        }}
+                        title="Открыть шоу-рил"
+                      >
+                        {srLetters.map((ch,i)=>(
+                          <span
+                            key={i}
+                            data-idx={i} data-group="sr"
+                            onMouseEnter={()=>activateLetter("sr", i, setSrStick, setSrColors)}
+                            onPointerDown={()=>activateLetter("sr", i, setSrStick, setSrColors, "click")}
+                            style={{
+                              display:"inline-block",
+                              whiteSpace:"pre",
+                              color: srStick[i] ? srColors[i] : "#ffffff",
+                              transform: srStick[i] ? "scale(1.2)" : "scale(1)",
+                              transition:"transform 140ms ease, color 160ms ease"
+                            }}
+                          >
+                            {ch}
+                          </span>
+                        ))}
+                      </h3>
+                    </PrePlate>
+                  </div>
+                </div>
+          
+                {/* Соц-иконки */}
+                <div
+                  style={{
+                    position: "fixed",
+                    left: "50%", transform: "translateX(-50%)",
+                    bottom: `calc(12px + env(safe-area-inset-bottom, 0px))`,
+                    display: "flex", justifyContent: "center", gap: 20, zIndex: 2147483601,
+                  }}
+                >
+                  <IconLink
+                    href="https://instagram.com/rustamromanov.ru"
+                    label="Instagram"
+                    whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
+                    colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
+                    onHoverSound={playDot}
+                    size={37}
+                  />
+                  <IconLink
+                    href="https://t.me/rustamromanov"
+                    label="Telegram"
+                    whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
+                    colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3"
+                    onHoverSound={playDot}
+                    size={37}
+                  />
+                </div>
+          
+                {/* Оверлеи */}
+                <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
+                <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
+                {/* КРУГ 2: +5% ДОП на мобилке и текст ещё +1 (через bodyInc) */}
+                <Circle2Overlay
+                  open={circle2Open}
+                  onClose={()=>setCircle2Open(false)}
+                  diameter={Math.round(circleDiam * 1.25 * 1.05)}  // = базовый *1.25 и ещё +5%
+                  hideClose
+                  backdropClose
+                  bodyInc={-1}
+                />
+          
+                {/* ЛОКАЛЬНЫЕ СТИЛИ ДЛЯ МОБИЛКИ (стеклянная плашка + дыхание 3x с прозрачностью до 0.5) */}
+                <style>{`
+                  .glass-plate.circle{
+                    background: rgba(255,255,255,0.07);
+                    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+                    backdrop-filter: blur(16px) saturate(1.2);
+                    box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+                    border-radius: 50%;
+                    overflow:hidden;
+                  }
+                  .glass-plate.circle::before{
+                    content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
+                    -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+                    backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+                    -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+                    mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+                  }
+                  .glass-plate.circle::after{
+                    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+                    background:
+                      radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
+                      radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
+                      radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+                      radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+                      linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
+                    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
+                  }
+          
+                  /* дыхание имени в противоход кругу */
+          @keyframes nameBreath {
+            0%, 100% {
+              transform: scale(1.01); /* слегка крупнее когда круг маленький */
+            }
+            50% {
+              transform: scale(0.99); /* уменьшается когда круг расширен */
+            }
+          }
+          
+          /* мягкая цветовая волна по буквам */
+          @keyframes waveGrayLetters {
+            0%, 100% { color: #ffffff; }
+            50%      { color: #666666; }
+          }
+          
+          /* дыхание круга: масштаб x3 и прозрачность до 0.5 на пике */
+                  @keyframes mBreath3x {
+                    0%, 100% {
+                      transform: translate(-50%,-50%) scale(1);
+                      opacity: 0.96;
+                    }
+                    50% {
+                      transform: translate(-50%,-50%) scale(1.10);
+                      opacity: 0.3;
+                    }
+                  }
+                `}</style>
+              </>
+            );
+          }
+          
+          /* ===== Экспорт (автосвитч) ===== */
+          export default function CenterRevealCard() {
+            const [isMobile,setIsMobile]=useState(typeof window!=="undefined" ? window.innerWidth<=MOBILE_BREAKPOINT : false);
+            useEffect(()=>{
+              const onR=()=>setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT);
+              window.addEventListener("resize",onR);
+              window.addEventListener("orientationchange",onR);
+              return ()=>{ window.removeEventListener("resize",onR); window.removeEventListener("orientationchange",onR); };
+            },[]);
+            return isMobile ? <MobileCard/> : <DesktopCard/>;
+          }
+          
