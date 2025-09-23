@@ -1351,11 +1351,11 @@ const onPM = (e) => {
         @keyframes mBreath3x {
           0%, 100% {
             transform: translate(-50%,-50%) scale(1);
-            opacity: 0.95;
+            opacity: 0.96;
           }
           50% {
             transform: translate(-50%,-50%) scale(1.10);
-            opacity: 0.8;
+            opacity: 0.3;
           }
         }
       `}</style>
