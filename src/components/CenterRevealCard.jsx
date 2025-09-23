@@ -1244,7 +1244,7 @@ function MobileCard() {
         diameter={Math.round(circleDiam * 1.25 * 1.05)}  // = базовый *1.25 и ещё +5%
         hideClose
         backdropClose
-        bodyInc={1}
+        bodyInc={-1}
       />
 
       {/* ЛОКАЛЬНЫЕ СТИЛИ ДЛЯ МОБИЛКИ (стеклянная плашка + дыхание 3x с прозрачностью до 0.5) */}
