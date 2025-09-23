@@ -936,42 +936,33 @@ function DesktopCard() {
       <BioOverlay   open={bioOpen}   onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio.jpg"/>
       <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={circle2Diam}/>
 
-            <style>{`
-        .glass-plate.circle{
-          background: rgba(255,255,255,0.07);
-          -webkit-backdrop-filter: blur(16px) saturate(1.2);
-          backdrop-filter: blur(16px) saturate(1.2);
+      <style>{`
+        .glass-plate.circle{ 
+          background: rgba(255,255,255,0.07); 
+          -webkit-backdrop-filter: blur(16px) saturate(1.2); 
+          backdrop-filter: blur(16px) saturate(1.2); 
           box-shadow: 0 12px 28px rgba(0,0,0,0.22);
           border-radius: 50%;
-          overflow:hidden;
+          overflow: hidden;
         }
         .glass-plate.circle::before{
-          content:"";
-          position:absolute;
-          inset:-1px;
-          border-radius:inherit;
-          pointer-events:none;
+          content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
           -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
           backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
           -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
           mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
         }
         .glass-plate.circle::after{
-          content:"";
-          position:absolute;
-          inset:0;
-          border-radius:inherit;
-          pointer-events:none;
+          content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
           background:
             radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
             radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
             radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
             radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
             linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
-          box-shadow:
-            inset 0 0 0 1px rgba(255,255,255,0.08),
-            inset 0 -20px 60px rgba(0,0,0,0.15);
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
         }
+        /* Лёгкий hover для кликабельных слов */
         .hover-click{ transition: transform 140ms ease, text-shadow 140ms ease; }
         .hover-click:hover{ transform: scale(1.035); text-shadow: 0 8px 26px rgba(0,0,0,0.35); }
         @keyframes waveGray { 0%,100% { color: #bfbfbf } 50% { color: #e0e0e0 } }
@@ -1022,7 +1013,7 @@ function BiographyWordPerLetter({ onOpen }) {
   );
 }
 
-/* ===== Mobile Card (БЕЗ кружков; SHOWREEL кликабелен) ===== */
+/* ===== Mobile Card (с Кругом 2; БЕЗ кружков 1-2-3; только SHOWREEL) ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
   const [bioOpen,setBioOpen]=useState(false);
@@ -1056,6 +1047,7 @@ function MobileCard() {
 
   const circleDiam = Math.round(Math.min(size.w, size.h) * 1.35);
 
+  /* дыхание круга */
   const plateOuter = {
     position:"absolute",
     left:"50%", top:"48%",
@@ -1068,6 +1060,7 @@ function MobileCard() {
     borderRadius:"50%", opacity: PLATE_OPACITY_MAX, pointerEvents:"none"
   };
 
+  /* буквы (анимация и цвет) */
   const lettersBio = Array.from("BIOGRAPHY");
   const mapBio = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
   const [stickBio,setStickBio]=useState(lettersBio.map(()=>false));
@@ -1078,13 +1071,14 @@ function MobileCard() {
   const [stickName,setStickName]=useState(nameLatin.map(()=>false));
   const [colorsName,setColorsName]=useState(nameLatin.map(()=>"#cfcfcf"));
 
-  const srLetters = Array.from("DIRECTOR'S SHOWREEL");
+  /* ТОЛЬКО SHOWREEL */
+  const srLetters = Array.from("SHOWREEL");
   const [srStick,setSrStick]=useState(srLetters.map(()=>false));
   const [srColors,setSrColors]=useState(srLetters.map(()=>"#bfbfbf"));
 
   const ONE_LINE = "1.2em";
   const HALF_LINE = "0.6em";
-  const circle2Diam = Math.round(circleDiam * 1.25 * 1.05);
+  const circle2Diam = Math.round(circleDiam * 1.25 * 1.05); // круг 2 (как просил — оставить)
 
   const hitLetter = (idx, setterStick, setterColor) => {
     setterStick(prev=>{ if(!prev[idx]) { const a=[...prev]; a[idx]=true; return a; } return prev; });
@@ -1159,6 +1153,7 @@ function MobileCard() {
                 fontWeight: 800,
                 fontSynthesis: "none",
               }}
+              title="Подробнее"
             >
               {nameLatin.map((ch,i)=>(
                 <span
@@ -1179,7 +1174,7 @@ function MobileCard() {
             </h1>
           </PrePlate>
 
-          {/* SHOWREEL — кликабельно, без кружков */}
+          {/* ТОЛЬКО SHOWREEL — кликабельно */}
           <PrePlate active={true}>
             <h3
               onClick={openShowreel}
@@ -1208,7 +1203,7 @@ function MobileCard() {
                     transition:"transform 140ms ease, color 160ms ease"
                   }}
                 >
-                  {ch===" " ? "\u00A0" : ch}
+                  {ch}
                 </span>
               ))}
             </h3>
@@ -1216,7 +1211,7 @@ function MobileCard() {
         </div>
       </div>
 
-      {/* Соц-иконки — прижаты к низу, отступ 12px */}
+      {/* Соц-иконки — прижаты к низу */}
       <div
         style={{
           position: "fixed",
@@ -1250,6 +1245,7 @@ function MobileCard() {
       {/* Оверлеи */}
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
+      {/* КРУГ 2 — оставить! без крестика, закрытие тапом по фону */}
       <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={circle2Diam} hideClose backdropClose />
 
       <style>{`
