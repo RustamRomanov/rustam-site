@@ -6,6 +6,9 @@ const BASE_TILE_W = 80, BASE_TILE_H = 45;
 const WAVE_STEP = 90, WAVE_PERIOD_MIN = 5000, WAVE_PERIOD_MAX = 9000;
 const FADE_MS = 800, RING_SCALES = [3, 2, 1.5, 1.2], LERP = 0.22;
 
+/* ===== МОБИЛЬНЫЙ ЗУМ ===== */
+const MOBILE_ZOOM_W_RATIO = 0.95; // 95% ширины экрана (поменяешь число — изменишь процент)
+
 /* ===== ХОВЕР / КЛИК / ЗУМ ===== */
 const HOVER_BOOST = 1.2, HOVER_BOOST_MOBILE = 1.10;
 const CENTER_15_PERCENT_LESS = 0.85, CLICK_MULT = 2.0;
@@ -700,20 +703,20 @@ export default function MosaicBackground() {
 
         // >>>>>>> МОБИЛЬНОЕ ПОВЕДЕНИЕ: ширина во весь экран, якорение по верх/низ <<<<<<<
 if (isMobile) {
-  // Центр тайла относительно середины экрана
+  // Центр тайла относительно середины экрана — решаем, к какому краю якориться по Y
   const tileCenterY = tile.r * tileH + tileH / 2;
   const anchorTop = tileCenterY < (h / 2);
 
-  // Масштаб по ШИРИНЕ экрана (встык по бокам)
-  const scale = w / img.width;
-  const drawW = Math.floor(img.width * scale);   // будет ровно w, но через расчёт — на всякий
-  const drawH = Math.floor(img.height * scale);
+  // Масштаб по ШИРИНЕ: не во всю, а на MOBILE_ZOOM_W_RATIO от ширины экрана
+  const targetW = Math.floor(w * MOBILE_ZOOM_W_RATIO);          // например, 95% ширины
+  const scale   = targetW / img.width;
+  const drawW   = targetW;                                       // уже центрируем
+  const drawH   = Math.floor(img.height * scale);
 
-  // По X — от края до края, по Y — к верху или к низу
-  const drawX = 0;
+  // По X — центрируем, по Y — к верху или к низу экрана (как раньше)
+  const drawX = Math.floor((w - drawW) / 2);                     // симметричные поля слева/справа
   const drawY = anchorTop ? 0 : (h - drawH);
 
-  // Рисуем с мягкими скруглениями как раньше
   ctx.save();
   roundedRect(ctx, drawX, drawY, drawW, drawH, ZOOM_RADIUS);
   ctx.clip();
@@ -721,7 +724,7 @@ if (isMobile) {
   ctx.drawImage(img, 0, 0, img.width, img.height, drawX, drawY, drawW, drawH);
   ctx.restore();
 } else {
-  // >>>>>>> СТАРОЕ ПОВЕДЕНИЕ (ДЕСКTOP) — БЕЗ ИЗМЕНЕНИЙ <<<<<<<
+  // (десктоп-логика без изменений)
   const { tileW, tileH } = gridRef.current;
   const dx=tile.c*tileW, dy=tile.r*tileH;
   const cover=computeCover(img.width,img.height,tileW,tileH,tile.scale);
@@ -739,6 +742,7 @@ if (isMobile) {
   ctx.drawImage(img,0,0,img.width,img.height,Math.floor(drawX),Math.floor(drawY),drawW,drawH);
   ctx.restore();
 }
+
 
       }
     }
@@ -796,3 +800,4 @@ export const MOSAIC_MOBILE_COLS = 8; // менять при необходимо
 export const MOSAIC_MOBILE_DIR = MOBILE_DIR; // "/rustam-site/assents/mobile/"
 export const MOSAIC_MOBILE_HOVER = HOVER_BOOST_MOBILE; // 1.10
 export const MOSAIC_CLICK_MULT    = CLICK_MULT;        // 2.0
+export const MOSAIC_MOBILE_ZOOM_RATIO = MOBILE_ZOOM_W_RATIO; // 0.95
