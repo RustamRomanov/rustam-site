@@ -704,8 +704,8 @@ export default function MosaicBackground() {
         // >>>>>>> МОБИЛЬНОЕ ПОВЕДЕНИЕ: ширина во весь экран, якорение по верх/низ <<<<<<<
 if (isMobile) {
   // Отступы
-  const marginX = w * 0.05; // слева/справа
-  const marginY = h * 0.05; // сверху/снизу
+  const marginX = w * 0.05;           // слева/справа = 5%
+  const marginY = h * 0.05 * 0.6;     // сверху/снизу = 60% от 5% (т.е. -40%)
 
   // Доступная ширина
   const availW = w - marginX * 2;
@@ -715,39 +715,21 @@ if (isMobile) {
   const drawW = availW;
   const drawH = Math.floor(img.height * scale);
 
-  // X — центрируем по горизонтали с учётом отступов
+  // X — центрируем по горизонтали
   const drawX = Math.floor((w - drawW) / 2);
 
-  // Y — если картинка в верхней половине, то отступ сверху, иначе снизу
+  // Y — сверху или снизу
   const tileCenterY = tile.r * tileH + tileH / 2;
   const anchorTop = tileCenterY < (h / 2);
   const drawY = anchorTop
-    ? Math.floor(marginY)              // сверху 5%
-    : Math.floor(h - drawH - marginY); // снизу 5%
+    ? Math.floor(marginY)              // сверху меньше отступ
+    : Math.floor(h - drawH - marginY); // снизу меньше отступ
 
   ctx.save();
   roundedRect(ctx, drawX, drawY, drawW, drawH, ZOOM_RADIUS);
   ctx.clip();
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(img, 0, 0, img.width, img.height, drawX, drawY, drawW, drawH);
-  ctx.restore();
-} else {
-  // (десктоп без изменений)
-  const { tileW, tileH } = gridRef.current;
-  const dx=tile.c*tileW, dy=tile.r*tileH;
-  const cover=computeCover(img.width,img.height,tileW,tileH,tile.scale);
-  const left=dx+(tileW-cover.drawW)/2, top=dy+(tileH-cover.drawH)/2;
-  const u=clamp01((mx-left)/cover.drawW), v=clamp01((my-top)/cover.drawH);
-  const imgX=cover.sx + u*cover.sw, imgY=cover.sy + v*cover.sh;
-  const drawW=Math.floor(img.width*ZOOM_NATIVE_FACTOR), drawH=Math.floor(img.height*ZOOM_NATIVE_FACTOR);
-  const drawX=mx - imgX*ZOOM_NATIVE_FACTOR, drawY=my - imgY*ZOOM_NATIVE_FACTOR;
-  const angle=clamp(-dmx*ROT_SENS, -ZOOM_MAX_ROT, ZOOM_MAX_ROT);
-
-  ctx.save();
-  ctx.beginPath(); roundedRect(ctx,Math.floor(drawX),Math.floor(drawY),drawW,drawH,ZOOM_RADIUS); ctx.clip();
-  ctx.translate(mx,my); ctx.rotate(angle); ctx.translate(-mx,-my);
-  ctx.imageSmoothingEnabled=true;
-  ctx.drawImage(img,0,0,img.width,img.height,Math.floor(drawX),Math.floor(drawY),drawW,drawH);
   ctx.restore();
 }
 
