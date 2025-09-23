@@ -1354,8 +1354,8 @@ const onPM = (e) => {
             opacity: 0.95;
           }
           50% {
-            transform: translate(-50%,-50%) scale(1.08);
-            opacity: 0.5;
+            transform: translate(-50%,-50%) scale(1.10);
+            opacity: 0.6;
           }
         }
       `}</style>
