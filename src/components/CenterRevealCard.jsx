@@ -226,7 +226,7 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
           hyphens: "auto",
           fontFamily: FAMILY_BODY,
           fontWeight: 700,
-          fontSize: BODY_FS + 1 + bodyInc, // BODY +1px (как просил) + дополнительный инкремент, если передан
+          fontSize: BODY_FS + bodyInc, // BODY +1px (как просил) + дополнительный инкремент, если передан
           lineHeight: 1.24,
           letterSpacing: "0.02em",
           color: COLOR
