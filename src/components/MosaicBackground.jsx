@@ -7,7 +7,7 @@ const WAVE_STEP = 90, WAVE_PERIOD_MIN = 5000, WAVE_PERIOD_MAX = 9000;
 const FADE_MS = 800, RING_SCALES = [3, 2, 1.5, 1.2], LERP = 0.22;
 
 /* ===== МОБИЛЬНЫЙ ЗУМ ===== */
-const MOBILE_ZOOM_W_RATIO = 0.95; // 95% ширины экрана (поменяешь число — изменишь процент)
+const MOBILE_ZOOM_W_RATIO = 0.95; // 95% ширины экрана
 
 /* ===== ХОВЕР / КЛИК / ЗУМ ===== */
 const HOVER_BOOST = 1.2, HOVER_BOOST_MOBILE = 1.10;
@@ -49,6 +49,7 @@ const randInt = (min,max)=>Math.floor(min + Math.random()*(max-min+1));
 const parseSeq = (url)=>{ const f=(url.split("/").pop()||"").toLowerCase(); const m=f.match(/(\d+)(?=\.(jpg|jpeg|png|webp)$)/i); return m?parseInt(m[1],10):Number.MAX_SAFE_INTEGER; };
 const shuffle = (a)=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; };
 
+
 export default function MosaicBackground() {
   const canvasRef = useRef(null), ctxRef = useRef(null);
 
@@ -75,7 +76,6 @@ export default function MosaicBackground() {
 
   /* Наведение / клик */
   const mouseRef = useRef({ x:-1e6, y:-1e6 });
-  const prevMouseRef = useRef({ x:-1e6, y:-1e6 });
   const prevHoverIdRef = useRef(-1);
   const prevHoverColRef = useRef(-1);
   const prevHoverRowRef = useRef(-1);
@@ -260,7 +260,20 @@ export default function MosaicBackground() {
 
   /* ===== РАЗМЕР / СЕТКА ===== */
   useEffect(()=>{
-    const onResize=()=>{ setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT); clickedTileIdRef.current = -1; tryScheduleNextPhase(); };
+    const onResize=()=>{ 
+      setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT);
+      clickedTileIdRef.current = -1; 
+      // Перераскладываем на полный экран: сбрасываем тайлы и создаём заново
+      tilesRef.current = [];
+      initTiles(true);
+      // Возвращаем текущую фазу волной, если пулы готовы
+      const ph = phaseRef.current;
+      if ((ph === "mobile" && mobilePoolRef.current.length) ||
+          (ph === "desktop" && desktopPoolRef.current.length)) {
+        schedulePhaseWave(ph);
+      }
+      tryScheduleNextPhase(); 
+    };
     window.addEventListener("resize",onResize);
     window.addEventListener("orientationchange",onResize);
     return ()=>{
@@ -300,7 +313,15 @@ export default function MosaicBackground() {
         tileH=Math.ceil(h/rows);
       }
       gridRef.current={ cols, rows, tileW, tileH };
-      initTiles();
+      // Полный пересчёт тайлов при изменении сетки
+      tilesRef.current = [];
+      initTiles(true);
+      // Возврат текущей фазы
+      const ph = phaseRef.current;
+      if ((ph === "mobile" && mobilePoolRef.current.length) ||
+          (ph === "desktop" && desktopPoolRef.current.length)) {
+        schedulePhaseWave(ph);
+      }
       tryScheduleNextPhase();
     };
 
@@ -433,15 +454,14 @@ export default function MosaicBackground() {
     schedulePhaseWave(target);
   }
 
-  /* ===== Тайлы под img1 ===== */
-  function initTiles(){
+  /* ===== Тайлы под текущую фазу/ img1 ===== */
+  function initTiles(force=false){
     const { cols, rows } = gridRef.current; if(!cols || !rows) return;
     if(!img1Ref.current) return; // ждём img1
-    if(tilesRef.current.length) return;
+    if(tilesRef.current.length && !force) return;
 
     const total = cols*rows;
     const now = performance.now();
-
     const tiles = new Array(total);
     for(let id=0;id<total;id++){
       tiles[id] = {
@@ -546,13 +566,6 @@ export default function MosaicBackground() {
   }
   useEffect(()=>()=>cancelAnimationFrame(rafRef.current),[]);
 
-  function computeCover(imgW,imgH,dw,dh,s=1){
-    const drawW=dw*s, drawH=dh*s;
-    const scale=Math.max(drawW/imgW, drawH/imgH);
-    const sw=drawW/scale, sh=drawH/scale;
-    const sx=(imgW-sw)*0.5, sy=(imgH-sh)*0.5;
-    return { drawW, drawH, sx, sy, sw, sh };
-  }
   function roundedRect(ctx,x,y,w,h,r){
     const rr=Math.max(0,Math.min(r,Math.min(w,h)/2));
     ctx.beginPath();
@@ -639,20 +652,16 @@ export default function MosaicBackground() {
     }
 
     // === АВТОСБРОС ЗУМА (ТОЛЬКО ДЕСКТОП) ПРИ УХОДЕ ЗА ПРЕДЕЛЫ 2-ГО КОЛЬЦА ===
-if (!isMobile && clickedTileIdRef.current >= 0) {
-  const { cols } = gridRef.current;
-  const c0 = clickedTileIdRef.current % cols;
-  const r0 = Math.floor(clickedTileIdRef.current / cols);
-
-  // Если курсор вне канвы — считаем, что ушли далеко
-  const distRing = (hoveredId >= 0)
-    ? Math.max(Math.abs(mc - c0), Math.abs(mr - r0))  // твоя метрика колец
-    : Infinity;
-
-  if (distRing > CLEAR_RING_DESKTOP) {
-    clickedTileIdRef.current = -1; // сброс зума
-  }
-}
+    if (!isMobile && clickedTileIdRef.current >= 0) {
+      const c0 = clickedTileIdRef.current % cols;
+      const r0 = Math.floor(clickedTileIdRef.current / cols);
+      const distRing = (hoveredId >= 0)
+        ? Math.max(Math.abs(mc - c0), Math.abs(mr - r0))
+        : Infinity;
+      if (distRing > CLEAR_RING_DESKTOP) {
+        clickedTileIdRef.current = -1; // сброс зума
+      }
+    }
 
     // масштаб
     const HOVER_MUL = isMobile ? HOVER_BOOST_MOBILE : HOVER_BOOST;
@@ -695,7 +704,7 @@ if (!isMobile && clickedTileIdRef.current >= 0) {
     }
     order.sort((a,b)=>b.ring - a.ring);
 
-    // рисуем
+    // рисуем фоновые тайлы (кроме кликнутого)
     for(const o of order){
       const tile=tiles[o.idx]; if(!tile.img) continue;
       const dx=tile.c*tileW, dy=tile.r*tileH;
@@ -715,52 +724,69 @@ if (!isMobile && clickedTileIdRef.current >= 0) {
     if(ct>=0){
       const tile=tiles[ct]; if(tile && tile.img){
         const img=tile.img;
-        const mx=mouseRef.current.x, my=mouseRef.current.y;
-        const pm=prevMouseRef.current; const dmx=isFinite(pm.x)?(mx-pm.x):0; prevMouseRef.current={x:mx,y:my};
+        const wView = w, hView = h;
+        const marginX = isMobile ? wView * 0.05 : Math.max(16, wView * 0.04);
+        const marginY = isMobile ? hView * 0.03 : Math.max(16, hView * 0.04);
 
-        // >>>>>>> МОБИЛЬНОЕ ПОВЕДЕНИЕ: ширина во весь экран, якорение по верх/низ <<<<<<<
-if (isMobile) {
-  // Отступы
-  const marginX = w * 0.05;       // слева/справа = 5%
-  const marginY = h * 0.05 * 0.6; // сверху/снизу ~3% (уменьшено на 40%)
+        if (isMobile) {
+          // ==== МОБИЛЬНЫЙ ЗУМ (фикс без дёрганий) ====
+          // ЛОКА: запрещаем авто-скидку по "не тот тайл": больше не трогаем clickedTileId до pointerup
+          const availW = wView - marginX * 2;
+          const scale = availW / img.width;
+          const drawW = Math.floor(img.width * scale);
+          const drawH = Math.floor(img.height * scale);
 
-  // Доступная ширина
-  const availW = w - marginX * 2;
+          // центрируем по X
+          const drawX = Math.floor((wView - drawW) / 2);
 
-  // Масштаб по ширине
-  const scale = availW / img.width;
-  const drawW = availW;
-  const drawH = Math.floor(img.height * scale);
+          // якорим по верху/низу в зависимости от положения исходного тайла
+          const tileCenterY = tile.r * tileH + tileH / 2;
+          const anchorTop = tileCenterY < (hView / 2);
+          const extraBottom = -hView * 0.01;
+          const drawY = anchorTop
+            ? Math.floor(marginY)
+            : Math.floor(hView - drawH - marginY - extraBottom);
 
-  // X — центрируем по горизонтали
-  const drawX = Math.floor((w - drawW) / 2);
+          ctx.save();
+          roundedRect(ctx, drawX, drawY, drawW, drawH, ZOOM_RADIUS);
+          ctx.clip();
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(img, 0, 0, img.width, img.height, drawX, drawY, drawW, drawH);
+          ctx.restore();
 
-  // Y — сверху или снизу
-  const tileCenterY = tile.r * tileH + tileH / 2;
-  const anchorTop = tileCenterY < (h / 2);
+        } else {
+          // ==== ДЕСКТОПНЫЙ ЗУМ: 60% реального размера, с ограничением по вьюпорту ====
+          const NAT_W = img.width * 0.60;
+          const NAT_H = img.height * 0.60;
 
-  // Если внизу — добавляем ещё 1% от высоты
-  const extraBottom = h * -0.01;
+          // вписываем в окно с небольшими полями
+          let drawW = Math.min(NAT_W, wView - marginX*2);
+          let drawH = NAT_H * (drawW / NAT_W);
+          if (drawH > hView - marginY*2) {
+            drawH = hView - marginY*2;
+            drawW = NAT_W * (drawH / NAT_H);
+          }
 
-  const drawY = anchorTop
-    ? Math.floor(marginY)                 // верхний отступ
-    : Math.floor(h - drawH - marginY - extraBottom); // нижний отступ +1%
+          // позиционируем к центру кликнутого тайла, но не выходим за края
+          const tileCenterX = tile.c * tileW + tileW / 2;
+          const tileCenterY2 = tile.r * tileH + tileH / 2;
+          let drawX = Math.round(tileCenterX - drawW/2);
+          let drawY = Math.round(tileCenterY2 - drawH/2);
+          drawX = clamp(drawX, marginX, wView - marginX - drawW);
+          drawY = clamp(drawY, marginY, hView - marginY - drawH);
 
-  ctx.save();
-  roundedRect(ctx, drawX, drawY, drawW, drawH, ZOOM_RADIUS);
-  ctx.clip();
-  ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(img, 0, 0, img.width, img.height, drawX, drawY, drawW, drawH);
-  ctx.restore();
-}
-
-
-
-
-
+          ctx.save();
+          roundedRect(ctx, drawX, drawY, drawW, drawH, ZOOM_RADIUS);
+          ctx.clip();
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(img, 0, 0, img.width, img.height, drawX, drawY, drawW, drawH);
+          ctx.restore();
+        }
       }
     }
-    if (isMobile && ct>=0 && ct!==hoveredId) clickedTileIdRef.current = -1;
+
+    // ВАЖНО: убрали авто-скидку на мобиле при небольшом смещении пальца (устранение дёргания)
+    // if (isMobile && ct>=0 && ct!==hoveredId) clickedTileIdRef.current = -1;
 
     // «живая» случайная жизнь — только после desktop-фазы
     if(allowRandomRef.current && !doingWaveRef.current && t>=waveRef.current.nextWaveAt){
@@ -784,11 +810,32 @@ if (isMobile) {
   };
   const onMouseMove=(e)=> updateMouse(e.clientX, e.clientY);
   const onMouseLeave=()=>{ mouseRef.current={x:-1e6,y:-1e6}; clickedTileIdRef.current=-1; prevHoverIdRef.current=-1; prevHoverColRef.current=-1; };
-  const onClick=()=>{ const { cols,tileW,tileH }=gridRef.current; const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH); if(mc<0||mr<0) return; const id=mr*cols+mc; const t=tilesRef.current[id]; if(!t||!t.img) return; clickedTileIdRef.current=id; };
+  const onClick=()=>{ 
+    const { cols,tileW,tileH }=gridRef.current; 
+    const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH); 
+    if(mc<0||mr<0) return; 
+    const id=mr*cols+mc; 
+    const t=tilesRef.current[id]; 
+    if(!t||!t.img) return; 
+    clickedTileIdRef.current=id; 
+  };
+
   const pointerActiveRef=useRef(false);
-  const onPointerDown=(e)=>{ updateMouse(e.clientX, e.clientY); pointerActiveRef.current=true; canvasRef.current.setPointerCapture?.(e.pointerId); onClick(); };
-  const onPointerMove=(e)=>{ if(isMobile && pointerActiveRef.current && e.cancelable) e.preventDefault(); updateMouse(e.clientX, e.clientY); };
-  const onPointerUp=()=>{ pointerActiveRef.current=false; clickedTileIdRef.current=-1; };
+  const onPointerDown=(e)=>{ 
+    updateMouse(e.clientX, e.clientY); 
+    pointerActiveRef.current=true; 
+    canvasRef.current.setPointerCapture?.(e.pointerId); 
+    onClick(); 
+  };
+  const onPointerMove=(e)=>{ 
+    if(isMobile && pointerActiveRef.current && e.cancelable) e.preventDefault(); 
+    updateMouse(e.clientX, e.clientY); 
+  };
+  const onPointerUp=()=>{ 
+    pointerActiveRef.current=false; 
+    // На мобиле убираем зум по отпусканию пальца — это и есть "закрытие" без дёрганий
+    clickedTileIdRef.current=-1; 
+  };
 
   return (
     <canvas
