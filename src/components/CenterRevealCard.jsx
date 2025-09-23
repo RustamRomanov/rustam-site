@@ -1,5 +1,5 @@
 // src/components/CenterRevealCard.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useLayoutEffect } from "react";
 
 /* ===== Utils (минимально необходимое) ===== */
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
@@ -967,21 +967,40 @@ function MobileCard() {
 
   const openShowreel = () => { setVimeoId("1001147905"); setPlayerOpen(true); };
 
-  // Размер сцены
-  const [size,setSize]=useState({
-    w: (typeof window!=="undefined"? Math.min(680, Math.round(window.innerWidth*0.9)) : 360),
-    h: 0
-  });
-  useEffect(()=>{
-    const calc=()=>{
-      const w = Math.min(680, Math.round(window.innerWidth*0.9));
-      const h = Math.round(w*0.62);
-      setSize({w,h});
+  // Размер «сцены» — без нулевого кадра (убирает смещение круга на старте)
+  const initialW = typeof window !== "undefined"
+    ? Math.min(680, Math.round(window.innerWidth * 0.9))
+    : 360;
+  const initialH = typeof window !== "undefined"
+    ? Math.round(initialW * 0.62)
+    : Math.round(360 * 0.62);
+
+  const [size, setSize] = useState({ w: initialW, h: initialH });
+
+  useEffect(() => {
+    let raf = 0;
+    const calc = () => {
+      const w = Math.min(680, Math.round(window.innerWidth * 0.9));
+      const h = Math.round(w * 0.62);
+      setSize(s => (s.w !== w || s.h !== h) ? { w, h } : s);
     };
+    const onResize = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(calc);
+    };
+
     calc();
-    window.addEventListener("resize",calc);
-    return ()=>window.removeEventListener("resize",calc);
-  },[]);
+    window.addEventListener("resize", onResize, { passive: true });
+    window.addEventListener("orientationchange", onResize, { passive: true });
+    window.addEventListener("pageshow", onResize, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      window.removeEventListener("pageshow", onResize);
+    };
+  }, []);
 
   const wrapper = {
     position:"fixed", left:"50%", top:"50%", transform:"translate(-50%,-50%)",
@@ -994,15 +1013,27 @@ function MobileCard() {
   const baseDiam   = Math.min(size.w, size.h);
   const circleDiam = Math.round(baseDiam * 1.10);
 
+  // оболочка (центрируем и хинт браузеру)
+  const plateOuter = {
+    position:"absolute",
+    left:"50%", top:"50%",
+    transform:"translate(-50%,-50%)",
+    willChange:"transform,opacity",
+  };
+
+  // сама стеклянная плашка
   const plateStyle = {
     position:"absolute",
     left:"50%", top:"50%",
-    transform:"translate(-50%,-50%) scale(1)",
     width:circleDiam, height:circleDiam,
     borderRadius:"50%",
+    transform:"translate(-50%,-50%)",
+    transformOrigin:"50% 50%",
     pointerEvents:"none",
+    willChange:"transform,opacity",
     animation: "mBreath3x 3200ms ease-in-out infinite"
   };
+
 
   // Тексты/буквы
   const lettersBio = Array.from("BIOGRAPHY");
