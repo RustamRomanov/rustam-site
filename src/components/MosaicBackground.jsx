@@ -703,19 +703,21 @@ export default function MosaicBackground() {
 
         // >>>>>>> МОБИЛЬНОЕ ПОВЕДЕНИЕ: ширина во весь экран, якорение по верх/низ <<<<<<<
 if (isMobile) {
-  // Центр тайла относительно середины экрана — решаем, к какому краю якориться по Y
-  const tileCenterY = tile.r * tileH + tileH / 2;
-  const anchorTop = tileCenterY < (h / 2);
+  // Отступы сверху/снизу и по бокам = 5% экрана
+  const marginX = w * 0.05; // 5% ширины
+  const marginY = h * 0.05; // 5% высоты
 
-  // Масштаб по ШИРИНЕ: не во всю, а на MOBILE_ZOOM_W_RATIO от ширины экрана
-  const targetW = Math.floor(w * MOBILE_ZOOM_W_RATIO);          // например, 95% ширины
-  const scale   = targetW / img.width;
-  const drawW   = targetW;                                       // уже центрируем
-  const drawH   = Math.floor(img.height * scale);
+  const availW = w - marginX * 2;
+  const availH = h - marginY * 2;
 
-  // По X — центрируем, по Y — к верху или к низу экрана (как раньше)
-  const drawX = Math.floor((w - drawW) / 2);                     // симметричные поля слева/справа
-  const drawY = anchorTop ? 0 : (h - drawH);
+  // Масштабируем изображение так, чтобы вписалось в "рамку"
+  const scale = Math.min(availW / img.width, availH / img.height);
+  const drawW = Math.floor(img.width * scale);
+  const drawH = Math.floor(img.height * scale);
+
+  // Центрируем внутри "рамки"
+  const drawX = Math.floor((w - drawW) / 2);
+  const drawY = Math.floor((h - drawH) / 2);
 
   ctx.save();
   roundedRect(ctx, drawX, drawY, drawW, drawH, ZOOM_RADIUS);
@@ -724,7 +726,7 @@ if (isMobile) {
   ctx.drawImage(img, 0, 0, img.width, img.height, drawX, drawY, drawW, drawH);
   ctx.restore();
 } else {
-  // (десктоп-логика без изменений)
+  // (десктоп без изменений)
   const { tileW, tileH } = gridRef.current;
   const dx=tile.c*tileW, dy=tile.r*tileH;
   const cover=computeCover(img.width,img.height,tileW,tileH,tile.scale);
@@ -742,6 +744,7 @@ if (isMobile) {
   ctx.drawImage(img,0,0,img.width,img.height,Math.floor(drawX),Math.floor(drawY),drawW,drawH);
   ctx.restore();
 }
+
 
 
       }
