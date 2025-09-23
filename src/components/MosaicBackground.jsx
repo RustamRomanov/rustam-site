@@ -723,7 +723,7 @@ if (isMobile) {
   const anchorTop = tileCenterY < (h / 2);
 
   // Если внизу — добавляем ещё 1% от высоты
-  const extraBottom = h * 0.01;
+  const extraBottom = h * -0.01;
 
   const drawY = anchorTop
     ? Math.floor(marginY)                 // верхний отступ
