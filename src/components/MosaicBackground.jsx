@@ -12,7 +12,7 @@ const MOBILE_ZOOM_W_RATIO = 0.95; // 95% ширины экрана
 /* ===== ХОВЕР / КЛИК / ЗУМ ===== */
 const HOVER_BOOST = 1.2, HOVER_BOOST_MOBILE = 1.10;
 const CENTER_15_PERCENT_LESS = 0.85, CLICK_MULT = 2.0;
-const ZOOM_NATIVE_FACTOR = 0.8, ZOOM_MAX_ROT = 0.12, ROT_SENS = 0.0022, ZOOM_RADIUS = 18;
+const ZOOM_RADIUS = 18;
 const CLEAR_RING_DESKTOP = 2; // сбрасываем зум, если курсор ушёл дальше этого кольца
 
 /* ===== ПЛАТФОРМА ===== */
@@ -47,20 +47,14 @@ const clamp = (v,min,max)=>Math.min(Math.max(v,min),max);
 const clamp01 = (x)=>Math.max(0,Math.min(1,x));
 const randInt = (min,max)=>Math.floor(min + Math.random()*(max-min+1));
 const parseSeq = (url)=>{ const f=(url.split("/").pop()||"").toLowerCase(); const m=f.match(/(\d+)(?=\.(jpg|jpeg|png|webp)$)/i); return m?parseInt(m[1],10):Number.MAX_SAFE_INTEGER; };
-const shuffle = (a)=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; };
-
 
 export default function MosaicBackground() {
   const canvasRef = useRef(null), ctxRef = useRef(null);
 
   /* ===== Пулы изображений (3 этапа) ===== */
   const img1Ref        = useRef(null);
-  const mobileUrlsRef  = useRef([]);
-  const mobilePoolRef  = useRef([]);
-  const mobileSeqRef   = useRef([]);
-  const desktopUrlsRef = useRef([]);
-  const desktopPoolRef = useRef([]);
-  const desktopSeqRef  = useRef([]);
+  const mobileUrlsRef  = useRef([]);   const mobilePoolRef = useRef([]);   const mobileSeqRef = useRef([]);
+  const desktopUrlsRef = useRef([]);   const desktopPoolRef= useRef([]);   const desktopSeqRef= useRef([]);
 
   /* ===== Текущая сетка/тайлы ===== */
   const tilesRef  = useRef([]);
@@ -81,12 +75,19 @@ export default function MosaicBackground() {
   const prevHoverRowRef = useRef(-1);
   const clickedTileIdRef = useRef(-1);
 
+  /* Моб. жесты: различаем TAP vs SCROLL */
+  const pointerActiveRef = useRef(false);
+  const touchStartRef = useRef({x:0,y:0,t:0,id:-1});
+  const dragFlagRef = useRef(false);
+  const TAP_SLOP = 10;         // px
+  const TAP_MAX_MS = 350;      // ms
+
   const readySentRef = useRef(false);
   const [isMobile, setIsMobile] = useState(
     typeof window!=="undefined" ? window.innerWidth<=MOBILE_BREAKPOINT : false
   );
 
-  /* ===== AUDIO ===== */
+  /* ===== AUDIO (как было) ===== */
   const audioCtxRef    = useRef(null);
   const convolverRef   = useRef(null);
   const masterCompRef  = useRef(null);
@@ -142,6 +143,7 @@ export default function MosaicBackground() {
     };
   },[]);
   const playDirectionalAir = async (_strength = 1, _pan = 0, _dirX = 0, _v = 0.5, _dirY = 0) => {
+    // ... без изменений (звук)
     const strength = Number.isFinite(_strength) ? _strength : 1;
     const pan      = Number.isFinite(_pan)      ? _pan      : 0;
     const dirX     = Number.isFinite(_dirX)     ? _dirX     : 0;
@@ -261,18 +263,23 @@ export default function MosaicBackground() {
   /* ===== РАЗМЕР / СЕТКА ===== */
   useEffect(()=>{
     const onResize=()=>{ 
-      setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT);
-      clickedTileIdRef.current = -1; 
-      // Перераскладываем на полный экран: сбрасываем тайлы и создаём заново
+      const m = window.innerWidth<=MOBILE_BREAKPOINT;
+      setIsMobile(m);
+      clickedTileIdRef.current = -1;
+      // заново пересчитать сетку+тайлы
       tilesRef.current = [];
       initTiles(true);
-      // Возвращаем текущую фазу волной, если пулы готовы
-      const ph = phaseRef.current;
-      if ((ph === "mobile" && mobilePoolRef.current.length) ||
-          (ph === "desktop" && desktopPoolRef.current.length)) {
-        schedulePhaseWave(ph);
+      // при смене платформы — корректная очередь фаз
+      pendingPhasesRef.current = [];
+      allowRandomRef.current = false;
+      if (m) {
+        if (mobilePoolRef.current.length) schedulePhaseWave("mobile");
+      } else {
+        // на десктопе запускаем то, что доступно: сначала mobile, затем desktop
+        if (mobilePoolRef.current.length) enqueuePhase("mobile");
+        if (desktopPoolRef.current.length) enqueuePhase("desktop");
+        tryScheduleNextPhase();
       }
-      tryScheduleNextPhase(); 
     };
     window.addEventListener("resize",onResize);
     window.addEventListener("orientationchange",onResize);
@@ -313,22 +320,24 @@ export default function MosaicBackground() {
         tileH=Math.ceil(h/rows);
       }
       gridRef.current={ cols, rows, tileW, tileH };
-      // Полный пересчёт тайлов при изменении сетки
       tilesRef.current = [];
       initTiles(true);
-      // Возврат текущей фазы
-      const ph = phaseRef.current;
-      if ((ph === "mobile" && mobilePoolRef.current.length) ||
-          (ph === "desktop" && desktopPoolRef.current.length)) {
-        schedulePhaseWave(ph);
+      // сразу запускаем доступную фазу, чтобы "сразу работало"
+      pendingPhasesRef.current = [];
+      allowRandomRef.current = false;
+      if (isMobile) {
+        if (mobilePoolRef.current.length) schedulePhaseWave("mobile");
+      } else {
+        if (mobilePoolRef.current.length) enqueuePhase("mobile");
+        if (desktopPoolRef.current.length) enqueuePhase("desktop");
+        tryScheduleNextPhase();
       }
-      tryScheduleNextPhase();
     };
 
     resize();
     window.addEventListener("resize",resize);
     return ()=>window.removeEventListener("resize",resize);
-  },[]);
+  },[isMobile]);
 
   /* ===== Списки URL для mobile/desktop ===== */
   const fetchListForBase = useCallback(async (base)=>{
@@ -388,52 +397,71 @@ export default function MosaicBackground() {
   useEffect(()=>{
     let cancelled=false;
     (async()=>{
-      // img1 (mobile приоритет)
-      const tryImg1 = async (base)=>{
-        for(const ext of TRY_EXTS){
-          const url=`${base}img1.${ext}`;
-          try{
-            const h=await fetch(url,{method:"HEAD",cache:"no-store"});
-            if(h.ok){ const im=await loadImage(url); if(im) return im; }
-          }catch{}
+      // img1: теперь строго из MOBILE_DIR на мобиле, а на десктопе — mobile, затем fallback desktop
+      const tryImg1 = async (bases)=>{
+        for (const base of bases){
+          for(const ext of TRY_EXTS){
+            const url=`${base}img1.${ext}`;
+            try{
+              const h=await fetch(url,{method:"HEAD",cache:"no-store"});
+              if(h.ok){ const im=await loadImage(url); if(im) return im; }
+            }catch{}
+          }
         }
         return null;
       };
-      img1Ref.current = (await tryImg1(MOBILE_DIR)) || (await tryImg1(DESKTOP_DIR));
-      phaseRef.current = "img1";
+
+      const basesForImg1 = isMobile ? [MOBILE_DIR] : [MOBILE_DIR, DESKTOP_DIR];
+      img1Ref.current = await tryImg1(basesForImg1);
+      phaseRef.current = img1Ref.current ? "img1" : "img1"; // как было
       allowRandomRef.current = false;
       doingWaveRef.current = false;
 
-      // параллельно тянем списки
-      const [mobileUrls, desktopUrls] = await Promise.all([
-        fetchListForBase(MOBILE_DIR),
-        fetchListForBase(DESKTOP_DIR)
-      ]);
-      if(cancelled) return;
-      mobileUrlsRef.current = mobileUrls||[];
-      desktopUrlsRef.current = desktopUrls||[];
-
-      // Старт rAF
+      // Старт rAF немедленно, чтобы анимация «сразу работала»
       if(!rafRef.current) start();
 
-      // Прелоад mobile → фаза mobile
-      if((mobileUrlsRef.current?.length||0) > 0){
-        const { pool, seq } = await preloadPool(mobileUrlsRef.current);
+      // Тянем списки: мобила — только mobile; десктоп — mobile → desktop
+      if (isMobile) {
+        const mobileUrls = await fetchListForBase(MOBILE_DIR);
         if(cancelled) return;
-        mobilePoolRef.current = pool; mobileSeqRef.current = seq;
-        enqueuePhase("mobile");
-      }
+        mobileUrlsRef.current = mobileUrls||[];
+        if((mobileUrlsRef.current?.length||0) > 0){
+          const { pool, seq } = await preloadPool(mobileUrlsRef.current);
+          if(cancelled) return;
+          mobilePoolRef.current = pool; mobileSeqRef.current = seq;
+          // сразу волна mobile
+          schedulePhaseWave("mobile");
+        }
+        // НИКАКИХ desktop на мобиле
+        desktopUrlsRef.current = [];
+        desktopPoolRef.current = [];
+        desktopSeqRef.current  = [];
+      } else {
+        const [mobileUrls, desktopUrls] = await Promise.all([
+          fetchListForBase(MOBILE_DIR),
+          fetchListForBase(DESKTOP_DIR)
+        ]);
+        if(cancelled) return;
+        mobileUrlsRef.current = mobileUrls||[];
+        desktopUrlsRef.current = desktopUrls||[];
 
-      // Прелоад desktop → фаза desktop
-      if((desktopUrlsRef.current?.length||0) > 0){
-        const { pool, seq } = await preloadPool(desktopUrlsRef.current);
-        if(cancelled) return;
-        desktopPoolRef.current = pool; desktopSeqRef.current = seq;
-        enqueuePhase("desktop");
+        if((mobileUrlsRef.current?.length||0) > 0){
+          const { pool, seq } = await preloadPool(mobileUrlsRef.current);
+          if(cancelled) return;
+          mobilePoolRef.current = pool; mobileSeqRef.current = seq;
+          enqueuePhase("mobile");
+        }
+        if((desktopUrlsRef.current?.length||0) > 0){
+          const { pool, seq } = await preloadPool(desktopUrlsRef.current);
+          if(cancelled) return;
+          desktopPoolRef.current = pool; desktopSeqRef.current = seq;
+          enqueuePhase("desktop");
+        }
+        tryScheduleNextPhase();
       }
     })();
     return ()=>{ cancelled=true; };
-  },[]);
+  },[isMobile]); // ← завязано на платформу
 
   function enqueuePhase(tag){
     const q = pendingPhasesRef.current;
@@ -497,6 +525,9 @@ export default function MosaicBackground() {
       doingWaveRef.current = false;
       if(target==="desktop"){
         allowRandomRef.current = true;
+      } else {
+        // На мобиле тоже сразу «живость», но из mobile-пула
+        if (isMobile) allowRandomRef.current = true;
       }
       tryScheduleNextPhase();
     }, waveTime);
@@ -527,10 +558,12 @@ export default function MosaicBackground() {
     return pen;
   }
   function pickFromPoolFor(id, targetTag, excludeImg){
-    const pool = targetTag==="mobile" ? mobilePoolRef.current : desktopPoolRef.current;
-    const seq  = targetTag==="mobile" ? mobileSeqRef.current  : desktopSeqRef.current;
+    const useMobile = isMobile || targetTag==="mobile";
+    const pool = useMobile ? mobilePoolRef.current : desktopPoolRef.current;
+    const seq  = useMobile ? mobileSeqRef.current  : desktopSeqRef.current;
     if(!pool?.length) return {img:null, seq:null};
 
+    // отбор кандидатов
     const candIdx=[];
     for(let i=0;i<pool.length;i++){
       const im = pool[i];
@@ -651,7 +684,7 @@ export default function MosaicBackground() {
       prevHoverIdRef.current=hoveredId;
     }
 
-    // === АВТОСБРОС ЗУМА (ТОЛЬКО ДЕСКТОП) ПРИ УХОДЕ ЗА ПРЕДЕЛЫ 2-ГО КОЛЬЦА ===
+    // автосброс зума десктоп при уходе за 2-е кольцо
     if (!isMobile && clickedTileIdRef.current >= 0) {
       const c0 = clickedTileIdRef.current % cols;
       const r0 = Math.floor(clickedTileIdRef.current / cols);
@@ -659,11 +692,11 @@ export default function MosaicBackground() {
         ? Math.max(Math.abs(mc - c0), Math.abs(mr - r0))
         : Infinity;
       if (distRing > CLEAR_RING_DESKTOP) {
-        clickedTileIdRef.current = -1; // сброс зума
+        clickedTileIdRef.current = -1;
       }
     }
 
-    // масштаб
+    // плавный масштаб тайлов
     const HOVER_MUL = isMobile ? HOVER_BOOST_MOBILE : HOVER_BOOST;
     const order=new Array(tiles.length);
     for(let i=0;i<tiles.length;i++){
@@ -680,9 +713,10 @@ export default function MosaicBackground() {
       if(tile.frozen) target*=CLICK_MULT;
       tile.scale += (target - tile.scale)*LERP;
 
-      // подмена по расписанию
+      // подмена по расписанию (mobile-пул на мобиле, desktop — только на десктопе)
       if(t>=tile.nextChange){
-        const tag = tile.targetTag || phaseRef.current;
+        let tag = tile.targetTag || (isMobile ? "mobile" : phaseRef.current);
+        if(isMobile && tag==="desktop") tag="mobile";
         if(tag==="mobile" || tag==="desktop"){
           const { img, seq } = pickFromPoolFor(tile.id, tag, tile.img);
           if(img && img !== tile.img){
@@ -691,7 +725,7 @@ export default function MosaicBackground() {
             tile._seq = seq;
             tile.fading = true; tile.fadeStart = t;
             tile.poolTag = tag;
-            tile.nextChange = (allowRandomRef.current && tag==="desktop")
+            tile.nextChange = (allowRandomRef.current)
               ? t + randInt(2500,5500) + (tile.c+tile.r)*5
               : t + 1e8;
           } else {
@@ -704,11 +738,11 @@ export default function MosaicBackground() {
     }
     order.sort((a,b)=>b.ring - a.ring);
 
-    // рисуем фоновые тайлы (кроме кликнутого)
+    // рисуем все кроме кликнутого
     for(const o of order){
       const tile=tiles[o.idx]; if(!tile.img) continue;
       const dx=tile.c*tileW, dy=tile.r*tileH;
-      if(o.idx===clickedTileIdRef.current) continue;
+      if(o.idx===clickedTileIdRef.current && !isMobile) continue; // на десктопе перекроет overlay
       if(tile.fading){
         const p=Math.min(1,(t - tile.fadeStart)/FADE_MS);
         if(tile.prevImg){ ctx.globalAlpha=1-p; drawCoverRounded(ctx,tile.prevImg,dx,dy,tileW,tileH,tile.scale); }
@@ -719,7 +753,7 @@ export default function MosaicBackground() {
       }
     }
 
-    // клик-зум
+    // overlay зум
     const ct=clickedTileIdRef.current;
     if(ct>=0){
       const tile=tiles[ct]; if(tile && tile.img){
@@ -729,17 +763,14 @@ export default function MosaicBackground() {
         const marginY = isMobile ? hView * 0.03 : Math.max(16, hView * 0.04);
 
         if (isMobile) {
-          // ==== МОБИЛЬНЫЙ ЗУМ (фикс без дёрганий) ====
-          // ЛОКА: запрещаем авто-скидку по "не тот тайл": больше не трогаем clickedTileId до pointerup
+          // На мобиле overlay появляется ТОЛЬКО по TAP (мы ставим clickedTileIdRef в pointerup),
+          // при скролле overlay не открывается.
           const availW = wView - marginX * 2;
           const scale = availW / img.width;
           const drawW = Math.floor(img.width * scale);
           const drawH = Math.floor(img.height * scale);
-
-          // центрируем по X
           const drawX = Math.floor((wView - drawW) / 2);
-
-          // якорим по верху/низу в зависимости от положения исходного тайла
+          // якорим по верху/низу исходного тайла
           const tileCenterY = tile.r * tileH + tileH / 2;
           const anchorTop = tileCenterY < (hView / 2);
           const extraBottom = -hView * 0.01;
@@ -753,13 +784,11 @@ export default function MosaicBackground() {
           ctx.imageSmoothingEnabled = true;
           ctx.drawImage(img, 0, 0, img.width, img.height, drawX, drawY, drawW, drawH);
           ctx.restore();
-
         } else {
-          // ==== ДЕСКТОПНЫЙ ЗУМ: 60% реального размера, с ограничением по вьюпорту ====
-          const NAT_W = img.width * 0.60;
-          const NAT_H = img.height * 0.60;
+          // Десктоп: 70% нативного
+          const NAT_W = img.width * 0.70;
+          const NAT_H = img.height * 0.70;
 
-          // вписываем в окно с небольшими полями
           let drawW = Math.min(NAT_W, wView - marginX*2);
           let drawH = NAT_H * (drawW / NAT_W);
           if (drawH > hView - marginY*2) {
@@ -767,7 +796,6 @@ export default function MosaicBackground() {
             drawW = NAT_W * (drawH / NAT_H);
           }
 
-          // позиционируем к центру кликнутого тайла, но не выходим за края
           const tileCenterX = tile.c * tileW + tileW / 2;
           const tileCenterY2 = tile.r * tileH + tileH / 2;
           let drawX = Math.round(tileCenterX - drawW/2);
@@ -785,17 +813,14 @@ export default function MosaicBackground() {
       }
     }
 
-    // ВАЖНО: убрали авто-скидку на мобиле при небольшом смещении пальца (устранение дёргания)
-    // if (isMobile && ct>=0 && ct!==hoveredId) clickedTileIdRef.current = -1;
-
-    // «живая» случайная жизнь — только после desktop-фазы
+    // случайная жизнь
     if(allowRandomRef.current && !doingWaveRef.current && t>=waveRef.current.nextWaveAt){
       const oc=randInt(0,cols-1), or=randInt(0,rows-1);
       const start=t;
       for(const tile of tiles){
         const ring=Math.max(Math.abs(tile.c-oc),Math.abs(tile.r-or));
         tile.nextChange = start + ring*WAVE_STEP + Math.random()*120;
-        tile.targetTag = "desktop";
+        tile.targetTag = isMobile ? "mobile" : "desktop";
       }
       waveRef.current.nextWaveAt = t + randInt(WAVE_PERIOD_MIN, WAVE_PERIOD_MAX);
     }
@@ -808,9 +833,13 @@ export default function MosaicBackground() {
     const r=canvasRef.current.getBoundingClientRect();
     mouseRef.current={ x:clientX-r.left, y:clientY-r.top };
   };
+
   const onMouseMove=(e)=> updateMouse(e.clientX, e.clientY);
-  const onMouseLeave=()=>{ mouseRef.current={x:-1e6,y:-1e6}; clickedTileIdRef.current=-1; prevHoverIdRef.current=-1; prevHoverColRef.current=-1; };
+  const onMouseLeave=()=>{ mouseRef.current={x:-1e6,y:-1e6}; if(!isMobile) clickedTileIdRef.current=-1; prevHoverIdRef.current=-1; prevHoverColRef.current=-1; };
+
+  // Клик мышью — только десктоп
   const onClick=()=>{ 
+    if (isMobile) return;
     const { cols,tileW,tileH }=gridRef.current; 
     const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH); 
     if(mc<0||mr<0) return; 
@@ -820,22 +849,61 @@ export default function MosaicBackground() {
     clickedTileIdRef.current=id; 
   };
 
-  const pointerActiveRef=useRef(false);
+  // Pointer для мобилы
   const onPointerDown=(e)=>{ 
     updateMouse(e.clientX, e.clientY); 
     pointerActiveRef.current=true; 
-    canvasRef.current.setPointerCapture?.(e.pointerId); 
-    onClick(); 
+    canvasRef.current.setPointerCapture?.(e.pointerId);
+
+    if (isMobile) {
+      dragFlagRef.current = false;
+      touchStartRef.current = { x:e.clientX, y:e.clientY, t:performance.now(), id: hoveredTileId() };
+      // ВАЖНО: НЕ открываем overlay здесь — только в pointerup при TAP
+    } else {
+      onClick();
+    }
   };
+
+  const hoveredTileId = ()=>{
+    const { cols,tileW,tileH }=gridRef.current; 
+    const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH); 
+    if(mc<0||mr<0) return -1; 
+    return mr*cols+mc;
+  };
+
   const onPointerMove=(e)=>{ 
     if(isMobile && pointerActiveRef.current && e.cancelable) e.preventDefault(); 
     updateMouse(e.clientX, e.clientY); 
+
+    if (isMobile && pointerActiveRef.current) {
+      const dx = e.clientX - touchStartRef.current.x;
+      const dy = e.clientY - touchStartRef.current.y;
+      if (!dragFlagRef.current && Math.hypot(dx,dy) > TAP_SLOP) {
+        dragFlagRef.current = true; // это скролл/перетаскивание — overlay не открываем
+        // гарантируем, что overlay сейчас закрыт
+        clickedTileIdRef.current = -1;
+      }
+    }
   };
+
   const onPointerUp=()=>{ 
+    if (isMobile) {
+      const dt = performance.now() - touchStartRef.current.t;
+      const idUp = hoveredTileId();
+      const isTap = !dragFlagRef.current && dt <= TAP_MAX_MS && idUp>=0;
+
+      if (isTap) {
+        // Разовый TAP — открыть overlay на текущем тайле
+        clickedTileIdRef.current = idUp;
+      } else {
+        // После скролла — всё возвращается (overlay закрыт)
+        clickedTileIdRef.current = -1;
+      }
+    }
     pointerActiveRef.current=false; 
-    // На мобиле убираем зум по отпусканию пальца — это и есть "закрытие" без дёрганий
-    clickedTileIdRef.current=-1; 
   };
+
+  const onPointerCancel=()=>{ pointerActiveRef.current=false; clickedTileIdRef.current=-1; };
 
   return (
     <canvas
@@ -848,7 +916,7 @@ export default function MosaicBackground() {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerCancel={onPointerCancel}
     />
   );
 }
