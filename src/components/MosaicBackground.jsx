@@ -13,6 +13,7 @@ const MOBILE_ZOOM_W_RATIO = 0.95; // 95% ширины экрана (поменя
 const HOVER_BOOST = 1.2, HOVER_BOOST_MOBILE = 1.10;
 const CENTER_15_PERCENT_LESS = 0.85, CLICK_MULT = 2.0;
 const ZOOM_NATIVE_FACTOR = 0.8, ZOOM_MAX_ROT = 0.12, ROT_SENS = 0.0022, ZOOM_RADIUS = 18;
+const CLEAR_RING_DESKTOP = 2; // сбрасываем зум, если курсор ушёл дальше этого кольца
 
 /* ===== ПЛАТФОРМА ===== */
 const MOBILE_BREAKPOINT = 768;
@@ -259,7 +260,7 @@ export default function MosaicBackground() {
 
   /* ===== РАЗМЕР / СЕТКА ===== */
   useEffect(()=>{
-    const onResize=()=>{ setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT); tryScheduleNextPhase(); };
+    const onResize=()=>{ setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT); clickedTileIdRef.current = -1; tryScheduleNextPhase(); };
     window.addEventListener("resize",onResize);
     window.addEventListener("orientationchange",onResize);
     return ()=>{
@@ -637,6 +638,22 @@ export default function MosaicBackground() {
       prevHoverIdRef.current=hoveredId;
     }
 
+    // === АВТОСБРОС ЗУМА (ТОЛЬКО ДЕСКТОП) ПРИ УХОДЕ ЗА ПРЕДЕЛЫ 2-ГО КОЛЬЦА ===
+if (!isMobile && clickedTileIdRef.current >= 0) {
+  const { cols } = gridRef.current;
+  const c0 = clickedTileIdRef.current % cols;
+  const r0 = Math.floor(clickedTileIdRef.current / cols);
+
+  // Если курсор вне канвы — считаем, что ушли далеко
+  const distRing = (hoveredId >= 0)
+    ? Math.max(Math.abs(mc - c0), Math.abs(mr - r0))  // твоя метрика колец
+    : Infinity;
+
+  if (distRing > CLEAR_RING_DESKTOP) {
+    clickedTileIdRef.current = -1; // сброс зума
+  }
+}
+
     // масштаб
     const HOVER_MUL = isMobile ? HOVER_BOOST_MOBILE : HOVER_BOOST;
     const order=new Array(tiles.length);
@@ -743,7 +760,7 @@ if (isMobile) {
 
       }
     }
-    if(ct>=0 && ct!==hoveredId) clickedTileIdRef.current=-1;
+    if (isMobile && ct>=0 && ct!==hoveredId) clickedTileIdRef.current = -1;
 
     // «живая» случайная жизнь — только после desktop-фазы
     if(allowRandomRef.current && !doingWaveRef.current && t>=waveRef.current.nextWaveAt){
