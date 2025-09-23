@@ -1012,7 +1012,7 @@ function BiographyWordPerLetter({ onOpen }) {
     </h2>
   );
 }
-/* ===== Mobile Card (с Кругом 2; БЕЗ кружков 1-2-3; только SHOWREEL) ===== */
+/* ===== Mobile Card (центр всех надписей по кругу 1; круг 1 -20%; дыхание ↑; BIO/SHOWREEL — 3078-font) ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
   const [bioOpen,setBioOpen]=useState(false);
@@ -1044,12 +1044,13 @@ function MobileCard() {
     zIndex:2147483600, touchAction:"none"
   };
 
-  const circleDiam = Math.round(Math.min(size.w, size.h) * 1.35);
+  /* КРУГ 1: уменьшен на 20% и «дышит» сильнее */
+  const circleBase = Math.min(size.w, size.h) * 1.35 * 0.8; // -20%
+  const circleDiam = Math.round(circleBase);
 
-  /* дыхание круга 1 (основного) */
   const plateOuter = {
     position:"absolute",
-    left:"50%", top:"48%",
+    left:"50%", top:"50%",                   // центр точно в середине
     transform:"translate(-50%,-50%)",
     animation: "mBreath 3200ms ease-in-out infinite"
   };
@@ -1070,13 +1071,11 @@ function MobileCard() {
   const [stickName,setStickName]=useState(nameLatin.map(()=>false));
   const [colorsName,setColorsName]=useState(nameLatin.map(()=>"#cfcfcf"));
 
-  /* ТОЛЬКО SHOWREEL */
+  /* ТОЛЬКО SHOWREEL — 3078-font */
   const srLetters = Array.from("SHOWREEL");
   const [srStick,setSrStick]=useState(srLetters.map(()=>false));
   const [srColors,setSrColors]=useState(srLetters.map(()=>"#bfbfbf"));
 
-  const ONE_LINE = "1.2em";
-  const HALF_LINE = "0.6em";
   const circle2Diam = Math.round(circleDiam * 1.25 * 1.05); // круг 2 — оставить
 
   const hitLetter = (idx, setterStick, setterColor) => {
@@ -1088,7 +1087,7 @@ function MobileCard() {
   return (
     <>
       <div style={wrapper}>
-        {/* КРУГ 1 — основной фон (вернули) */}
+        {/* КРУГ 1 — основной фон */}
         <div style={plateOuter}>
           <div className="glass-plate circle" style={plateStyle}>
             <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
@@ -1096,26 +1095,31 @@ function MobileCard() {
           </div>
         </div>
 
-        {/* Колонка по центру */}
-        <div style={{
-          position:"relative", zIndex:1, width:"100%", height:"100%",
-          display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-          color:"#fff",
-          fontFamily:"UniSans-Heavy, 'Uni Sans'",
-          textShadow:"0 1px 2px rgba(0,0,0,0.25)",
-          transform:"translateY(-0.6em)"
-        }}>
-          {/* BIO */}
+        {/* Контент: точно по центру круга 1 */}
+        <div
+          style={{
+            position:"absolute",
+            left:"50%", top:"50%", transform:"translate(-50%,-50%)",
+            width:"100%",
+            display:"flex", flexDirection:"column",
+            alignItems:"center", justifyContent:"center",
+            gap:"0.6em",
+            textAlign:"center",
+            zIndex:1,
+            color:"#fff",
+            textShadow:"0 1px 2px rgba(0,0,0,0.25)"
+          }}
+        >
+          {/* BIO — 3078-font */}
           <PrePlate active={true}>
             <h2
               onClick={()=>setBioOpen(true)}
               style={{
                 margin: 0,
-                marginTop: `calc(${ONE_LINE} * 2)`,
                 fontSize: "clamp(15px, 4.8vw, 20px)",
                 letterSpacing: "0.08em",
                 userSelect: "none",
-                fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
+                fontFamily: "'3078-font','Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
                 fontWeight: 400,
                 fontSynthesis: "none",
               }}
@@ -1138,12 +1142,12 @@ function MobileCard() {
             </h2>
           </PrePlate>
 
-          {/* Имя — открывает Круг 2 */}
+          {/* Имя — по центру, кликом открывает Круг 2 */}
           <PrePlate active={true}>
             <h1
               onClick={()=> setCircle2Open(true)}
               style={{
-                margin: `${ONE_LINE} 0 0`,
+                margin: 0,
                 fontSize: "clamp(18px, 6.6vw, 28px)",
                 letterSpacing: "0.02em",
                 userSelect: "none",
@@ -1173,18 +1177,18 @@ function MobileCard() {
             </h1>
           </PrePlate>
 
-          {/* ТОЛЬКО SHOWREEL — кликабельно */}
+          {/* SHOWREEL — 3078-font */}
           <PrePlate active={true}>
             <h3
               onClick={openShowreel}
               style={{
-                margin: `calc(${HALF_LINE} + 8px) 0 0`,
+                margin: 0,
                 fontSize: "clamp(13px, 4.2vw, 17px)",
                 letterSpacing: "0.08em",
                 color: "#cfcfcf",
                 userSelect: "none",
                 cursor:"pointer",
-                fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
+                fontFamily: "'3078-font','Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
                 fontWeight: 400,
                 fontSynthesis: "none",
               }}
@@ -1244,11 +1248,10 @@ function MobileCard() {
       {/* Оверлеи */}
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
-      {/* КРУГ 2 — оставить! без крестика, закрытие тапом по фону */}
       <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={circle2Diam} hideClose backdropClose />
 
       <style>{`
-        /* стеклянная плашка для Круга 1 (как на десктопе) */
+        /* стеклянная плашка для Круга 1 */
         .glass-plate.circle{
           background: rgba(255,255,255,0.07);
           -webkit-backdrop-filter: blur(16px) saturate(1.2);
@@ -1274,21 +1277,10 @@ function MobileCard() {
             linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
           box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
         }
-        @keyframes mBreath { 0%,100%{ transform:translate(-50%,-50%) scale(1) } 50%{ transform:translate(-50%,-50%) scale(1.02) } }
+        /* «дышит» чуть сильнее: 1 → 1.05 */
+        @keyframes mBreath { 0%,100%{ transform:translate(-50%,-50%) scale(1) } 50%{ transform:translate(-50%,-50%) scale(1.05) } }
         @keyframes waveGray { 0%,100% { color: #bfbfbf } 50% { color: #e0e0e0 } }
       `}</style>
     </>
   );
-}
-
-/* ===== Экспорт (автосвитч) ===== */
-export default function CenterRevealCard() {
-  const [isMobile,setIsMobile]=useState(typeof window!=="undefined" ? window.innerWidth<=MOBILE_BREAKPOINT : false);
-  useEffect(()=>{
-    const onR=()=>setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT);
-    window.addEventListener("resize",onR);
-    window.addEventListener("orientationchange",onR);
-    return ()=>{ window.removeEventListener("resize",onR); window.removeEventListener("orientationchange",onR); };
-  },[]);
-  return isMobile ? <MobileCard/> : <DesktopCard/>;
 }
