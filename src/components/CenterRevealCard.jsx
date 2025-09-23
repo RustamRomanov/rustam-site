@@ -344,8 +344,8 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
               <FitHeader text="Режиссёр · Продюсер · Сценарист" />
               <div style={{ height: 20 }} />
               <BodyLine>100+ артистов · 200+ проектов · 2+ млрд просмотров</BodyLine>
-              <BodyLine>Большой опыт работы с топовыми артистами и селебрити-блогерами.</BodyLine>
-              <BodyLine mt={Math.round(D * 0.022)}>Оперативно пишу тритменты и соблюдаю дедлайны.</BodyLine>
+              <BodyLine>Большой опыт работы с топовыми  артистами и селебрити-блогерами.</BodyLine>
+              <BodyLine mt={Math.round(D * 0.022)}>  Оперативно пишу тритменты и   соблюдаю дедлайны.</BodyLine>
               <BodyLine mt={Math.round(D * 0.022)}>Буду рад сотрудничеству!</BodyLine>
             </div>
           </div>
