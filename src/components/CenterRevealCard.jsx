@@ -344,8 +344,8 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
               <FitHeader text="Режиссёр · Продюсер · Сценарист" />
               <div style={{ height: 20 }} />
               <BodyLine>100+ артистов · 200+ проектов · 2+ млрд просмотров</BodyLine>
-              <BodyLine>Большой опыт работы с топовыми  артистами и селебрити-блогерами.</BodyLine>
-              <BodyLine mt={Math.round(D * 0.022)}>  Оперативно пишу тритменты и   соблюдаю дедлайны.</BodyLine>
+              <BodyLine>Большой опыт работы с топовыми артистами и селебрити-блогерами.</BodyLine>
+              <BodyLine mt={Math.round(D * 0.022)}>  Оперативно пишу тритменты и соблюдаю дедлайны.</BodyLine>
               <BodyLine mt={Math.round(D * 0.022)}>Буду рад сотрудничеству!</BodyLine>
             </div>
           </div>
@@ -1019,49 +1019,71 @@ function MobileCard() {
   const [srStick,setSrStick]=useState(srLetters.map(()=>false));
   const [srColors,setSrColors]=useState(srLetters.map(()=>"#ffffff"));
 
-  // Один звук на букву за жест
-  const dragTriggered = useRef({ bio: new Set(), name: new Set(), sr: new Set() });
+  // ==== ЗВУК ПРИ СКРОЛЛЕ ПО БУКВАМ (каждый раз при переходе на НОВУЮ букву) ====
+const lastHitRef = useRef({ bio: null, name: null, sr: null });
 
-  const activateLetter = (group, idx, setterStick, setterColor, sound="hover") => {
-    const bucket = dragTriggered.current[group];
-    if (!bucket.has(idx)) {
-      bucket.add(idx);
-      setterStick(prev => {
-        if (!prev[idx]) { const a=[...prev]; a[idx]=true; return a; }
-        return prev;
-      });
-      setterColor(c => { const a=[...c]; a[idx]=randColor(); return a; });
-      sound === "click" ? playDot() : playHoverSoft();
-    }
-  };
+const activateLetter = (group, idx, setterStick, setterColor, mode = "hover") => {
+  const force = mode === "click";               // тапы всегда со звуком
+  if (force || lastHitRef.current[group] !== idx) {
+    lastHitRef.current[group] = idx;            // запоминаем последнюю букву группы
 
-  // Drag/scroll по буквам
-  const draggingRef = useRef(false);
-  const onPD = (e)=>{ 
-    draggingRef.current=true; 
-    dragTriggered.current = { bio:new Set(), name:new Set(), sr:new Set() };
-    e.currentTarget.setPointerCapture?.(e.pointerId); 
-    onPM(e); 
-  };
-  const onPU = ()=>{ 
-    draggingRef.current=false; 
-    setStickBio(lettersBio.map(()=>false));
-    setColorsBio(lettersBio.map(()=>"#ffffff"));
-    setSrStick(srLetters.map(()=>false));
-    setSrColors(srLetters.map(()=>"#ffffff"));
-  };
-  const onPM = (e)=>{
-    if(!draggingRef.current) return;
-    const x=e.clientX, y=e.clientY;
-    const el = document.elementFromPoint(x,y);
-    const idx = Number(el?.getAttribute?.("data-idx"));
-    const group = el?.getAttribute?.("data-group");
-    if(Number.isFinite(idx) && group){
-      if(group==="bio")  activateLetter("bio", idx, setStickBio,  setColorsBio);
-      if(group==="name") activateLetter("name", idx, setStickName, setColorsName);
-      if(group==="sr")   activateLetter("sr", idx, setSrStick,   setSrColors);
-    }
-  };
+    setterStick(prev => {
+      if (!prev[idx]) {
+        const a = [...prev];
+        a[idx] = true;
+        return a;
+      }
+      return prev;
+    });
+
+    setterColor(c => {
+      const a = [...c];
+      a[idx] = randColor();
+      return a;
+    });
+
+    force ? playDot() : playHoverSoft();
+  }
+};
+
+// Drag/scroll по буквам
+const draggingRef = useRef(false);
+
+const onPD = (e) => {
+  draggingRef.current = true;
+  // сброс последней буквы — чтобы звук сработал сразу на первом наведении
+  lastHitRef.current = { bio: null, name: null, sr: null };
+  e.currentTarget.setPointerCapture?.(e.pointerId);
+  onPM(e); // обработать первую позицию
+};
+
+const onPU = () => {
+  draggingRef.current = false;
+
+  // вернуть BIOGRAPHY и SHOWREEL в белый
+  setStickBio(lettersBio.map(() => false));
+  setColorsBio(lettersBio.map(() => "#ffffff"));
+
+  setSrStick(srLetters.map(() => false));
+  setSrColors(srLetters.map(() => "#ffffff"));
+
+  // сброс последней буквы для следующего жеста
+  lastHitRef.current = { bio: null, name: null, sr: null };
+};
+
+const onPM = (e) => {
+  if (!draggingRef.current) return;
+  const x = e.clientX, y = e.clientY;
+  const el = document.elementFromPoint(x, y);
+  const idx = Number(el?.getAttribute?.("data-idx"));
+  const group = el?.getAttribute?.("data-group");
+  if (Number.isFinite(idx) && group) {
+    if (group === "bio")  activateLetter("bio",  idx, setStickBio,  setColorsBio);
+    if (group === "name") activateLetter("name", idx, setStickName, setColorsName);
+    if (group === "sr")   activateLetter("sr",   idx, setSrStick,   setSrColors);
+  }
+};
+
 
   // Семейство шрифта как в тексте Круга 2 (BODY)
   const FAMILY_BODY = "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
