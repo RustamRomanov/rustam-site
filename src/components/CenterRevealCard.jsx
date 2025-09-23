@@ -1110,7 +1110,7 @@ function MobileCard() {
               onClick={()=>{ playDot(); setBioOpen(true); }}
               style={{
                 margin: 0,
-                fontSize: "clamp(15px, 4.8vw, 20px)",
+                fontSize: "clamp(18px, 6.6vw, 28px)",
                 letterSpacing: "0.08em",
                 userSelect: "none",
                 fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
