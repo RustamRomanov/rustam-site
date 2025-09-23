@@ -1011,7 +1011,7 @@ function MobileCard() {
 
   // КРУГ 1 — по центру, «дышит» (x3 амплитуда и до 50% прозрачности на пике)
   const baseDiam   = Math.min(size.w, size.h);
-  const circleDiam = Math.round(baseDiam * 1.10);
+  const circleDiam = Math.round(baseDiam * 1.20);
 
   // оболочка (центрируем и хинт браузеру)
   const plateOuter = {
