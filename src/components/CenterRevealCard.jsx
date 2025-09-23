@@ -1187,39 +1187,42 @@ const onPM = (e) => {
 
           {/* Имя — реагирует ПО БУКВАМ при скролле (латиница→кириллица по активной букве) */}
           <PrePlate active={true}>
-            <h1
-              onClick={()=> { playDot(); setCircle2Open(true); }}
-              style={{
-                margin: "0.7em 0 0",
-                fontSize: "clamp(22px, 6.6vw, 28px)",
-                letterSpacing: "0.02em",
-                userSelect: "none",
-                cursor: "pointer",
-                fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
-                fontWeight: 400,
-                fontSynthesis: "none",
-              }}
-              title="Подробнее"
-            >
-              {nameLatin.map((ch,i)=>(
-                <span
-                  key={i}
-                  data-idx={i} data-group="name"
-                  onMouseEnter={()=>activateLetter("name", i, setStickName, setColorsName)}
-                  onPointerDown={()=>activateLetter("name", i, setStickName, setColorsName, "click")}
-                  style={{
-                    display:"inline-block",
-                    whiteSpace:"pre",
-                    color: stickName[i] ? colorsName[i] : "#ffffff",
-                    transform: stickName[i] ? "scale(1.22)" : "scale(1)",
-                    transition:"transform 140ms ease, color 160ms ease"
-                  }}
-                >
-                  {stickName[i] ? (mapName[ch] || ch) : (ch===" " ? "\u00A0" : ch)}
-                </span>
-              ))}
-            </h1>
-          </PrePlate>
+  <h1
+    onClick={() => { playDot(); setCircle2Open(true); }}
+    style={{
+      margin: "0.7em 0 0",
+      fontSize: "clamp(22px, 6.6vw, 28px)",
+      letterSpacing: "0.02em",
+      userSelect: "none",
+      cursor: "pointer",
+      fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
+      fontWeight: 400,
+      fontSynthesis: "none",
+      animation: "nameBreath 3200ms ease-in-out infinite" // дыхание в противоход
+    }}
+    title="Подробнее"
+  >
+    {nameLatin.map((ch,i)=>(
+      <span
+        key={i}
+        data-idx={i} data-group="name"
+        onMouseEnter={()=>activateLetter("name", i, setStickName, setColorsName)}
+        onPointerDown={()=>activateLetter("name", i, setStickName, setColorsName, "click")}
+        style={{
+          display:"inline-block",
+          whiteSpace:"pre",
+          transform: stickName[i] ? "scale(1.22)" : "scale(1)",
+          transition:"transform 140ms ease, color 160ms ease",
+          animation: `waveGrayLetters 4200ms ease-in-out ${i*180}ms infinite`, // волна по буквам
+          color: stickName[i] ? colorsName[i] : "#ffffff"
+        }}
+      >
+        {stickName[i] ? (mapName[ch] || ch) : (ch===" " ? "\u00A0" : ch)}
+      </span>
+    ))}
+  </h1>
+</PrePlate>
+
 
           {/* SHOWREEL — на строку ниже. Шрифт = как BODY в Круге 2 */}
           <PrePlate active={true}>
@@ -1328,7 +1331,23 @@ const onPM = (e) => {
           box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
         }
 
-        /* дыхание круга: масштаб x3 и прозрачность до 0.5 на пике */
+        /* дыхание имени в противоход кругу */
+@keyframes nameBreath {
+  0%, 100% {
+    transform: scale(1.05); /* слегка крупнее когда круг маленький */
+  }
+  50% {
+    transform: scale(0.92); /* уменьшается когда круг расширен */
+  }
+}
+
+/* мягкая цветовая волна по буквам */
+@keyframes waveGrayLetters {
+  0%, 100% { color: #ffffff; }
+  50%      { color: #666666; }
+}
+
+/* дыхание круга: масштаб x3 и прозрачность до 0.5 на пике */
         @keyframes mBreath3x {
           0%, 100% {
             transform: translate(-50%,-50%) scale(1);
