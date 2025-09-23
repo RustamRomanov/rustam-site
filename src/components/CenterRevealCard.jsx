@@ -172,7 +172,7 @@ function PrePlate({ active, children, expandX=14, expandY=8, radius=12, centerOp
   );
 }
 
-/* ===== Overlay «Круг 2» (как было) ===== */
+/* ===== Overlay «Круг 2» (как было, BODY +1px) ===== */
 function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropClose = false }) {
   const [imgSrc, setImgSrc] = React.useState("/rustam-site/assents/foto/circle2.jpg");
   if (!open) return null;
@@ -226,7 +226,7 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
           hyphens: "auto",
           fontFamily: FAMILY_BODY,
           fontWeight: 700,
-          fontSize: BODY_FS +1,
+          fontSize: BODY_FS + 1,   // +1 пункт
           lineHeight: 1.24,
           letterSpacing: "0.02em",
           color: COLOR
@@ -619,7 +619,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
   );
 }
 
-/* ===== Vimeo overlay ===== */
+/* ===== Vimeo overlay (исправлено: один onIframeLoad + анти-флэш) ===== */
 function VideoOverlay({ open, onClose, vimeoId, full=true }) {
   const dragRef = useRef({active:false,startY:0,dy:0});
   const iframeRef = useRef(null);
@@ -653,13 +653,47 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
 
   const queryMuted = full ? 1 : 0;
 
-  const onIframeLoad = ()=> {
-  setFrameReady(true);           // ← показ после готовности
-  post("play");
-  post("setMuted", isMuted ? true : false);
-  if (!isMuted) { post("setVolume", 1); post("play"); }
-};
+  return (
+    <div
+      onPointerDown={onPD}
+      onPointerMove={onPM}
+      onPointerUp={onPU}
+      onPointerCancel={onPU}
+      style={{
+        position:"fixed", inset:0, zIndex:2147486000,
+        background:"rgba(0,0,0,0.96)", display:"flex",
+        alignItems:"center", justifyContent:"center", padding:"3vw"
+      }}
+    >
+      <button aria-label="Close" onClick={onClose}
+        style={{ position:"absolute", top:"calc(2.2em + env(safe-area-inset-top))", right:16, width:40, height:40, borderRadius:999, background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.35)", cursor:"pointer", display:"grid", placeItems:"center", zIndex:2 }}>
+        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
+      </button>
 
+      <div className="player-panel" onClick={(e)=>e.stopPropagation()} style={containerStyle}>
+        {/* чёрный плейсхолдер до полной готовности */}
+        {!frameReady && <div style={{ position:"absolute", inset:0, background:"#000" }} />}
+        <iframe
+          id="vimeo-embed"
+          ref={iframeRef}
+          src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=${queryMuted}&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1&color=000000`}
+          title="Vimeo player" frameBorder="0" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen
+          onLoad={onIframeLoad}
+          style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block", background:"#000", opacity: frameReady ? 1 : 0, transition:"opacity 160ms ease" }}
+        />
+      </div>
+
+      {full && (
+        <button onClick={toggleMute}
+          style={{ position:"absolute", left:"50%", bottom:"6%", transform:"translateX(-50%)",
+                   padding:"10px 16px", borderRadius:999, background:"rgba(0,0,0,0.55)", color:"#fff",
+                   border:"1px solid rgba(255,255,255,0.35)", fontFamily:"UniSans-Heavy, 'Uni Sans'", letterSpacing:"0.06em" }}>
+          {isMuted ? "TAP TO UNMUTE" : "TAP TO MUTE"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 /* ===== BIOGRAPHY (desktop) per-letter ===== */
 function BiographyWordPerLetter({ onOpen }) {
@@ -990,13 +1024,10 @@ function MobileCard() {
   // Во время drag имя — в кириллице
   const [nameCyrMode, setNameCyrMode] = useState(false);
 
-  // Один звук на букву за жест: запоминаем уже "сработавшие" индексы
-  const dragTriggered = useRef({
-    bio: new Set(), name: new Set(), sr: new Set()
-  });
+  // Один звук на букву за жест
+  const dragTriggered = useRef({ bio: new Set(), name: new Set(), sr: new Set() });
 
   const activateLetter = (group, idx, setterStick, setterColor, sound="hover") => {
-    // не повторяем активацию в рамках одного жеста
     const bucket = dragTriggered.current[group];
     if (!bucket.has(idx)) {
       bucket.add(idx);
@@ -1013,20 +1044,20 @@ function MobileCard() {
   const draggingRef = useRef(false);
   const onPD = (e)=>{ 
     draggingRef.current=true; 
-    setNameCyrMode(true);               // 6) во время скролла — кириллица для имени
-    dragTriggered.current = { bio:new Set(), name:new Set(), sr:new Set() }; // сброс набора
+    setNameCyrMode(true);
+    dragTriggered.current = { bio:new Set(), name:new Set(), sr:new Set() };
     e.currentTarget.setPointerCapture?.(e.pointerId); 
     onPM(e); 
   };
   const onPU = ()=>{ 
     draggingRef.current=false; 
-    setNameCyrMode(false);              // вернуть латиницу
-    // 7) BIOGRAPHY — вернуть цвет и надпись
+    setNameCyrMode(false);
+    // BIOGRAPHY — вернуть цвет и надпись
     setStickBio(lettersBio.map(()=>false));
     setColorsBio(lettersBio.map(()=>"#ffffff"));
-    // 8) SHOWREEL — вернуть цвет
-    setStickSr(false); setSrStick(srLetters.map(()=>false));
-    setColorsSr(); // (ниже — хелперы)
+    // SHOWREEL — вернуть цвет
+    setSrStick(srLetters.map(()=>false));
+    setSrColors(srLetters.map(()=>"#ffffff"));
   };
   const onPM = (e)=>{
     if(!draggingRef.current) return;
@@ -1040,10 +1071,6 @@ function MobileCard() {
       if(group==="sr")   activateLetter("sr", idx, setSrStick,   setSrColors);
     }
   };
-
-  // Хелперы для пунктов 7–8
-  const setStickSr = (val)=> setSrStick(srLetters.map(()=>val));
-  const setColorsSr = ()=> setSrColors(srLetters.map(()=>"#ffffff"));
 
   return (
     <>
@@ -1074,7 +1101,7 @@ function MobileCard() {
             textShadow:"0 1px 2px rgba(0,0,0,0.25)"
           }}
         >
-          {/* BIOGRAPHY — кликабельно (вернули!) */}
+          {/* BIOGRAPHY — кликабельно */}
           <PrePlate active={true}>
             <h2
               onClick={()=>{ playDot(); setBioOpen(true); }}
