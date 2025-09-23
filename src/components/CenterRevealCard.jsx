@@ -1000,10 +1000,15 @@ function MobileCard() {
     animation: "mBreath 3200ms ease-in-out infinite"
   };
   const plateStyle = {
-    position:"relative",
-    width:circleDiam, height:circleDiam,
-    borderRadius:"50%", opacity: PLATE_OPACITY_MAX, pointerEvents:"none"
-  };
+  position:"absolute",
+  left:"50%", top:"50%",
+  transform:"translate(-50%,-50%) scale(1)",
+  width:circleDiam, height:circleDiam,
+  borderRadius:"50%",
+  pointerEvents:"none",
+  // дыхание: масштаб ↑ в 3 раза сильнее (до 1.06) и прозрачность падает до 0.5
+  animation: "mBreath3x 3200ms ease-in-out infinite"
+};
 
   // Тексты/буквы
   const lettersBio = Array.from("BIOGRAPHY");
@@ -1071,12 +1076,15 @@ function MobileCard() {
     <>
       <div style={wrapper}>
         {/* КРУГ 1 — стеклянная плашка с дыханием (по центру) */}
-        <div style={plateOuter}>
-          <div className="glass-plate circle" style={plateStyle}>
-            <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
-            <i className="bend side top" /><i className="bend side bottom" />
-          </div>
-        </div>
+<div style={plateOuter}>
+  <div className="glass-plate circle" style={plateStyle}>
+    <i className="bend ring" />
+    <i className="bend side left" />
+    <i className="bend side right" />
+    <i className="bend side top" />
+    <i className="bend side bottom" />
+  </div>
+</div>
 
         {/* Контент — центр круга; drag по буквам */}
         <div
@@ -1249,38 +1257,46 @@ function MobileCard() {
       />
 
       {/* ЛОКАЛЬНЫЕ СТИЛИ ДЛЯ МОБИЛКИ (Важно: стиль стеклянной плашки дублируем здесь, иначе круга "нет") */}
-      <style>{`
-        .glass-plate.circle{
-          background: rgba(255,255,255,0.07);
-          -webkit-backdrop-filter: blur(16px) saturate(1.2);
-          backdrop-filter: blur(16px) saturate(1.2);
-          box-shadow: 0 12px 28px rgba(0,0,0,0.22);
-          border-radius: 50%;
-          overflow:hidden;
-        }
-        .glass-plate.circle::before{
-          content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
-          -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
-          backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
-          -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
-          mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
-        }
-        .glass-plate.circle::after{
-          content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-          background:
-            radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
-            radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
-            radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
-            radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
-            linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
-          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
-        }
-        /* дыхание круга 1 */
-        @keyframes mBreath { 
-          0%,100%{ transform:translate(-50%,-50%) scale(1) } 
-          50%{   transform:translate(-50%,-50%) scale(1.02) } 
-        }
-      `}</style>
+     <style>{`
+  .glass-plate.circle{
+    background: rgba(255,255,255,0.07);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    backdrop-filter: blur(16px) saturate(1.2);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+    border-radius: 50%;
+    overflow:hidden;
+  }
+  .glass-plate.circle::before{
+    content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
+    -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+    backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+    -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+    mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+  }
+  .glass-plate.circle::after{
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background:
+      radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
+      radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
+      radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+      radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+      linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
+  }
+
+  /* Новое дыхание: масштаб x3 (до 1.06) и прозрачность до 0.5 на пике */
+  @keyframes mBreath3x {
+    0%, 100% {
+      transform: translate(-50%,-50%) scale(1);
+      opacity: 0.95; /* начальная плотность как раньше */
+    }
+    50% {
+      transform: translate(-50%,-50%) scale(1.06); /* было 1.02, теперь в 3 раза больше */
+      opacity: 0.5; /* максимальная прозрачность на пике */
+    }
+  }
+`}</style>
+
     </>
   );
 }
