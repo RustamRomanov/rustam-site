@@ -704,8 +704,8 @@ export default function MosaicBackground() {
         // >>>>>>> МОБИЛЬНОЕ ПОВЕДЕНИЕ: ширина во весь экран, якорение по верх/низ <<<<<<<
 if (isMobile) {
   // Отступы
-  const marginX = w * 0.05;           // слева/справа = 5%
-  const marginY = h * 0.05 * 0.6;     // сверху/снизу = 60% от 5% (т.е. -40%)
+  const marginX = w * 0.05;       // слева/справа = 5%
+  const marginY = h * 0.05 * 0.6; // сверху/снизу ~3% (уменьшено на 40%)
 
   // Доступная ширина
   const availW = w - marginX * 2;
@@ -721,9 +721,13 @@ if (isMobile) {
   // Y — сверху или снизу
   const tileCenterY = tile.r * tileH + tileH / 2;
   const anchorTop = tileCenterY < (h / 2);
+
+  // Если внизу — добавляем ещё 1% от высоты
+  const extraBottom = h * 0.01;
+
   const drawY = anchorTop
-    ? Math.floor(marginY)              // сверху меньше отступ
-    : Math.floor(h - drawH - marginY); // снизу меньше отступ
+    ? Math.floor(marginY)                 // верхний отступ
+    : Math.floor(h - drawH - marginY - extraBottom); // нижний отступ +1%
 
   ctx.save();
   roundedRect(ctx, drawX, drawY, drawW, drawH, ZOOM_RADIUS);
@@ -732,6 +736,7 @@ if (isMobile) {
   ctx.drawImage(img, 0, 0, img.width, img.height, drawX, drawY, drawW, drawH);
   ctx.restore();
 }
+
 
 
 
