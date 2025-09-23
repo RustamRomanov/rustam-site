@@ -143,7 +143,7 @@ function PrePlate({ active, children, expandX=14, expandY=8, radius=12, centerOp
   );
 }
 
-/* ===== Overlay «Круг 2» ===== */
+/* ===== Overlay «Круг 2» (текст без дыхания) ===== */
 function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropClose = false, bodyInc = 0 }) {
   const [imgSrc, setImgSrc] = React.useState("/rustam-site/assents/foto/circle2.jpg");
   if (!open) return null;
@@ -154,7 +154,7 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
   const maxTextWidth = Math.round(D * 0.80);
   const TEXT_SHIFT = Math.round(D * 0.05);
 
-  /* заголовок с волной по всем трём словам (п.9/10) */
+  /* без дыхания и без цветовой анимации */
   function FitHeader({ text, baseRatio = 0.040, minPx = 12 }) {
     const ref = React.useRef(null);
     const [fs, setFs] = React.useState(Math.max(minPx, Math.round(D * baseRatio)));
@@ -166,14 +166,13 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
 
     const letters = Array.from(text);
     return (
-      <div style={{ textAlign:"center", animation: "c2breath 6200ms ease-in-out 0ms infinite" }}>
+      <div style={{ textAlign:"center" }}>
         <span ref={ref} style={{ display:"inline-block", whiteSpace:"nowrap", lineHeight:1.18 }}>
           {letters.map((ch,i)=>(
             <span key={i}
               style={{
                 fontFamily:FAMILY_HEADER, fontWeight:800, fontSize:fs, letterSpacing:"0.02em",
-                color: COLOR, display:"inline-block",
-                animation: `waveTri 4200ms ease-in-out ${i*70}ms infinite`
+                color: COLOR, display:"inline-block"
               }}>
               {ch}
             </span>
@@ -184,9 +183,8 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
   }
 
   const BODY_FS = Math.max(12, Math.round(D * 0.0225));
-  const BodyLine = ({ children, delay = 180, mt = Math.round(D * 0.018) }) => (
-    <div style={{ marginTop: mt, textAlign: "center",
-      animation: `c2breath 6200ms ease-in-out ${delay}ms infinite`, willChange: "transform" }}>
+  const BodyLine = ({ children, mt = Math.round(D * 0.018) }) => (
+    <div style={{ marginTop: mt, textAlign: "center" }}>
       <span style={{
         display:"inline-block", maxWidth: maxTextWidth, whiteSpace:"normal", wordBreak:"break-word", hyphens:"auto",
         fontFamily: FAMILY_BODY, fontWeight: 700, fontSize: BODY_FS + bodyInc, lineHeight: 1.24, letterSpacing: "0.02em", color: COLOR
@@ -219,7 +217,7 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
         <div style={{
           position:"relative", width:"100%", height:"100%", aspectRatio:"1 / 1", borderRadius:"50%", overflow:"hidden",
           boxShadow:"0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.08)",
-          animation: "c2breath 6200ms ease-in-out infinite" /* п.8 дыхание круга 2 */
+          animation: "c2breath 6200ms ease-in-out infinite" /* только фон, текст статичен */
         }}>
           <img src={imgSrc} alt="circle2"
             onError={()=>{ if (!imgSrc.endsWith(".JPG")) setImgSrc("/rustam-site/assents/foto/circle2.JPG"); }}
@@ -233,7 +231,7 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
             backdropFilter:"blur(2px) saturate(1.08)", WebkitBackdropFilter:"blur(10px) saturate(1.08)"
           }}/>
 
-          {/* Контент */}
+          {/* Контент (без дыхания текста) */}
           <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
                         textAlign:"center", padding:"clamp(14px,3vw,36px)" }}>
             <div style={{ maxWidth: maxTextWidth, color:"rgba(255,255,255,0.95)", transform:`translateY(${TEXT_SHIFT}px)` }}>
@@ -255,7 +253,6 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
       <style>{`
         @keyframes c2pop { to { transform: scale(1); opacity: 1 } }
         @keyframes c2breath { 0%,100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-2px) scale(1.012); } }
-        @keyframes waveTri { 0%,100% { color: #e8e8e8; } 50% { color:#8b8b8b; } }
       `}</style>
     </div>
   );
@@ -420,7 +417,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
   );
 }
 
-/* ===== Vimeo overlay (анти-белый экран) ===== */
+/* ===== Vimeo overlay (анти-белый экран + TAP TO UNMUTE/MUTE) ===== */
 function VideoOverlay({ open, onClose, vimeoId, full=true }) {
   const dragRef = useRef({active:false,startY:0,dy:0});
   const iframeRef = useRef(null);
@@ -441,7 +438,7 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
 
   const post = (method, value)=>{ try{ iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); }catch{} };
   const onIframeLoad = ()=> {
-    // даём отрисоваться и только потом плавно показываем — белого кадра не видно
+    // чёрный плейсхолдер до готовности — белого кадра не видно
     setTimeout(()=>{ setFrameReady(true); post("play"); post("setMuted", isMuted ? true : false); if (!isMuted) { post("setVolume", 1); post("play"); } }, 80);
   };
   const toggleMute = ()=> { const next = !isMuted; setIsMuted(next); post("setMuted", next); if (!next) { post("setVolume", 1); post("play"); } };
@@ -519,7 +516,7 @@ function BiographyWordPerLetter({ onOpen }) {
 function DesktopCard() {
   const { playHoverSoft, playDot } = useAudio();
 
-  // размеры/центрирование без "дрейфа" (п. баг смещения)
+  // размеры/центрирование
   const [size,setSize]=useState({ w:520, h:320 });
   useLayoutEffect(()=>{
     const vw=window.innerWidth;
@@ -530,12 +527,12 @@ function DesktopCard() {
   const baseDiam = Math.min(size.w, size.h);
   const circleDiam = Math.round(baseDiam * 1.10);
 
-  // реакция/прозрачность
+  // реакция/прозрачность/масштаб в зависимости от близости курсора
   const BASE_OPACITY = PLATE_OPACITY_MAX * 0.8;
   const plateTargetRef = useRef(BASE_OPACITY);
   const plateAlphaRef = useRef(BASE_OPACITY);
   const [plateAlpha, setPlateAlpha] = useState(BASE_OPACITY);
-  const [plateProx, setPlateProx] = useState(0);
+  const [plateProx, setPlateProx] = useState(0); // 0 — далеко, 1 — близко
 
   useEffect(()=>{
     let raf=0;
@@ -576,21 +573,7 @@ function DesktopCard() {
   const [bioOpen,setBioOpen]=useState(false);
   const [circle2Open, setCircle2Open] = useState(false);
 
-  const plateStyle = {
-    position:"absolute", width:circleDiam, height:circleDiam, left:"50%", top:"50%",
-    transform:"translate(-50%,-50%)", transformOrigin:"50% 50%",
-    borderRadius:"50%", opacity: plateAlpha,
-    transition:"opacity 60ms linear", pointerEvents:"none",
-    animation: "dBreath 5200ms ease-in-out infinite" /* п.7 дыхание плашки */
-  };
-
-  const wrapper = {
-    position:"fixed", left:"50%", top:"50%", transform:"translate(-50%,-50%)",
-    width:`${size.w}px`, height:`${size.h}px`,
-    display:"flex", alignItems:"center", justifyContent:"center",
-    padding:0, overflow:"visible", pointerEvents:"auto", zIndex:2147483600
-  };
-
+  // Имя (звук+цвет, сброс через 10с без наведения)
   const showreelText="SHOWREEL";
   const nameLatin="RUSTAM ROMANOV";
   const titleBase=24;
@@ -602,13 +585,12 @@ function DesktopCard() {
   const [nameColors,setNameColors]=useState(Array.from(nameLatin).map(()=>"#cfcfcf"));
   const [hoveringName,setHoveringName]=useState(false);
 
-  // когда все буквы стали цветными — через 5с откат (п.6)
   useEffect(()=>{
     if (!hoveringName && nameStick.every(Boolean)) {
       const t = setTimeout(()=>{
         setNameStick(Array.from(nameLatin).map(()=>false));
         setNameColors(Array.from(nameLatin).map(()=>"#cfcfcf"));
-      },5000);
+      },10000); // 10 секунд
       return ()=>clearTimeout(t);
     }
   },[hoveringName, nameStick, nameLatin]);
@@ -616,11 +598,28 @@ function DesktopCard() {
   const [srStick,setSrStick]=useState(Array.from(showreelText).map(()=>false));
   const [srColors,setSrColors]=useState(Array.from(showreelText).map(()=>"#bfbfbf"));
 
+  // масштаб плашки: далеко — 1.08 (больше и прозрачнее), близко — 1.00 (чётче и чуть меньше)
+  const plateScale = 1.08 - plateProx * 0.08;
+
+  const plateStyle = {
+    position:"absolute", width:circleDiam, height:circleDiam, left:"50%", top:"50%",
+    transform:`translate(-50%,-50%) scale(${plateScale})`, transformOrigin:"50% 50%",
+    borderRadius:"50%", opacity: plateAlpha,
+    transition:"opacity 60ms linear, transform 120ms ease", pointerEvents:"none"
+  };
+
+  const wrapper = {
+    position:"fixed", left:"50%", top:"50%", transform:"translate(-50%,-50%)",
+    width:`${size.w}px`, height:`${size.h}px`,
+    display:"flex", alignItems:"center", justifyContent:"center",
+    padding:0, overflow:"visible", pointerEvents:"auto", zIndex:2147483600
+  };
+
   return (
     <>
       <div style={wrapper}>
         {/* КРУГ 1 — стеклянная плашка */}
-        <div className="glass-plate circle" style={plateStyle}>
+        <div className="glass-plate circle d-breath" style={plateStyle}>
           <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
           <i className="bend side top" /><i className="bend side bottom" />
         </div>
@@ -658,7 +657,7 @@ function DesktopCard() {
               </div>
             </PrePlate>
 
-            {/* Имя — волновой перелив + дыхание (п.5/6) */}
+            {/* Имя — звук + волновой серый + лёгкое дыхание */}
             <PrePlate active={true}>
               <h1 onMouseEnter={()=>setHoveringName(true)} onMouseLeave={()=>setHoveringName(false)}
                   onClick={()=>{ setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
@@ -735,9 +734,10 @@ function DesktopCard() {
         /* плавный волновой серый у имени (desktop) */
         @keyframes waveGrayDesk { 0%,100%{ color:#ffffff } 50%{ color:#6e6e6e } }
         /* лёгкое дыхание имени (desktop) */
-        @keyframes nameBreathDesk { 0%,100%{ transform: scale(1.01) } 50%{ transform: scale(0.99) } }
-        /* лёгкое дыхание плашки (desktop) */
-        @keyframes dBreath { 0%,100%{ transform: translate(-50%,-50%) scale(1) } 50%{ transform: translate(-50%,-50%) scale(1.012) } }
+        @keyframes nameBreathDesk { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-1px) } }
+        /* нежное дыхание плашки (desktop) через отдельный контейнер, чтобы не конфликтовать со scale */
+        .d-breath { animation: dBreath 5200ms ease-in-out infinite; }
+        @keyframes dBreath { 0%,100%{ filter: saturate(1) } 50%{ filter: saturate(1.06) } }
       `}</style>
     </>
   );
@@ -757,7 +757,7 @@ function MobileCard() {
     setVimeoId("1001147905"); setPlayerOpen(true);
   };
 
-  // размеры без смещения
+  // размеры
   const initialW = typeof window !== "undefined" ? Math.min(680, Math.round(window.innerWidth * 0.9)) : 360;
   const initialH = typeof window !== "undefined" ? Math.round(initialW * 0.62) : Math.round(360 * 0.62);
   const [size, setSize] = useState({ w: initialW, h: initialH });
@@ -797,7 +797,7 @@ function MobileCard() {
     animation: "mBreath3x 3200ms ease-in-out infinite"
   };
 
-  // буквы и скролл-цвет (п.1 + волна по буквам)
+  // группы букв
   const lettersBio = Array.from("BIOGRAPHY");
   const mapBio = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
   const [stickBio,setStickBio]=useState(lettersBio.map(()=>false));
@@ -813,6 +813,7 @@ function MobileCard() {
   const [srColors,setSrColors]=useState(srLetters.map(()=>"#ffffff"));
 
   // звук при переходе на новую букву
+  const { playHoverSoft: hoverSnd, playDot: clickSnd } = useAudio();
   const lastHitRef = useRef({ bio: null, name: null, sr: null });
   const activateLetter = (group, idx, setterStick, setterColor, mode = "hover") => {
     const force = mode === "click";
@@ -820,18 +821,18 @@ function MobileCard() {
       lastHitRef.current[group] = idx;
       setterStick(prev => { if (!prev[idx]) { const a=[...prev]; a[idx]=true; return a; } return prev; });
       setterColor(c => { const a=[...c]; a[idx]=randColor(); return a; });
-      force ? playDot() : playHoverSoft();
+      force ? clickSnd() : hoverSnd();
     }
   };
 
-  // drag/scroll по буквам
+  // drag/«скролл» по буквам (п.1)
   const draggingRef = useRef(false);
   const onPD = (e) => { draggingRef.current = true;
     lastHitRef.current = { bio: null, name: null, sr: null };
     e.currentTarget.setPointerCapture?.(e.pointerId); onPM(e);
   };
   const onPU = () => { draggingRef.current = false;
-    // вернуть BIO/SHOWREEL в белый (п.1 «цвет возвращается»)
+    // вернуть BIO/SHOWREEL к белому
     setStickBio(lettersBio.map(()=>false)); setColorsBio(lettersBio.map(()=>"#ffffff"));
     setSrStick(srLetters.map(()=>false)); setSrColors(srLetters.map(()=>"#ffffff"));
   };
@@ -848,11 +849,12 @@ function MobileCard() {
     }
   };
 
-  // при открытии ЛЮБОГО оверлея — сброс цвета имени (п.1) и закрытие зума (п.3)
+  // при открытии любого оверлея — сброс цвета имени и закрыть зум (п.1, п.3)
   useEffect(()=>{
     if (bioOpen || playerOpen || circle2Open) {
       setStickName(nameLatin.map(()=>false));
       setColorsName(nameLatin.map(()=>"#ffffff"));
+      window.dispatchEvent(new CustomEvent("rr:close-zoom"));
     }
   },[bioOpen, playerOpen, circle2Open]);  
 
@@ -875,7 +877,7 @@ function MobileCard() {
                       textShadow:"0 1px 2px rgba(0,0,0,0.25)" }}>
           {/* BIO */}
           <PrePlate active={true}>
-            <h2 onClick={()=>{ playDot(); setBioOpen(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
+            <h2 onClick={()=>{ clickSnd(); setBioOpen(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
                 style={{ margin: 0, fontSize: "clamp(13px, 4.2vw, 17px)", letterSpacing: "0.08em",
                          userSelect: "none", cursor: "pointer", fontFamily: FAMILY_BODY, fontWeight: 700, fontSynthesis: "none" }}
                 title="BIOGRAPHY">
@@ -893,9 +895,9 @@ function MobileCard() {
             </h2>
           </PrePlate>
 
-          {/* Имя — волна + дыхание противоход (п.1,5) */}
+          {/* Имя — волна + дыхание в противоход кругу */}
           <PrePlate active={true}>
-            <h1 onClick={() => { playDot(); setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
+            <h1 onClick={() => { clickSnd(); setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
                 style={{ margin: "0.7em 0 0", fontSize: "clamp(22px, 6.6vw, 28px)", letterSpacing: "0.02em",
                          userSelect: "none", cursor: "pointer", fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
                          fontWeight: 400, fontSynthesis: "none", animation: "nameBreath 3200ms ease-in-out infinite" }}
@@ -986,7 +988,7 @@ function MobileCard() {
         @keyframes nameBreath { 0%,100% { transform: scale(1.01) } 50% { transform: scale(0.99) } }
         /* мягкая цветовая волна по буквам */
         @keyframes waveGrayLetters { 0%,100% { color: #ffffff; } 50% { color: #666666; } }
-        /* дыхание круга: масштаб x1.10 и прозрачность до 0.3 на пике */
+        /* дыхание круга */
         @keyframes mBreath3x {
           0%,100% { transform: translate(-50%,-50%) scale(1); opacity: 0.96; }
           50% { transform: translate(-50%,-50%) scale(1.10); opacity: 0.3; }
