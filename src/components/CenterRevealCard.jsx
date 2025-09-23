@@ -226,7 +226,7 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
           hyphens: "auto",
           fontFamily: FAMILY_BODY,
           fontWeight: 700,
-          fontSize: BODY_FS,
+          fontSize: BODY_FS +1,
           lineHeight: 1.24,
           letterSpacing: "0.02em",
           color: COLOR
@@ -624,6 +624,7 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
   const dragRef = useRef({active:false,startY:0,dy:0});
   const iframeRef = useRef(null);
   const [isMuted, setIsMuted] = useState(full ? true : false);
+  const [frameReady, setFrameReady] = useState(false);
   if (!open) return null;
 
   const onPD = (e)=>{ if(!full) return; dragRef.current={active:true,startY:e.clientY,dy:0}; e.currentTarget.setPointerCapture?.(e.pointerId); };
@@ -633,6 +634,7 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
   const post = (method, value)=>{ try{ iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); }catch{} };
 
   const onIframeLoad = ()=> {
+    setFrameReady(true);
     post("play");
     post("setMuted", isMuted ? true : false);
     if (!isMuted) { post("setVolume", 1); post("play"); }
@@ -651,36 +653,13 @@ function VideoOverlay({ open, onClose, vimeoId, full=true }) {
 
   const queryMuted = full ? 1 : 0;
 
-  return (
-    <div onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
-         style={{ position:"fixed", inset:0, zIndex:2147486000, background:"rgba(0,0,0,0.96)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vw" }}>
-      <button aria-label="Close" onClick={onClose}
-        style={{ position:"absolute", top:"calc(2.2em + env(safe-area-inset-top))", right:16, width:40, height:40, borderRadius:999, background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.35)", cursor:"pointer", display:"grid", placeItems:"center", zIndex:2 }}>
-        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
-      </button>
+  const onIframeLoad = ()=> {
+  setFrameReady(true);           // ← показ после готовности
+  post("play");
+  post("setMuted", isMuted ? true : false);
+  if (!isMuted) { post("setVolume", 1); post("play"); }
+};
 
-      <div className="player-panel" onClick={(e)=>e.stopPropagation()} style={containerStyle}>
-        <iframe
-          id="vimeo-embed"
-          ref={iframeRef}
-          src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=${queryMuted}&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1`}
-          title="Vimeo player" frameBorder="0" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen
-          onLoad={onIframeLoad}
-          style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block", background:"#000" }}
-        />
-      </div>
-
-      {full && (
-        <button onClick={toggleMute}
-          style={{ position:"absolute", left:"50%", bottom:"6%", transform:"translateX(-50%)",
-                   padding:"10px 16px", borderRadius:999, background:"rgba(0,0,0,0.55)", color:"#fff",
-                   border:"1px solid rgba(255,255,255,0.35)", fontFamily:"UniSans-Heavy, 'Uni Sans'", letterSpacing:"0.06em" }}>
-          {isMuted ? "TAP TO UNMUTE" : "TAP TO MUTE"}
-        </button>
-      )}
-    </div>
-  );
-}
 
 /* ===== BIOGRAPHY (desktop) per-letter ===== */
 function BiographyWordPerLetter({ onOpen }) {
@@ -907,7 +886,7 @@ function DesktopCard() {
 
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full={false}/>
       <BioOverlay   open={bioOpen}   onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio.jpg"/>
-      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam*1.7)}/>
+      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam*1.05)}/>
 
       <style>{`
         .glass-plate.circle{
@@ -943,9 +922,10 @@ function DesktopCard() {
   );
 }
 
-/* ===== Mobile Card (дышит круг; волна имени; drag по буквам; SHOWREEL ниже) ===== */
+/* ===== Mobile Card (круг 1 дышит; звук 1 раз/буква; BIO кликабельно; SHOWREEL ниже; кириллица во время drag) ===== */
 function MobileCard() {
   const { playHoverSoft, playDot } = useAudio();
+
   const [bioOpen,setBioOpen]=useState(false);
   const [playerOpen,setPlayerOpen]=useState(false);
   const [vimeoId,setVimeoId]=useState(null);
@@ -953,7 +933,7 @@ function MobileCard() {
 
   const openShowreel = () => { setVimeoId("1001147905"); setPlayerOpen(true); };
 
-  // Размер «сцены»
+  // Размер "сцены"
   const [size,setSize]=useState({
     w: (typeof window!=="undefined"? Math.min(680, Math.round(window.innerWidth*0.9)) : 360),
     h: 0
@@ -976,7 +956,7 @@ function MobileCard() {
     zIndex:2147483600, touchAction:"none"
   };
 
-  // КРУГ 1 — идентичен десктопу, но «дышит»
+  // КРУГ 1 — как на desktop + "дыхание"
   const baseDiam   = Math.min(size.w, size.h);
   const circleDiam = Math.round(baseDiam * 1.10);
 
@@ -992,31 +972,62 @@ function MobileCard() {
     borderRadius:"50%", opacity: PLATE_OPACITY_MAX, pointerEvents:"none"
   };
 
-  // Состояния букв
+  // Состояния букв/цветов
   const lettersBio = Array.from("BIOGRAPHY");
   const mapBio = { B:"Б", I:"И", O:"О", G:"Г", R:"Р", A:"А", P:"Ф", H:"И", Y:"Я" };
   const [stickBio,setStickBio]=useState(lettersBio.map(()=>false));
   const [colorsBio,setColorsBio]=useState(lettersBio.map(()=>"#ffffff"));
 
   const nameLatin = Array.from("RUSTAM ROMANOV");
+  const mapName = { R:"Р", U:"У", S:"С", T:"Т", A:"А", M:"М", O:"О", N:"Н", V:"В", " ":"\u00A0" };
   const [stickName,setStickName]=useState(nameLatin.map(()=>false));
   const [colorsName,setColorsName]=useState(nameLatin.map(()=>"#cfcfcf"));
 
   const srLetters = Array.from("SHOWREEL");
   const [srStick,setSrStick]=useState(srLetters.map(()=>false));
-  const [srColors,setSrColors]=useState(srLetters.map(()=>"#cfcfcf"));
+  const [srColors,setSrColors]=useState(srLetters.map(()=>"#ffffff"));
 
-  // «Подсветить» букву + звук
-  const hitLetter = (idx, setterStick, setterColor, sound = "hover") => {
-    setterStick(prev=>{ if(!prev[idx]) { const a=[...prev]; a[idx]=true; return a; } return prev; });
-    setterColor(c=>{ const a=[...c]; a[idx]=randColor(); return a; });
-    if (sound === "click") playDot(); else playHoverSoft();
+  // Во время drag имя — в кириллице
+  const [nameCyrMode, setNameCyrMode] = useState(false);
+
+  // Один звук на букву за жест: запоминаем уже "сработавшие" индексы
+  const dragTriggered = useRef({
+    bio: new Set(), name: new Set(), sr: new Set()
+  });
+
+  const activateLetter = (group, idx, setterStick, setterColor, sound="hover") => {
+    // не повторяем активацию в рамках одного жеста
+    const bucket = dragTriggered.current[group];
+    if (!bucket.has(idx)) {
+      bucket.add(idx);
+      setterStick(prev => {
+        if (!prev[idx]) { const a=[...prev]; a[idx]=true; return a; }
+        return prev;
+      });
+      setterColor(c => { const a=[...c]; a[idx]=randColor(); return a; });
+      sound === "click" ? playDot() : playHoverSoft();
+    }
   };
 
-  // Drag/scroll по буквам: обрабатываем перемещение пальца поверх спанов
+  // Drag/scroll по буквам
   const draggingRef = useRef(false);
-  const onPD = (e)=>{ draggingRef.current=true; e.currentTarget.setPointerCapture?.(e.pointerId); onPM(e); };
-  const onPU = (e)=>{ draggingRef.current=false; };
+  const onPD = (e)=>{ 
+    draggingRef.current=true; 
+    setNameCyrMode(true);               // 6) во время скролла — кириллица для имени
+    dragTriggered.current = { bio:new Set(), name:new Set(), sr:new Set() }; // сброс набора
+    e.currentTarget.setPointerCapture?.(e.pointerId); 
+    onPM(e); 
+  };
+  const onPU = ()=>{ 
+    draggingRef.current=false; 
+    setNameCyrMode(false);              // вернуть латиницу
+    // 7) BIOGRAPHY — вернуть цвет и надпись
+    setStickBio(lettersBio.map(()=>false));
+    setColorsBio(lettersBio.map(()=>"#ffffff"));
+    // 8) SHOWREEL — вернуть цвет
+    setStickSr(false); setSrStick(srLetters.map(()=>false));
+    setColorsSr(); // (ниже — хелперы)
+  };
   const onPM = (e)=>{
     if(!draggingRef.current) return;
     const x=e.clientX, y=e.clientY;
@@ -1024,16 +1035,20 @@ function MobileCard() {
     const idx = Number(el?.getAttribute?.("data-idx"));
     const group = el?.getAttribute?.("data-group");
     if(Number.isFinite(idx) && group){
-      if(group==="bio")  hitLetter(idx,setStickBio,setColorsBio);
-      if(group==="name") hitLetter(idx,setStickName,setColorsName);
-      if(group==="sr")   hitLetter(idx,setSrStick,setSrColors);
+      if(group==="bio")  activateLetter("bio", idx, setStickBio,  setColorsBio);
+      if(group==="name") activateLetter("name", idx, setStickName, setColorsName);
+      if(group==="sr")   activateLetter("sr", idx, setSrStick,   setSrColors);
     }
   };
+
+  // Хелперы для пунктов 7–8
+  const setStickSr = (val)=> setSrStick(srLetters.map(()=>val));
+  const setColorsSr = ()=> setSrColors(srLetters.map(()=>"#ffffff"));
 
   return (
     <>
       <div style={wrapper}>
-        {/* КРУГ 1 — стеклянная плашка с дыханием */}
+        {/* КРУГ 1 — стеклянная плашка с дыханием (точно по центру) */}
         <div style={plateOuter}>
           <div className="glass-plate circle" style={plateStyle}>
             <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
@@ -1041,7 +1056,7 @@ function MobileCard() {
           </div>
         </div>
 
-        {/* Контент строго по центру круга 1; ловим drag по буквам */}
+        {/* Контент — центр круга; ловим drag по буквам */}
         <div
           onPointerDown={onPD}
           onPointerMove={onPM}
@@ -1059,10 +1074,10 @@ function MobileCard() {
             textShadow:"0 1px 2px rgba(0,0,0,0.25)"
           }}
         >
-          {/* BIOGRAPHY — Royal Crescent */}
+          {/* BIOGRAPHY — кликабельно (вернули!) */}
           <PrePlate active={true}>
             <h2
-              onClick={(e)=>{ playDot(); }}
+              onClick={()=>{ playDot(); setBioOpen(true); }}
               style={{
                 margin: 0,
                 fontSize: "clamp(15px, 4.8vw, 20px)",
@@ -1079,8 +1094,8 @@ function MobileCard() {
                 <span
                   key={i}
                   data-idx={i} data-group="bio"
-                  onMouseEnter={()=>hitLetter(i,setStickBio,setColorsBio)}
-                  onPointerDown={()=>hitLetter(i,setStickBio,setColorsBio,"click")}
+                  onMouseEnter={()=>activateLetter("bio", i, setStickBio, setColorsBio)}
+                  onPointerDown={()=>activateLetter("bio", i, setStickBio, setColorsBio, "click")}
                   style={{
                     display:"inline-block",
                     whiteSpace:"pre",
@@ -1095,7 +1110,7 @@ function MobileCard() {
             </h2>
           </PrePlate>
 
-          {/* Имя — Rostov; волновая переливка от белого к серому */}
+          {/* Имя — волна, во время drag показываем кириллицу */}
           <PrePlate active={true}>
             <h1
               onClick={()=> { playDot(); setCircle2Open(true); }}
@@ -1115,33 +1130,32 @@ function MobileCard() {
                 <span
                   key={i}
                   data-idx={i} data-group="name"
-                  onMouseEnter={()=>hitLetter(i,setStickName,setColorsName)}
-                  onPointerDown={()=>hitLetter(i,setStickName,setColorsName,"click")}
+                  onMouseEnter={()=>activateLetter("name", i, setStickName, setColorsName)}
+                  onPointerDown={()=>activateLetter("name", i, setStickName, setColorsName, "click")}
                   style={{
                     display:"inline-block",
                     whiteSpace:"pre",
                     color: stickName[i] ? colorsName[i] : "#ffffff",
                     transform: stickName[i] ? "scale(1.22)" : "scale(1)",
                     transition:"transform 140ms ease, color 160ms ease",
-                    // волна, если буква ещё не «зафиксирована»
                     animation: stickName[i] ? "none" : `waveGray 1800ms ease-in-out ${i*90}ms infinite`
                   }}
                 >
-                  {ch===" " ? "\u00A0" : ch}
+                  {nameCyrMode ? (mapName[ch] || ch) : (ch===" " ? "\u00A0" : ch)}
                 </span>
               ))}
             </h1>
           </PrePlate>
 
-          {/* SHOWREEL — на строку ниже + Royal Crescent */}
+          {/* SHOWREEL — на строку ниже */}
           <PrePlate active={true}>
             <h3
               onClick={()=>{ playDot(); openShowreel(); }}
               style={{
-                margin: "1.2em 0 0",                // ← опущено на строку ниже
+                margin: "1.2em 0 0",
                 fontSize: "clamp(13px, 4.2vw, 17px)",
                 letterSpacing: "0.08em",
-                color: "#cfcfcf",
+                color: "#ffffff",
                 userSelect: "none",
                 cursor:"pointer",
                 fontFamily: "'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui",
@@ -1154,12 +1168,12 @@ function MobileCard() {
                 <span
                   key={i}
                   data-idx={i} data-group="sr"
-                  onMouseEnter={()=>hitLetter(i,setSrStick,setSrColors)}
-                  onPointerDown={()=>hitLetter(i,setSrStick,setSrColors,"click")}
+                  onMouseEnter={()=>activateLetter("sr", i, setSrStick, setSrColors)}
+                  onPointerDown={()=>activateLetter("sr", i, setSrStick, setSrColors, "click")}
                   style={{
                     display:"inline-block",
                     whiteSpace:"pre",
-                    color: srStick[i] ? srColors[i] : "#cfcfcf",
+                    color: srStick[i] ? srColors[i] : "#ffffff",
                     transform: srStick[i] ? "scale(1.2)" : "scale(1)",
                     transition:"transform 140ms ease, color 160ms ease"
                   }}
@@ -1172,7 +1186,7 @@ function MobileCard() {
         </div>
       </div>
 
-      {/* Соц-иконки внизу */}
+      {/* Соц-иконки внизу — звук тот же */}
       <div
         style={{
           position: "fixed",
@@ -1202,18 +1216,19 @@ function MobileCard() {
       {/* Оверлеи */}
       <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
+      {/* КРУГ 2: +5% к диаметру (п.4) */}
       <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam * 1.25 * 1.05)} hideClose backdropClose />
 
       <style>{`
-        /* дыхание основного круга на мобиле */
+        /* дыхание круга 1 (центрованного) */
         @keyframes mBreath { 
           0%,100%{ transform:translate(-50%,-50%) scale(1) } 
-          50%{ transform:translate(-50%,-50%) scale(1.02) } 
+          50%{   transform:translate(-50%,-50%) scale(1.02) } 
         }
-        /* волна белый → серый для имени (когда буква ещё не подсвечена) */
+        /* волна для имени: белый → серый → белый */
         @keyframes waveGray { 
           0%,100% { color: #ffffff } 
-          50% { color: #bfbfbf } 
+          50%     { color: #bfbfbf } 
         }
       `}</style>
     </>
