@@ -1167,7 +1167,7 @@ const plateStyle = {
   /* ЭТУ используем на самом круге */
   @keyframes mPlateBreath {
     /* широкий и прозрачный */
-    0%, 100% { transform: scale(1.14); opacity: 0.28; }
+    0%, 100% { transform: scale(1.08); opacity: 0.28; }
     /* меньше и плотнее */
     50%      { transform: scale(1.00); opacity: 0.95; }
   }
