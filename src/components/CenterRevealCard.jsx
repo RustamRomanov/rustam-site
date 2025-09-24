@@ -1018,27 +1018,49 @@ const plateWrapStyle = {
             </h2>
           </PrePlate>
 
-          {/* Имя — волна + дыхание в противоход кругу */}
-          <PrePlate active={true}>
-            <h1 onClick={() => { clickSnd(); setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
-                style={{ margin: "0.7em 0 0", fontSize: "clamp(22px, 6.6vw, 28px)", letterSpacing: "0.02em",
-                         userSelect: "none", cursor: "pointer", fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
-                         fontWeight: 400, fontSynthesis: "none", animation: "nameBreath 3200ms ease-in-out infinite" }}
-                title="Подробнее">
-              {nameLatin.map((ch,i)=>(
-                <span key={i} data-idx={i} data-group="name"
-                      onMouseEnter={()=>activateLetter("name", i, setStickName, setColorsName)}
-                      onPointerDown={()=>activateLetter("name", i, setStickName, setColorsName, "click")}
-                      style={{ display:"inline-block", whiteSpace:"pre",
-                               transform: stickName[i] ? "scale(1.22)" : "scale(1)",
-                               transition:"transform 140ms ease, color 160ms ease",
-                               animation: `waveGrayLetters 4200ms ease-in-out ${i*180}ms infinite`,
-                               color: stickName[i] ? colorsName[i] : "#ffffff" }}>
-                  {stickName[i] ? (mapName[ch] || ch) : (ch===" " ? "\u00A0" : ch)}
-                </span>
-              ))}
-            </h1>
-          </PrePlate>
+         {/* Имя — волна + дыхание в противоход кругу */}
+<PrePlate active={true}>
+  <h1
+    onClick={() => { clickSnd(); setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
+    style={{
+      margin: "0.7em 0 0",
+      fontSize: "clamp(22px, 6.6vw, 28px)",
+      letterSpacing: "0.02em",
+      userSelect: "none",
+      cursor: "pointer",
+      fontFamily: "'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
+      fontWeight: 400,
+      fontSynthesis: "none",
+      animation: "nameBreath 3200ms ease-in-out infinite"
+    }}
+    title="Подробнее"
+  >
+    {nameLatin.map((ch, i) => (
+      <span
+        key={i}
+        data-idx={i}
+        data-group="name"
+        onMouseEnter={() => activateLetter("name", i, setStickName, setColorsName)}
+        onPointerDown={() => activateLetter("name", i, setStickName, setColorsName, "click")}
+        style={{
+          display: "inline-block",
+          whiteSpace: "pre",
+          transform: stickName[i] ? "scale(1.22)" : "scale(1)",
+          transition: "transform 140ms ease, color 160ms ease",
+          // ВАЖНО: при активной букве гасим анимацию, чтобы color применился
+          animation: stickName[i]
+            ? "none"
+            : `waveGrayLetters 4200ms ease-in-out ${i * 180}ms infinite`,
+          color: stickName[i] ? colorsName[i] : "#ffffff",
+          textShadow: "0 1px 2px rgba(0,0,0,0.25)"
+        }}
+      >
+        {stickName[i] ? (mapName[ch] || ch) : (ch === " " ? "\u00A0" : ch)}
+      </span>
+    ))}
+  </h1>
+</PrePlate>
+
 
           {/* SHOWREEL */}
           <PrePlate active={true}>
