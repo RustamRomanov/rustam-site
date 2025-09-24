@@ -431,71 +431,176 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
 }
 
 /* ===== Vimeo overlay (анти-белый экран + TAP TO UNMUTE/MUTE) ===== */
-function VideoOverlay({ open, onClose, vimeoId, full=true }) {
-  const dragRef = useRef({active:false,startY:0,dy:0});
+function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = false }) {
+  const dragRef = useRef({ active: false, startY: 0, dy: 0 });
   const iframeRef = useRef(null);
-  const [isMuted, setIsMuted] = useState(full ? true : false);
+  // всегда стартуем без звука — кнопка есть и в compact-режиме
+  const [isMuted, setIsMuted] = useState(true);
   const [frameReady, setFrameReady] = useState(false);
   if (!open) return null;
 
-  const onPD = (e)=>{ if(!full) return; dragRef.current={active:true,startY:e.clientY,dy:0}; e.currentTarget.setPointerCapture?.(e.pointerId); };
-  const onPM = (e)=>{ if(!full) return; const d=dragRef.current; if(!d.active) return;
-    d.dy=e.clientY-d.startY; const panel=e.currentTarget.querySelector(".player-panel");
-    if(panel){ panel.style.transform=`translateY(${d.dy}px)`; panel.style.opacity=String(clamp(1-Math.abs(d.dy)/260,0.25,1)); }
+  const onPD = (e) => {
+    if (!full) return;
+    dragRef.current = { active: true, startY: e.clientY, dy: 0 };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
   };
-  const onPU = (e)=>{ if(!full) return; const d=dragRef.current; dragRef.current={active:false,startY:0,dy:0};
-    const panel=e.currentTarget.querySelector(".player-panel"); if(!panel) return;
-    if(Math.abs(d.dy)>140){ onClose(); } else { panel.style.transition="transform 220ms ease, opacity 220ms ease";
-      panel.style.transform="translateY(0)"; panel.style.opacity="1"; setTimeout(()=>{ panel.style.transition=""; },230); }
+  const onPM = (e) => {
+    if (!full) return;
+    const d = dragRef.current;
+    if (!d.active) return;
+    d.dy = e.clientY - d.startY;
+    const panel = e.currentTarget.querySelector(".player-panel");
+    if (panel) {
+      panel.style.transform = `translateY(${d.dy}px)`;
+      panel.style.opacity = String(clamp(1 - Math.abs(d.dy) / 260, 0.25, 1));
+    }
+  };
+  const onPU = (e) => {
+    if (!full) return;
+    const d = dragRef.current;
+    dragRef.current = { active: false, startY: 0, dy: 0 };
+    const panel = e.currentTarget.querySelector(".player-panel");
+    if (!panel) return;
+    if (Math.abs(d.dy) > 140) {
+      onClose();
+    } else {
+      panel.style.transition = "transform 220ms ease, opacity 220ms ease";
+      panel.style.transform = "translateY(0)";
+      panel.style.opacity = "1";
+      setTimeout(() => {
+        panel.style.transition = "";
+      }, 230);
+    }
   };
 
-  const post = (method, value)=>{ try{ iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); }catch{} };
-  const onIframeLoad = ()=> {
-    // чёрный плейсхолдер до готовности — белого кадра не видно
-    setTimeout(()=>{ setFrameReady(true); post("play"); post("setMuted", isMuted ? true : false); if (!isMuted) { post("setVolume", 1); post("play"); } }, 80);
+  const post = (method, value) => {
+    try { iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); } catch {}
   };
-  const toggleMute = ()=> { const next = !isMuted; setIsMuted(next); post("setMuted", next); if (!next) { post("setVolume", 1); post("play"); } };
+  const onIframeLoad = () => {
+    // чёрный плейсхолдер до готовности — белого кадра не видно
+    setTimeout(() => {
+      setFrameReady(true);
+      post("play");
+      post("setMuted", true); // стартуем всегда muted
+    }, 80);
+  };
+  const toggleMute = () => {
+    const next = !isMuted;
+    setIsMuted(next);
+    post("setMuted", next);
+    if (!next) {
+      post("setVolume", 1);
+      post("play");
+    }
+  };
 
   const containerStyle = full
-    ? { position:"relative", width:"100vw", height:"100vh", borderRadius:0, background:"#000" }
-    : { position:"relative", width:"60vw", maxWidth:1200, height:"60vh", borderRadius:12, overflow:"hidden",
-        boxShadow:"0 20px 60px rgba(0,0,0,0.55)", background:"#000" };
-  const queryMuted = full ? 1 : 0;
+    ? { position: "relative", width: "100vw", height: "100vh", borderRadius: 0, background: "#000" }
+    : {
+        position: "relative",
+        width: "60vw",
+        maxWidth: 1200,
+        height: "60vh",
+        borderRadius: 12,
+        overflow: "hidden",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.55)",
+        background: "#000"
+      };
+
+  // src всегда с muted=1, дальше управляем постмесседжем
+  const queryMuted = 1;
 
   return (
-    <div onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
-         style={{ position:"fixed", inset:0, zIndex:2147486000, background:"rgba(0,0,0,0.96)",
-                  display:"flex", alignItems:"center", justifyContent:"center", padding:"3vw" }}>
-      <button aria-label="Close" onClick={onClose}
-        style={{ position:"absolute", top:"calc(2.2em + env(safe-area-inset-top))", right:16, width:40, height:40, borderRadius:999,
-                 background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.35)", cursor:"pointer",
-                 display:"grid", placeItems:"center", zIndex:2 }}>
-        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
+    <div
+      onPointerDown={onPD}
+      onPointerMove={onPM}
+      onPointerUp={onPU}
+      onPointerCancel={onPU}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 2147486000,
+        background: "rgba(0,0,0,0.96)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "3vw"
+      }}
+    >
+      <button
+        aria-label="Close"
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          top: "calc(2.2em + env(safe-area-inset-top))",
+          right: 16,
+          width: 40,
+          height: 40,
+          borderRadius: 999,
+          background: "rgba(0,0,0,0.55)",
+          border: "1px solid rgba(255,255,255,0.35)",
+          cursor: "pointer",
+          display: "grid",
+          placeItems: "center",
+          zIndex: 2
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24">
+          <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        </svg>
       </button>
 
-      <div className="player-panel" onClick={(e)=>e.stopPropagation()} style={containerStyle}>
+      <div className="player-panel" onClick={(e) => e.stopPropagation()} style={containerStyle}>
         {/* чёрный плейсхолдер поверх до полной готовности */}
-        {!frameReady && <div style={{ position:"absolute", inset:0, background:"#000", zIndex:2 }} />}
-        <iframe id="vimeo-embed" ref={iframeRef}
+        {!frameReady && <div style={{ position: "absolute", inset: 0, background: "#000", zIndex: 2 }} />}
+        <iframe
+          id="vimeo-embed"
+          ref={iframeRef}
           src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=${queryMuted}&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1&color=000000`}
-          title="Vimeo player" frameBorder="0"
-          allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen
+          title="Vimeo player"
+          frameBorder="0"
+          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+          allowFullScreen
           onLoad={onIframeLoad}
-          style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block",
-                   background:"#000", opacity: frameReady ? 1 : 0, transition:"opacity 160ms ease", zIndex:1 }}/>
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            display: "block",
+            background: "#000",
+            opacity: frameReady ? 1 : 0,
+            transition: "opacity 160ms ease",
+            zIndex: 1
+          }}
+        />
       </div>
 
-      {full && (
-        <button onClick={toggleMute}
-          style={{ position:"absolute", left:"50%", bottom:"6%", transform:"translateX(-50%)",
-                   padding:"10px 16px", borderRadius:999, background:"rgba(0,0,0,0.55)", color:"#fff",
-                   border:"1px solid rgba(255,255,255,0.35)", fontFamily:"UniSans-Heavy, 'Uni Sans'", letterSpacing:"0.06em" }}>
+      {(full || showMuteToggle) && (
+        <button
+          onClick={toggleMute}
+          style={{
+            position: "absolute",
+            left: "50%",
+            transform: "translateX(-50%)",
+            bottom: full ? "6%" : 16,
+            padding: "10px 16px",
+            borderRadius: 999,
+            background: "rgba(0,0,0,0.55)",
+            color: "#fff",
+            border: "1px solid rgba(255,255,255,0.35)",
+            fontFamily: "UniSans-Heavy, 'Uni Sans'",
+            letterSpacing: "0.06em",
+            zIndex: 3
+          }}
+        >
           {isMuted ? "TAP TO UNMUTE" : "TAP TO MUTE"}
         </button>
       )}
     </div>
   );
 }
+
 
 /* ===== BIOGRAPHY per-letter (desktop) ===== */
 function BiographyWordPerLetter({ onOpen }) {
@@ -1120,7 +1225,13 @@ const plateStyle = {
       </div>
 
       {/* Оверлеи */}
-      <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full />
+     <VideoOverlay
+  open={playerOpen}
+  onClose={() => { setPlayerOpen(false); setVimeoId(null); }}
+  vimeoId={vimeoId}
+  full={false}
+  showMuteToggle
+/>
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
       <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)}
         diameter={Math.round(circleDiam * 1.25 * 1.05)} hideClose backdropClose bodyInc={-1} />
