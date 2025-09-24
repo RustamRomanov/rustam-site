@@ -963,17 +963,27 @@ const plateWrapStyle = {
     setSrStick(srLetters.map(()=>false)); setSrColors(srLetters.map(()=>"#ffffff"));
   };
   const onPM = (e) => {
-    if (!draggingRef.current) return;
-    const x = e.clientX, y = e.clientY;
-    const el = document.elementFromPoint(x, y);
-    const idx = Number(el?.getAttribute?.("data-idx"));
-    const group = el?.getAttribute?.("data-group");
-    if (Number.isFinite(idx) && group) {
-      if (group === "bio") activateLetter("bio", idx, setStickBio, setColorsBio);
-      if (group === "name") activateLetter("name", idx, setStickName, setColorsName);
-      if (group === "sr") activateLetter("sr", idx, setSrStick, setSrColors);
-    }
-  };
+  if (!draggingRef.current) return;
+  // бывает, что координаты вне вьюпорта или элемент не найден
+  const elRaw = document.elementFromPoint?.(e.clientX, e.clientY);
+  if (!elRaw) return;
+
+  // поднимемся до ближайшего спана с нужными дата-атрибутами
+  const el = elRaw.closest?.("span[data-idx][data-group]");
+  if (!el) return;
+
+  const idxStr = el.getAttribute("data-idx");
+  const group = el.getAttribute("data-group");
+  if (idxStr == null || group == null) return;
+
+  const idx = Number(idxStr);
+  if (!Number.isFinite(idx)) return;
+
+  if (group === "bio")  activateLetter("bio",  idx, setStickBio,  setColorsBio);
+  if (group === "name") activateLetter("name", idx, setStickName, setColorsName);
+  if (group === "sr")   activateLetter("sr",   idx, setSrStick,   setSrColors);
+};
+
 
   // при открытии любого оверлея — сброс цвета имени и закрыть зум (п.1, п.3)
   useEffect(()=>{
