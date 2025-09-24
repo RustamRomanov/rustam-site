@@ -902,25 +902,29 @@ function MobileCard() {
 const plateScale = 1;
 const plateAlpha = 0.96;
 
-  // новый стиль обёртки (для дыхания)
+// обёртка — только центрируем (без анимации)
 const plateWrapStyle = {
-  position:"absolute", left:"50%", top:"50%",
-  transform:"translate(-50%,-50%)",
-  pointerEvents:"none",
-  animation: "plateBreath 5200ms ease-in-out infinite", // дыхание
-  willChange:"transform"
+  position: "absolute",
+  left: "50%",
+  top: "50%",
+  transform: "translate(-50%, -50%)",
+  pointerEvents: "none",
+  willChange: "transform"
 };
 
-  const plateStyle = {
-  position:"relative", // теперь внутри обёртки
-  width:circleDiam, height:circleDiam,
-  transform:`scale(${plateScale})`, // убрали translate
-  transformOrigin:"50% 50%",
-  borderRadius:"50%",
-  opacity: plateAlpha,
-  transition:"opacity 60ms linear, transform 120ms ease",
-  pointerEvents:"none"
+// сам круг — здесь дышим (scale + opacity)
+const plateStyle = {
+  position: "relative",
+  width: circleDiam,
+  height: circleDiam,
+  transformOrigin: "50% 50%",
+  borderRadius: "50%",
+  pointerEvents: "none",
+  willChange: "transform, opacity",
+  animation: "mPlateBreath 5200ms ease-in-out infinite"
 };
+
+
 
 
   // группы букв
@@ -999,11 +1003,16 @@ const plateWrapStyle = {
   return (
     <>
       <div style={wrapper}>
-        {/* КРУГ 1 */}
-        <div className="glass-plate circle" style={plateStyle}>
-          <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
-          <i className="bend side top" /><i className="bend side bottom" />
-        </div>
+       {/* КРУГ 1 */}
+<div style={plateWrapStyle}>
+  <div className="glass-plate circle" style={plateStyle}>
+    <i className="bend ring" />
+    <i className="bend side left" />
+    <i className="bend side right" />
+    <i className="bend side top" />
+    <i className="bend side bottom" />
+  </div>
+</div>
 
         {/* Контент — drag по буквам */}
         <div onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
@@ -1150,6 +1159,13 @@ const plateWrapStyle = {
         @keyframes mBreath3x {
           0%,100% { transform: translate(-50%,-50%) scale(1); opacity: 0.96; }
           50% { transform: translate(-50%,-50%) scale(1.10); opacity: 0.3; }
+          @keyframes mPlateBreath {
+  /* широкий и прозрачный */
+  0%, 100% { transform: scale(1.14); opacity: 0.28; }
+  /* меньше и плотнее */
+  50%      { transform: scale(1.00); opacity: 0.95; }
+}
+
         }
       `}</style>
     </>
