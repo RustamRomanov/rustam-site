@@ -491,28 +491,62 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
   const dragRef = useRef({active:false,startY:0,dy:0});
   const iframeRef = useRef(null);
   const panelRef = useRef(null);
-  const [isMuted, setIsMuted] = useState(true);  // стартуем молча — не будет баннера Unmute
-  const [frameReady, setFrameReady] = useState(false);
-  if (!open) return null;
 
-  // cover-подгонка под 16:9, горизонт всегда заполнен
-  const [fit, setFit] = useState({ w: window.innerWidth, h: window.innerHeight });
+  // ВСЕ хуки — до раннего return
+  const [isMuted, setIsMuted] = useState(true);   // старт в mute
+  const [frameReady, setFrameReady] = useState(false);
+
+  // безопасный init без window
+  const safeWH = () => {
+    if (typeof window === "undefined") return { w: 1, h: 1 };
+    return { w: window.innerWidth || 1, h: window.innerHeight || 1 };
+  };
+  const [fit, setFit] = useState(safeWH);
+
   useEffect(() => {
     const R = 16/9;
     const recalc = () => {
-      const W = Math.min(window.innerWidth, window.visualViewport?.width || window.innerWidth);
-      const H = Math.min(window.innerHeight, window.visualViewport?.height || window.innerHeight);
+      const W = Math.min(
+        typeof window !== "undefined" ? window.innerWidth : 1,
+        typeof window !== "undefined" && window.visualViewport ? window.visualViewport.width : Infinity
+      );
+      const H = Math.min(
+        typeof window !== "undefined" ? window.innerHeight : 1,
+        typeof window !== "undefined" && window.visualViewport ? window.visualViewport.height : Infinity
+      );
+      if (!Number.isFinite(W) || !Number.isFinite(H)) return;
       const screenR = W / H;
-      if (screenR >= R) setFit({ w: W, h: Math.round(W / R) });       // тянем по ширине
-      else              setFit({ w: Math.round(H * R), h: H });       // тянем по высоте
+      if (screenR >= R) setFit({ w: W, h: Math.round(W / R) });  // тянем по ширине
+      else              setFit({ w: Math.round(H * R), h: H });  // тянем по высоте
     };
     recalc();
     window.addEventListener("resize", recalc, { passive: true });
     window.addEventListener("orientationchange", recalc, { passive: true });
-    return () => { window.removeEventListener("resize", recalc); window.removeEventListener("orientationchange", recalc); };
+    return () => {
+      window.removeEventListener("resize", recalc);
+      window.removeEventListener("orientationchange", recalc);
+    };
   }, []);
 
-  const onPD = (e)=>{ dragRef.current={active:true,startY:e.clientY,dy:0}; e.currentTarget.setPointerCapture?.(e.pointerId); };
+  const post = (method, value)=>{ try{ iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); }catch{} };
+  const onIframeLoad = ()=> {
+    setTimeout(()=>{ setFrameReady(true); post("play"); post("setMuted", true); }, 80);
+  };
+  const toggleMute = ()=> {
+    const next = !isMuted;
+    setIsMuted(next);
+    post("setMuted", next);
+    if (!next) { post("setVolume", 1); post("play"); }
+  };
+
+  const onPD = (e) => {
+  // не стартуем drag, если жмём по кнопке (или по её svg-иконке)
+  const el = e.target;
+  if (el && typeof el.closest === "function" && el.closest("button")) return;
+
+  dragRef.current = { active: true, startY: e.clientY, dy: 0 };
+  e.currentTarget.setPointerCapture?.(e.pointerId);
+};
   const onPM = (e)=>{ const d=dragRef.current; if(!d.active) return;
     d.dy=e.clientY-d.startY; const panel=panelRef.current;
     if(panel){ panel.style.transform=`translateY(${d.dy}px)`; panel.style.opacity=String(Math.max(0.25, 1-Math.abs(d.dy)/260)); }
@@ -526,33 +560,48 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
     }
   };
 
-  const post = (method, value)=>{ try{ iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); }catch{} };
-  const onIframeLoad = ()=> {
-    setTimeout(()=>{ setFrameReady(true); post("play"); post("setMuted", true); }, 80); // начинаем в mute
-  };
-  const toggleMute = ()=> {
-    const next = !isMuted;
-    setIsMuted(next);
-    post("setMuted", next);
-    if (!next) { post("setVolume", 1); post("play"); }
-  };
+  // ранний выход — только ПОСЛЕ хуков
+  if (!open) return null;
 
   return (
-    <div onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
-         style={{ position:"fixed", inset:0, zIndex:2147486000, background:"rgba(0,0,0,0.96)",
-                  display:"flex", alignItems:"center", justifyContent:"center", padding:0, overflow:"hidden" }}>
-      <button aria-label="Close" onClick={onClose}
-        style={{ position:"absolute", top:"calc(2.2em + env(safe-area-inset-top))", right:16, width:40, height:40, borderRadius:999,
-                 background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.35)", cursor:"pointer",
-                 display:"grid", placeItems:"center", zIndex:3 }}>
-        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
+    <div
+      onPointerDown={onPD}
+      onPointerMove={onPM}
+      onPointerUp={onPU}
+      onPointerCancel={onPU}
+      style={{
+        position:"fixed", inset:0, zIndex:2147486000, background:"rgba(0,0,0,0.96)",
+        display:"flex", alignItems:"center", justifyContent:"center", padding:0, overflow:"hidden"
+      }}
+    >
+      <button
+        aria-label="Close"
+        onClick={(e)=>{ e.stopPropagation(); onClose(); }}
+        onPointerDown={(e)=> e.stopPropagation()}
+        onMouseDown={(e)=> e.stopPropagation()}
+        onTouchStart={(e)=> e.stopPropagation()}
+        style={{
+          position:"absolute",
+          top:"calc(2.2em + env(safe-area-inset-top))",
+          right:16,
+          width:40, height:40, borderRadius:999,
+          background:"rgba(0,0,0,0.55)",
+          border:"1px solid rgba(255,255,255,0.35)",
+          cursor:"pointer",
+          display:"grid", placeItems:"center",
+          zIndex: 4, pointerEvents:"auto"
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24">
+          <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
       </button>
 
       <div ref={panelRef} className="player-panel"
            style={{ position:"relative", width:"100vw", height:"100svh", borderRadius:0, background:"#000" }}>
         {!frameReady && <div style={{ position:"absolute", inset:0, background:"#000", zIndex:2 }} />}
 
-        {/* cover-обёртка для iframe */}
+        {/* cover-обёртка центр/масштаб */}
         <div style={{
           position:"absolute", left:"50%", top:"50%",
           width:`${fit.w}px`, height:`${fit.h}px`,
@@ -567,22 +616,33 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
             allowFullScreen
             onLoad={onIframeLoad}
-            style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block",
-                     background:"#000", opacity: frameReady ? 1 : 0, transition:"opacity 160ms ease" }}
+            style={{
+              position:"absolute", inset:0, width:"100%", height:"100%", display:"block",
+              background:"#000", opacity: frameReady ? 1 : 0, transition:"opacity 160ms ease"
+            }}
           />
         </div>
       </div>
 
-      {/* Наша нижняя кнопка */}
-      <button onClick={toggleMute}
-        style={{ position:"absolute", left:"50%", transform:"translateX(-50%)",
-                 bottom:"6%", padding:"10px 16px", borderRadius:999, background:"rgba(0,0,0,0.55)", color:"#fff",
-                 border:"1px solid rgba(255,255,255,0.35)", fontFamily:"UniSans-Heavy, 'Uni Sans'", letterSpacing:"0.06em", zIndex:4 }}>
+      {/* нижняя кнопка TAP TO UNMUTE/MUTE */}
+      <button
+        onClick={(e)=>{ e.stopPropagation(); toggleMute(); }}
+        onPointerDown={(e)=> e.stopPropagation()}
+        style={{
+          position:"absolute", left:"50%", transform:"translateX(-50%)",
+          bottom:"6%", padding:"10px 16px", borderRadius:999,
+          background:"rgba(0,0,0,0.55)", color:"#fff",
+          border:"1px solid rgba(255,255,255,0.35)",
+          fontFamily:"UniSans-Heavy, 'Uni Sans'", letterSpacing:"0.06em",
+          zIndex:4
+        }}
+      >
         {isMuted ? "TAP TO UNMUTE" : "TAP TO MUTE"}
       </button>
     </div>
   );
 }
+
 
 
 
