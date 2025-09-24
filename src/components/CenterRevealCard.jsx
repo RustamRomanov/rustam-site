@@ -1127,47 +1127,52 @@ const plateStyle = {
 
       {/* Локальные стили мобилки */}
       <style>{`
-        .glass-plate.circle{
-          background: rgba(255,255,255,0.07);
-          -webkit-backdrop-filter: blur(16px) saturate(1.2);
-          backdrop-filter: blur(16px) saturate(1.2);
-          box-shadow: 0 12px 28px rgba(0,0,0,0.22);
-          border-radius:50%; overflow:hidden;
-        }
-        .glass-plate.circle::before{
-          content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
-          -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
-          backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
-          -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
-                  mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
-        }
-        .glass-plate.circle::after{
-          content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-          background:
-            radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
-            radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
-            radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
-            radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
-            linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
-          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
-        }
-        /* дыхание имени в противоход кругу */
-        @keyframes nameBreath { 0%,100% { transform: scale(1.01) } 50% { transform: scale(0.99) } }
-        /* мягкая цветовая волна по буквам */
-        @keyframes waveGrayLetters { 0%,100% { color: #ffffff; } 50% { color: #666666; } }
-        /* дыхание круга */
-        @keyframes mBreath3x {
-          0%,100% { transform: translate(-50%,-50%) scale(1); opacity: 0.96; }
-          50% { transform: translate(-50%,-50%) scale(1.10); opacity: 0.3; }
-          @keyframes mPlateBreath {
-  /* широкий и прозрачный */
-  0%, 100% { transform: scale(1.14); opacity: 0.28; }
-  /* меньше и плотнее */
-  50%      { transform: scale(1.00); opacity: 0.95; }
-}
+  .glass-plate.circle{
+    background: rgba(255,255,255,0.07);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    backdrop-filter: blur(16px) saturate(1.2);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+    border-radius:50%; overflow:hidden;
+  }
+  .glass-plate.circle::before{
+    content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
+    -webkit-backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+    backdrop-filter: blur(30px) saturate(1.25) brightness(1.02);
+    -webkit-mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+            mask-image: radial-gradient(115% 115% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 78%);
+  }
+  .glass-plate.circle::after{
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background:
+      radial-gradient(120% 160% at 50% -20%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
+      radial-gradient(120% 160% at 50% 120%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
+      radial-gradient(160% 120% at -20% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+      radial-gradient(160% 120% at 120% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+      linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
+  }
 
-        }
-      `}</style>
+  /* дыхание имени в противоход кругу */
+  @keyframes nameBreath { 0%,100% { transform: scale(1.01) } 50% { transform: scale(0.99) } }
+
+  /* мягкая цветовая волна по буквам */
+  @keyframes waveGrayLetters { 0%,100% { color: #ffffff; } 50% { color: #666666; } }
+
+  /* (можно оставить старую, но она НЕ используется сейчас) */
+  @keyframes mBreath3x {
+    0%,100% { transform: translate(-50%,-50%) scale(1); opacity: 0.96; }
+    50% { transform: translate(-50%,-50%) scale(1.10); opacity: 0.3; }
+  }
+
+  /* ЭТУ используем на самом круге */
+  @keyframes mPlateBreath {
+    /* широкий и прозрачный */
+    0%, 100% { transform: scale(1.14); opacity: 0.28; }
+    /* меньше и плотнее */
+    50%      { transform: scale(1.00); opacity: 0.95; }
+  }
+`}</style>
+
     </>
   );
 }
