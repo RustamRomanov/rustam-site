@@ -1,11 +1,26 @@
-/* === Локальный Montserrat Black (900) ===
-   Путь учитывает base: '/rustam-site/' */
-@font-face {
-  font-family: "MontserratLocal, Arkiv_Bold";
-  src: url("/rustam-site/assents/fonts/montserrat-black.woff2") format("woff2");
-  font-weight: 900;
+/* ABC_TypeWriterRussian — для текста биографии */
+@font-face{
+  font-family: "ABC_TypeWriterRussian";
+  src: url("/rustam-site/assents/fonts/ABC_TypeWriterRussian.ttf") format("truetype");
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
-/* (Опционально) тут могут оставаться твои PFScandalPro — не мешают */
+/* Rostov — для RUSTAM ROMANOV */
+@font-face{
+  font-family: "Rostov";
+  src: url("/rustam-site/assents/fonts/Rostov.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Royal Crescent — для DIRECTOR'S SHOWREEL и BIOGRAPHY */
+@font-face{
+  font-family: "Royal Crescent";
+  src: url("/rustam-site/assents/fonts/Royal Crescent.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

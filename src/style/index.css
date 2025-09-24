@@ -187,8 +187,3 @@ button, input, select, textarea {
 .font-uni-thin     { font-family: "Uni Sans Thin", "Uni Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
 .font-jura         { font-family: "Jura-Ofont", Jura, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
 
-@media (max-width: 768px) {
-  .mobile-space {
-    height: 20px; /* это и есть твой отступ */
-  }
-}

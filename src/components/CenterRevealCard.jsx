@@ -540,8 +540,8 @@ function DesktopCard() {
   const baseDiam = Math.min(size.w, size.h);
   const circleDiam = Math.round(baseDiam * 1.10);
 
-  // реакция/прозрачность/масштаб
-  const BASE_OPACITY = PLATE_OPACITY_MAX * 0.6;
+  // реакция/прозрачность
+  const BASE_OPACITY = PLATE_OPACITY_MAX * 0.8;
   const plateTargetRef = useRef(BASE_OPACITY);
   const plateAlphaRef = useRef(BASE_OPACITY);
   const [plateAlpha, setPlateAlpha] = useState(BASE_OPACITY);
@@ -560,7 +560,6 @@ function DesktopCard() {
     raf=requestAnimationFrame(tick);
     return ()=>cancelAnimationFrame(raf);
   },[]);
-
   useEffect(()=>{
     const onMove=(e)=>{
       const midX = window.innerWidth/2, midY=window.innerHeight/2;
@@ -580,90 +579,118 @@ function DesktopCard() {
     return ()=>{ window.removeEventListener("mousemove",onMove); window.removeEventListener("mouseleave",onLeave); };
   },[size]);
 
-  // контент/состояния
+  // состояния оверлеев
   const [playerOpen,setPlayerOpen]=useState(false);
   const [vimeoId,setVimeoId]=useState(null);
   const [bioOpen,setBioOpen]=useState(false);
   const [circle2Open, setCircle2Open] = useState(false);
 
-  // Имя: волна + цвет при наведении + автосброс через 10с (из центра)
+  // --- Имя
   const showreelText="SHOWREEL";
   const nameLatin="RUSTAM ROMANOV";
+  const nameMap = { R:"Р", U:"У", S:"С", T:"Т", A:"А", M:"М", O:"О", N:"Н", V:"В", " ":"\u00A0" };
   const titleBase=24;
   const titleFS=Math.round(titleBase*1.1);
   const directedFS = Math.round((titleFS/1.5)*1.2);
   const nameFS = Math.round(titleFS*1.32);
 
-  const nameChars = Array.from(nameLatin);
-  const letterIdx = nameChars.map((ch,i)=> ch===" " ? null : i).filter(i=>i!==null);
+  // цвет по буквам
+  const [nameStick,setNameStick]=useState(Array.from(nameLatin).map(()=>false));
+  const [nameColors,setNameColors]=useState(Array.from(nameLatin).map(()=>"#cfcfcf"));
+  const [nameTrans, setNameTrans] = useState(Array.from(nameLatin).map(()=>false));
 
-  const [nameStick,setNameStick]=useState(nameChars.map(()=>false));
-  const [nameColors,setNameColors]=useState(nameChars.map(()=>"#cfcfcf"));
+  // ховер-трекер и откат через 10с
   const [hoveringName,setHoveringName]=useState(false);
+  const lastHoverRef = useRef(Date.now());
+  const resetBatchRef = useRef(0);     // чтобы отменять старые серии отката
+  const resettingRef  = useRef(false); // флаг, что идёт центр-аут анимация
 
-  // таймеры автосброса
-  const hoverTimerRef = useRef(null);
-  const resetStaggersRef = useRef([]);
-  const hoveringNameRef = useRef(false);
-
-  const clearAllNameTimers = () => {
-    if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
-    resetStaggersRef.current.forEach(id=>clearTimeout(id));
-    resetStaggersRef.current = [];
-  };
-
-  // центр→наружу; сбрасываем только реально прилипшие буквы
-  const startNameStaggerReset = () => {
-    const n = letterIdx.length;
-    if (!n) return;
-
-    const order = [];
-    if (n % 2 === 1) {
-      let mid = Math.floor(n/2);
-      order.push(letterIdx[mid]);
-      let L = mid-1, R = mid+1;
-      while (L >= 0 || R < n) { if (R < n) order.push(letterIdx[R++]); if (L >= 0) order.push(letterIdx[L--]); }
-    } else {
-      let midR = n/2, midL = midR-1;
-      order.push(letterIdx[midR], letterIdx[midL]);
-      let L = midL-1, R = midR+1;
-      while (L >= 0 || R < n) { if (R < n) order.push(letterIdx[R++]); if (L >= 0) order.push(letterIdx[L--]); }
+  // порядок индексов "из центра к краям"
+  const getCenterOutOrder = (len)=>{
+    const order=[];
+    let L=Math.floor((len-1)/2);
+    let R=Math.floor(len/2);
+    while(L>=0 || R<len){
+      if (L>=0){ order.push(L); }
+      if (R<len && R!==L){ order.push(R); }
+      L--; R++;
     }
-
-    const step = 90;
-    order.forEach((idx, k) => {
-      const id = setTimeout(() => {
-        if (hoveringNameRef.current) return;
-        setNameStick(prev => {
-          if (!prev[idx]) return prev;
-          const next=[...prev]; next[idx]=false; return next;
-        });
-        // цвета не трогаем — при stick=false снова видна «волна»
-      }, k*step);
-      resetStaggersRef.current.push(id);
-    });
+    return order;
   };
 
-  // всегда через 10 сек без наведения
-  const scheduleNameAutoReset = () => {
-    clearAllNameTimers();
-    hoverTimerRef.current = setTimeout(() => {
-      if (!hoveringNameRef.current) startNameStaggerReset();
-    }, 10000);
+ // запуск плавного отката (центр → края)
+const runCenterOutReset = ()=>{
+  if (resettingRef.current) return;
+  resettingRef.current = true;
+  const myBatch = ++resetBatchRef.current;
+  const order = getCenterOutOrder(nameLatin.length);
+
+  order.forEach((idx, step)=>{
+    setTimeout(()=>{
+      if (resetBatchRef.current !== myBatch) return; // отменён — выходим
+
+      // выключаем подсветку буквы
+      setNameStick(s => { if (!s[idx]) return s; const a=[...s]; a[idx]=false; return a; });
+
+      // ВОЗВРАЩАЕМ К ЛАТИНИЦЕ
+      setNameTrans(t => { if (!t[idx]) return t; const a=[...t]; a[idx]=false; return a; });
+    }, step * 70);
+  });
+
+  // финал серии — вернуть цветовую палитру в исходную
+  setTimeout(()=>{
+    if (resetBatchRef.current === myBatch){
+      setNameColors(Array.from(nameLatin).map(()=>"#cfcfcf"));
+      resettingRef.current = false;
+    }
+  }, order.length * 70 + 80);
+};
+
+
+  // таймер простоя 5с
+  useEffect(()=>{
+    const id = setInterval(()=>{
+      const idle = Date.now() - lastHoverRef.current;
+      const anyColored = nameStick.some(Boolean);
+      if (!hoveringName && anyColored && idle >= 5000) runCenterOutReset();
+    }, 400);
+    return ()=>clearInterval(id);
+  }, [hoveringName, nameStick]);
+
+  const touchName = (i)=>{
+    lastHoverRef.current = Date.now();
+    resetBatchRef.current++;            // отменить возможный текущий откат
+    resettingRef.current = false;
+    setNameTrans(t => { if (t[i]) return t; const a=[...t]; a[i]=true; return a; });
+    setNameStick(s=>{ const a=[...s]; a[i]=true; return a; });
+    setNameColors(c=>{ const a=[...c]; a[i]=randColor(); return a; });
+    playHoverSoft();
   };
 
-  // SHOWREEL (как было)
+  // SHOWREEL окраска
   const [srStick,setSrStick]=useState(Array.from(showreelText).map(()=>false));
   const [srColors,setSrColors]=useState(Array.from(showreelText).map(()=>"#bfbfbf"));
 
-  // масштаб плашки
-  const plateScale = 1.08 - plateProx * 0.08;
+  // масштаб плашки от близости курсора
+  const plateScale = 1.10 - plateProx * 0.08;
 
+  // дыхание плашки — обёртка
+  const plateWrapStyle = {
+    position:"absolute", left:"50%", top:"50%",
+    transform:"translate(-50%,-50%)",
+    pointerEvents:"none",
+    animation: "plateBreath 5200ms ease-in-out infinite",
+    willChange:"transform"
+  };
   const plateStyle = {
-    position:"absolute", width:circleDiam, height:circleDiam, left:"50%", top:"50%",
-    transform:`translate(-50%,-50%) scale(${plateScale})`, transformOrigin:"50% 50%",
-    borderRadius:"50%", opacity: plateAlpha,
-    transition:"opacity 60ms linear, transform 120ms ease", pointerEvents:"none"
+    position:"relative",
+    width:circleDiam, height:circleDiam,
+    transform:`scale(${plateScale})`,
+    transformOrigin:"50% 50%",
+    borderRadius:"50%",
+    opacity: plateAlpha,
+    transition:"opacity 60ms linear, transform 120ms ease",
+    pointerEvents:"none"
   };
 
   const wrapper = {
@@ -673,15 +700,15 @@ function DesktopCard() {
     padding:0, overflow:"visible", pointerEvents:"auto", zIndex:2147483600
   };
 
-  useEffect(()=>()=>clearAllNameTimers(),[]);
-
   return (
     <>
       <div style={wrapper}>
-        {/* КРУГ 1 — стеклянная плашка */}
-        <div className="glass-plate circle d-breath" style={plateStyle}>
-          <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
-          <i className="bend side top" /><i className="bend side bottom" />
+        {/* КРУГ 1 — стеклянная плашка с дыханием */}
+        <div style={plateWrapStyle}>
+          <div className="glass-plate circle" style={plateStyle}>
+            <i className="bend ring" /><i className="bend side left" /><i className="bend side right" />
+            <i className="bend side top" /><i className="bend side bottom" />
+          </div>
         </div>
 
         {/* Контент */}
@@ -692,13 +719,18 @@ function DesktopCard() {
             gap: Math.round(titleFS*0.42), marginTop: Math.round((titleFS/1.5) * 3.2),
             color:"#fff", fontFamily:"UniSans-Heavy, 'Uni Sans', system-ui", textShadow:"0 1px 2px rgba(0,0,0,0.25)"
           }}>
-            {/* SHOWREEL */}
+            {/* SHOWREEL — cursor: pointer */}
             <PrePlate active={true}>
-              <div onMouseLeave={()=> setSrStick(Array.from(showreelText).map(()=>false))}
-                   onClick={()=>{ setVimeoId("1001147905"); setPlayerOpen(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
-                   style={{ position:"relative", display:"inline-block", marginTop: Math.round(titleFS*0.3),
-                            marginBottom: Math.round(directedFS*0.2), cursor: "pointer" }}
-                   title="Открыть шоу-рил">
+              <div
+                onMouseLeave={()=> setSrStick(Array.from(showreelText).map(()=>false))}
+                onClick={()=>{ setVimeoId("1001147905"); setPlayerOpen(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
+                style={{
+                  position:"relative", display:"inline-block",
+                  marginTop: Math.round(titleFS*0.3), marginBottom: Math.round(directedFS*0.2),
+                  cursor: "pointer"
+                }}
+                title="Открыть шоу-рил"
+              >
                 <h2 className="hover-click" style={{ margin:0, fontSize: directedFS, letterSpacing:"0.08em", whiteSpace:"nowrap",
                       userSelect:"none", position:"relative", zIndex:1, fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" }}>
                   {Array.from(showreelText).map((ch,i)=>(
@@ -717,11 +749,11 @@ function DesktopCard() {
               </div>
             </PrePlate>
 
-            {/* Имя — волна + цвет при наведении + автосброс через 10с */}
+            {/* Имя — волна + цвет по буквам + центр-аут возврат через 10с */}
             <PrePlate active={true}>
               <h1
-                onMouseEnter={()=>{ setHoveringName(true); hoveringNameRef.current = true; clearAllNameTimers(); }}
-                onMouseLeave={()=>{ setHoveringName(false); hoveringNameRef.current = false; scheduleNameAutoReset(); }}
+                onMouseEnter={()=>{ setHoveringName(true); lastHoverRef.current = Date.now(); resetBatchRef.current++; resettingRef.current=false; }}
+                onMouseLeave={()=> setHoveringName(false)}
                 onClick={()=>{ setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
                 style={{
                   margin:0, fontSize:nameFS, letterSpacing:"0.02em", whiteSpace:"nowrap",
@@ -731,30 +763,26 @@ function DesktopCard() {
                 }}
                 title="Подробнее"
               >
-                {nameChars.map((ch,i)=>(
-                  <span
-                    key={`n-${i}`}
-                    onMouseEnter={()=>{
-                      if (ch !== " ") {
-                        playHoverSoft();
-                        setNameStick(s=>{ const a=[...s]; a[i]=true; return a; });
-                        setNameColors(c=>{ const a=[...c]; a[i]=randColor(); return a; });
-                      }
-                    }}
-                    style={{
-                      display:"inline-block",
-                      whiteSpace:"pre",
-                      transform: nameStick[i] ? "scale(1.16)" : "scale(1)",
-                      transition:"transform 160ms ease, color 160ms ease",
-                      textShadow:"0 1px 2px rgba(0,0,0,0.25)",
-                      animation: (nameStick[i] || ch===" ")
-                        ? "none"
-                        : `waveGrayDesk 4200ms ease-in-out ${i*160}ms infinite`,
-                      color: nameStick[i] ? nameColors[i] : undefined
-                    }}
-                  >
-                    {ch===" " ? "\u00A0" : ch}
-                  </span>
+               {Array.from(nameLatin).map((ch, i) => (
+  <span
+    key={`n-${i}`}
+    onMouseEnter={() => touchName(i)}
+    style={{
+      display: "inline-block",
+      whiteSpace: "pre",
+      // если буква подсвечена — отключаем волну, иначе оставляем анимацию
+      animation: nameStick[i] ? "none" : `waveGrayDesk 4200ms ease-in-out ${i * 110}ms infinite`,
+      color: nameStick[i] ? nameColors[i] : undefined,
+      transform: nameStick[i] ? "scale(1.16)" : "scale(1)",
+      transition: "transform 160ms ease, color 160ms ease",
+      textShadow: "0 1px 2px rgba(0,0,0,0.25)",
+    }}
+  >
+    {nameTrans[i]
+      ? (nameMap[ch] ?? (ch === " " ? "\u00A0" : ch))
+      : (ch === " " ? "\u00A0" : ch)}
+  </span>
+
                 ))}
               </h1>
             </PrePlate>
@@ -807,20 +835,22 @@ function DesktopCard() {
             linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
           box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 -20px 60px rgba(0,0,0,0.15);
         }
-        .hover-click{ transition: transform 140ms ease, text-shadow 140ms ease; }
-        .hover-click:hover{ transform: scale(1.035); text-shadow: 0 8px 26px rgba(0,0,0,0.35); }
 
-        /* «волна» по цвету (desktop) */
+        /* волна серого у имени (desktop) */
         @keyframes waveGrayDesk { 0%,100%{ color:#ffffff } 50%{ color:#6e6e6e } }
         /* лёгкое дыхание имени (desktop) */
         @keyframes nameBreathDesk { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-1px) } }
-        /* дыхание плашки (desktop) */
-        .d-breath { animation: dBreath 5200ms ease-in-out infinite; }
-        @keyframes dBreath { 0%,100%{ filter: saturate(1) } 50%{ filter: saturate(1.06) } }
+
+        /* дыхание центральной плашки (desktop) — у обёртки */
+        @keyframes plateBreath {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); }
+          50%      { transform: translate(-50%, -50%) scale(1.03); }
+        }
       `}</style>
     </>
   );
 }
+
 
 /* ===== Mobile Card ===== */
 function MobileCard() {
@@ -869,12 +899,26 @@ function MobileCard() {
   const baseDiam = Math.min(size.w, size.h);
   const circleDiam = Math.round(baseDiam * 1.50);
 
+  // новый стиль обёртки (для дыхания)
+const plateWrapStyle = {
+  position:"absolute", left:"50%", top:"50%",
+  transform:"translate(-50%,-50%)",
+  pointerEvents:"none",
+  animation: "plateBreath 5200ms ease-in-out infinite", // дыхание
+  willChange:"transform"
+};
+
   const plateStyle = {
-    position:"absolute", left:"50%", top:"50%", width:circleDiam, height:circleDiam,
-    borderRadius:"50%", transform:"translate(-50%,-50%)", transformOrigin:"50% 50%",
-    pointerEvents:"none", willChange:"transform,opacity",
-    animation: "mBreath3x 3200ms ease-in-out infinite"
-  };
+  position:"relative", // теперь внутри обёртки
+  width:circleDiam, height:circleDiam,
+  transform:`scale(${plateScale})`, // убрали translate
+  transformOrigin:"50% 50%",
+  borderRadius:"50%",
+  opacity: plateAlpha,
+  transition:"opacity 60ms linear, transform 120ms ease",
+  pointerEvents:"none"
+};
+
 
   // группы букв
   const lettersBio = Array.from("BIOGRAPHY");
