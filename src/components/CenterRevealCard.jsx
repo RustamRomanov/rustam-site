@@ -430,210 +430,156 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
   );
 }
 
-/* ===== Vimeo overlay (full-screen cover на мобиле, без верхнего Unmute, с TAP TO UNMUTE/MUTE) ===== */
-function VideoOverlay({ open, onClose, vimeoId, full = true }) {
-  const dragRef = useRef({ active: false, startY: 0, dy: 0 });
+/* ===== Vimeo overlay — DESKTOP (как было) ===== */
+function VideoOverlayDesktop({ open, onClose, vimeoId }) {
+  const dragRef = useRef({active:false,startY:0,dy:0});
+  const iframeRef = useRef(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [frameReady, setFrameReady] = useState(false);
+  if (!open) return null;
+
+  const onPD = (e)=>{ dragRef.current={active:true,startY:e.clientY,dy:0}; e.currentTarget.setPointerCapture?.(e.pointerId); };
+  const onPM = (e)=>{ const d=dragRef.current; if(!d.active) return;
+    d.dy=e.clientY-d.startY; const panel=e.currentTarget.querySelector(".player-panel");
+    if(panel){ panel.style.transform=`translateY(${d.dy}px)`; panel.style.opacity=String(Math.max(0.25, 1-Math.abs(d.dy)/260)); }
+  };
+  const onPU = ()=>{ const d=dragRef.current; dragRef.current={active:false,startY:0,dy:0};
+    const panel=document.querySelector(".player-panel"); if(!panel) return;
+    if(Math.abs(d.dy)>140){ onClose(); } else { panel.style.transition="transform 220ms ease, opacity 220ms ease";
+      panel.style.transform="translateY(0)"; panel.style.opacity="1"; setTimeout(()=>{ panel.style.transition=""; },230); }
+  };
+
+  const post = (method, value)=>{ try{ iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); }catch{} };
+  const onIframeLoad = ()=> {
+    setTimeout(()=>{ setFrameReady(true); post("play"); post("setMuted", isMuted); if (!isMuted) { post("setVolume", 1); post("play"); } }, 80);
+  };
+
+  const containerStyle = { position:"relative", width:"60vw", maxWidth:1200, height:"60vh", borderRadius:12, overflow:"hidden",
+                           boxShadow:"0 20px 60px rgba(0,0,0,0.55)", background:"#000" };
+
+  return (
+    <div onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
+         style={{ position:"fixed", inset:0, zIndex:2147486000, background:"rgba(0,0,0,0.96)",
+                  display:"flex", alignItems:"center", justifyContent:"center", padding:"3vw" }}>
+      <button aria-label="Close" onClick={onClose}
+        style={{ position:"absolute", top:"calc(2.2em + env(safe-area-inset-top))", right:16, width:40, height:40, borderRadius:999,
+                 background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.35)", cursor:"pointer",
+                 display:"grid", placeItems:"center", zIndex:2 }}>
+        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
+      </button>
+
+      <div className="player-panel" onClick={(e)=>e.stopPropagation()} style={containerStyle}>
+        {!frameReady && <div style={{ position:"absolute", inset:0, background:"#000", zIndex:2 }} />}
+        <iframe
+          id="vimeo-embed-d"
+          ref={iframeRef}
+          src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=0&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1&color=000000`}
+          title="Vimeo player"
+          frameBorder="0"
+          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+          allowFullScreen
+          onLoad={onIframeLoad}
+          style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block",
+                   background:"#000", opacity: frameReady ? 1 : 0, transition:"opacity 160ms ease" }}/>
+      </div>
+    </div>
+  );
+}
+
+/* ===== Vimeo overlay — MOBILE (горизонт в полный экран, без верхнего Unmute, с TAP TO UNMUTE/MUTE) ===== */
+function VideoOverlayMobile({ open, onClose, vimeoId }) {
+  const dragRef = useRef({active:false,startY:0,dy:0});
   const iframeRef = useRef(null);
   const panelRef = useRef(null);
-  const [isMuted, setIsMuted] = useState(true);     // стартуем с mute
+  const [isMuted, setIsMuted] = useState(true);  // стартуем молча — не будет баннера Unmute
   const [frameReady, setFrameReady] = useState(false);
-  const [fsTried, setFsTried] = useState(false);
+  if (!open) return null;
 
-  // размеры «cover» под 16:9 (горизонт полностью)
+  // cover-подгонка под 16:9, горизонт всегда заполнен
   const [fit, setFit] = useState({ w: window.innerWidth, h: window.innerHeight });
   useEffect(() => {
-    const R = 16 / 9;
+    const R = 16/9;
     const recalc = () => {
-      const W = window.innerWidth;
-      const H = window.innerHeight;
+      const W = Math.min(window.innerWidth, window.visualViewport?.width || window.innerWidth);
+      const H = Math.min(window.innerHeight, window.visualViewport?.height || window.innerHeight);
       const screenR = W / H;
-      if (screenR >= R) {
-        // шире 16:9 → тянем по ширине
-        setFit({ w: W, h: Math.round(W / R) });
-      } else {
-        // уже 16:9 → тянем по высоте
-        const h = Math.round(Math.max(H, window.visualViewport?.height || H)); // ближе к 100svh
-        setFit({ w: Math.round(h * R), h });
-      }
+      if (screenR >= R) setFit({ w: W, h: Math.round(W / R) });       // тянем по ширине
+      else              setFit({ w: Math.round(H * R), h: H });       // тянем по высоте
     };
     recalc();
     window.addEventListener("resize", recalc, { passive: true });
     window.addEventListener("orientationchange", recalc, { passive: true });
-    return () => {
-      window.removeEventListener("resize", recalc);
-      window.removeEventListener("orientationchange", recalc);
-    };
+    return () => { window.removeEventListener("resize", recalc); window.removeEventListener("orientationchange", recalc); };
   }, []);
 
-  if (!open) return null;
-
-  const tryEnterFullscreen = () => {
-    if (fsTried) return;
-    setFsTried(true);
-    const el = panelRef.current;
-    const req = el?.requestFullscreen || el?.webkitRequestFullscreen || el?.msRequestFullscreen;
-    try { req && req.call(el); } catch {}
+  const onPD = (e)=>{ dragRef.current={active:true,startY:e.clientY,dy:0}; e.currentTarget.setPointerCapture?.(e.pointerId); };
+  const onPM = (e)=>{ const d=dragRef.current; if(!d.active) return;
+    d.dy=e.clientY-d.startY; const panel=panelRef.current;
+    if(panel){ panel.style.transform=`translateY(${d.dy}px)`; panel.style.opacity=String(Math.max(0.25, 1-Math.abs(d.dy)/260)); }
   };
-
-  const onPD = (e) => {
-    if (!full) return;
-    tryEnterFullscreen();
-    dragRef.current = { active: true, startY: e.clientY, dy: 0 };
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-  };
-  const onPM = (e) => {
-    if (!full) return;
-    const d = dragRef.current;
-    if (!d.active) return;
-    d.dy = e.clientY - d.startY;
-    const panel = panelRef.current;
-    if (panel) {
-      panel.style.transform = `translateY(${d.dy}px)`;
-      panel.style.opacity = String(clamp(1 - Math.abs(d.dy) / 260, 0.25, 1));
-    }
-  };
-  const onPU = () => {
-    if (!full) return;
-    const d = dragRef.current;
-    dragRef.current = { active: false, startY: 0, dy: 0 };
-    const panel = panelRef.current;
-    if (!panel) return;
-    if (Math.abs(d.dy) > 140) onClose();
-    else {
-      panel.style.transition = "transform 220ms ease, opacity 220ms ease";
-      panel.style.transform = "translateY(0)";
-      panel.style.opacity = "1";
-      setTimeout(() => { panel.style.transition = ""; }, 230);
+  const onPU = ()=>{ const d=dragRef.current; dragRef.current={active:false,startY:0,dy:0};
+    const panel=panelRef.current; if(!panel) return;
+    if(Math.abs(d.dy)>140){ onClose(); } else {
+      panel.style.transition="transform 220ms ease, opacity 220ms ease";
+      panel.style.transform="translateY(0)"; panel.style.opacity="1";
+      setTimeout(()=>{ panel.style.transition=""; },230);
     }
   };
 
-  const post = (method, value) => {
-    try { iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); } catch {}
+  const post = (method, value)=>{ try{ iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); }catch{} };
+  const onIframeLoad = ()=> {
+    setTimeout(()=>{ setFrameReady(true); post("play"); post("setMuted", true); }, 80); // начинаем в mute
   };
-  const onIframeLoad = () => {
-    setTimeout(() => {
-      setFrameReady(true);
-      post("play");
-      post("setMuted", true); // начинаем в mute — Vimeo не будет показывать свой «Unmute»
-    }, 80);
-  };
-  const toggleMute = () => {
+  const toggleMute = ()=> {
     const next = !isMuted;
     setIsMuted(next);
     post("setMuted", next);
-    if (!next) { post("setVolume", 1); post("play"); } // сразу даём звук и продолжаем Play
+    if (!next) { post("setVolume", 1); post("play"); }
   };
 
-  const containerStyle = full
-    ? { position: "relative", width: "100vw", height: "100svh", borderRadius: 0, background: "#000" }
-    : { position: "relative", width: "60vw", maxWidth: 1200, height: "60vh", borderRadius: 12, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.55)", background: "#000" };
-
-  // отключаем UI Vimeo — чтобы не было их верхнего «Unmute»
-  const queryMuted = 1;
-  const vimeoControls = 0;
-
   return (
-    <div
-      onPointerDown={onPD}
-      onPointerMove={onPM}
-      onPointerUp={onPU}
-      onPointerCancel={onPU}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 2147486000,
-        background: "rgba(0,0,0,0.96)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: full ? 0 : "3vw",
-        overflow: "hidden"
-      }}
-    >
-      <button
-        aria-label="Close"
-        onClick={onClose}
-        style={{
-          position: "absolute",
-          top: "calc(2.2em + env(safe-area-inset-top))",
-          right: 16,
-          width: 40,
-          height: 40,
-          borderRadius: 999,
-          background: "rgba(0,0,0,0.55)",
-          border: "1px solid rgba(255,255,255,0.35)",
-          cursor: "pointer",
-          display: "grid",
-          placeItems: "center",
-          zIndex: 3
-        }}
-      >
+    <div onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
+         style={{ position:"fixed", inset:0, zIndex:2147486000, background:"rgba(0,0,0,0.96)",
+                  display:"flex", alignItems:"center", justifyContent:"center", padding:0, overflow:"hidden" }}>
+      <button aria-label="Close" onClick={onClose}
+        style={{ position:"absolute", top:"calc(2.2em + env(safe-area-inset-top))", right:16, width:40, height:40, borderRadius:999,
+                 background:"rgba(0,0,0,0.55)", border:"1px solid rgba(255,255,255,0.35)", cursor:"pointer",
+                 display:"grid", placeItems:"center", zIndex:3 }}>
         <svg width="18" height="18" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
       </button>
 
-      <div ref={panelRef} className="player-panel" onClick={(e) => e.stopPropagation()} style={containerStyle}>
-        {/* чёрный плейсхолдер до полной готовности */}
-        {!frameReady && <div style={{ position: "absolute", inset: 0, background: "#000", zIndex: 2 }} />}
+      <div ref={panelRef} className="player-panel"
+           style={{ position:"relative", width:"100vw", height:"100svh", borderRadius:0, background:"#000" }}>
+        {!frameReady && <div style={{ position:"absolute", inset:0, background:"#000", zIndex:2 }} />}
 
-        {/* cover-блок для iframe (горизонт всегда заполнен) */}
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "50%",
-            width: `${fit.w}px`,
-            height: `${fit.h}px`,
-            transform: "translate(-50%, -50%)",
-            overflow: "hidden",
-            background: "#000",
-            zIndex: 1
-          }}
-        >
+        {/* cover-обёртка для iframe */}
+        <div style={{
+          position:"absolute", left:"50%", top:"50%",
+          width:`${fit.w}px`, height:`${fit.h}px`,
+          transform:"translate(-50%,-50%)", overflow:"hidden", background:"#000", zIndex:1
+        }}>
           <iframe
-            id="vimeo-embed"
+            id="vimeo-embed-m"
             ref={iframeRef}
-            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=${queryMuted}&controls=${vimeoControls}&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1&color=000000`}
+            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=1&controls=0&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1&color=000000`}
             title="Vimeo player"
             frameBorder="0"
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
             allowFullScreen
             onLoad={onIframeLoad}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              display: "block",
-              background: "#000",
-              opacity: frameReady ? 1 : 0,
-              transition: "opacity 160ms ease"
-            }}
+            style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block",
+                     background:"#000", opacity: frameReady ? 1 : 0, transition:"opacity 160ms ease" }}
           />
         </div>
       </div>
 
-      {/* Наша кнопка TAP TO UNMUTE/MUTE снизу (без верхней от Vimeo) */}
-      {full && (
-        <button
-          onClick={() => { tryEnterFullscreen(); toggleMute(); }}
-          style={{
-            position: "absolute",
-            left: "50%",
-            transform: "translateX(-50%)",
-            bottom: "6%",
-            padding: "10px 16px",
-            borderRadius: 999,
-            background: "rgba(0,0,0,0.55)",
-            color: "#fff",
-            border: "1px solid rgba(255,255,255,0.35)",
-            fontFamily: "UniSans-Heavy, 'Uni Sans'",
-            letterSpacing: "0.06em",
-            zIndex: 4
-          }}
-        >
-          {isMuted ? "TAP TO UNMUTE" : "TAP TO MUTE"}
-        </button>
-      )}
+      {/* Наша нижняя кнопка */}
+      <button onClick={toggleMute}
+        style={{ position:"absolute", left:"50%", transform:"translateX(-50%)",
+                 bottom:"6%", padding:"10px 16px", borderRadius:999, background:"rgba(0,0,0,0.55)", color:"#fff",
+                 border:"1px solid rgba(255,255,255,0.35)", fontFamily:"UniSans-Heavy, 'Uni Sans'", letterSpacing:"0.06em", zIndex:4 }}>
+        {isMuted ? "TAP TO UNMUTE" : "TAP TO MUTE"}
+      </button>
     </div>
   );
 }
@@ -950,7 +896,11 @@ const runCenterOutReset = ()=>{
         </div>
       </div>
 
-      <VideoOverlay open={playerOpen} onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }} vimeoId={vimeoId} full={false}/>
+      <VideoOverlayDesktop
+  open={playerOpen}
+  onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }}
+  vimeoId={vimeoId}
+/>
       <BioOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio.jpg"/>
       <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam*1.22)}/>
       <style>{`
@@ -1263,12 +1213,10 @@ const plateStyle = {
       </div>
 
       {/* Оверлеи */}
-     <VideoOverlay
+     <VideoOverlayMobile
   open={playerOpen}
-  onClose={() => { setPlayerOpen(false); setVimeoId(null); }}
+  onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }}
   vimeoId={vimeoId}
-  full={false}
-  showMuteToggle
 />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
       <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)}
