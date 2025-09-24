@@ -496,34 +496,23 @@ function VideoOverlayDesktop({ open, onClose, vimeoId }) {
   );
 }
 
-/* ===== Vimeo overlay — MOBILE (горизонт в полный экран, без верхнего Unmute, с TAP TO UNMUTE/MUTE) ===== */
+/* ===== Vimeo overlay — MOBILE (по ширине, без верхнего Unmute, с нижней TAP TO UNMUTE/MUTE) ===== */
 function VideoOverlayMobile({ open, onClose, vimeoId }) {
   const dragRef = useRef({active:false,startY:0,dy:0});
   const iframeRef = useRef(null);
   const panelRef = useRef(null);
 
-  const [isMuted, setIsMuted] = useState(true);   // стартуем в mute
+  const [isMuted, setIsMuted] = useState(true);
   const [frameReady, setFrameReady] = useState(false);
 
-  // начальные размеры без window (SSR safe)
-  const safeWH = () => ({ w: 1, h: 1 });
-  const [fit, setFit] = useState(safeWH);
+  // Всегда считаем размеры от ширины экрана (16:9)
+  const R = 16/9;
+  const [fitH, setFitH] = useState( Math.round((typeof window !== "undefined" ? window.innerWidth : 1) / R) );
 
   useEffect(() => {
-    const R = 16/9;
     const recalc = () => {
-      const W = Math.min(
-        window.innerWidth || 1,
-        window.visualViewport ? window.visualViewport.width : Infinity
-      );
-      const H = Math.min(
-        window.innerHeight || 1,
-        window.visualViewport ? window.visualViewport.height : Infinity
-      );
-      if (!Number.isFinite(W) || !Number.isFinite(H)) return;
-      const screenR = W / H;
-      if (screenR >= R) setFit({ w: W, h: Math.round(W / R) });  // тянем по ширине
-      else              setFit({ w: Math.round(H * R), h: H });  // тянем по высоте
+      const W = Math.max(1, (typeof window !== "undefined" ? (window.visualViewport?.width || window.innerWidth) : 1));
+      setFitH(Math.round(W / R)); // по ширине всегда, высоту считаем от 16:9
     };
     recalc();
     window.addEventListener("resize", recalc, { passive: true });
@@ -546,14 +535,13 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
   };
 
   const onPD = (e) => {
-    // не стартуем drag, если жмём по кнопке/иконке
-    const el = e.target;
-    if (el && typeof el.closest === "function" && el.closest("button")) return;
+    if (e.target?.closest?.("button")) return; // не начинаем drag с кнопки
     dragRef.current = { active: true, startY: e.clientY, dy: 0 };
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
   const onPM = (e)=>{ const d=dragRef.current; if(!d.active) return;
-    d.dy=e.clientY-d.startY; const panel=panelRef.current;
+    d.dy=e.clientY-d.startY;
+    const panel=panelRef.current;
     if(panel){ panel.style.transform=`translateY(${d.dy}px)`; panel.style.opacity=String(Math.max(0.25, 1-Math.abs(d.dy)/260)); }
   };
   const onPU = ()=>{ const d=dragRef.current; dragRef.current={active:false,startY:0,dy:0};
@@ -578,6 +566,7 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
         display:"flex", alignItems:"center", justifyContent:"center", padding:0, overflow:"hidden"
       }}
     >
+      {/* Кнопка закрытия (сверху), drag здесь не стартует */}
       <button
         aria-label="Close"
         onClick={(e)=>{ e.stopPropagation(); onClose(); }}
@@ -602,20 +591,22 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
         </svg>
       </button>
 
+      {/* Панель плеера на весь экран */}
       <div ref={panelRef} className="player-panel"
            style={{ position:"relative", width:"100vw", height:"100svh", borderRadius:0, background:"#000" }}>
         {!frameReady && <div style={{ position:"absolute", inset:0, background:"#000", zIndex:2 }} />}
 
-        {/* cover-обёртка: центр/масштаб 16:9 */}
+        {/* Внутренний wrapper: всегда по ширине экрана, высота — 16:9 от ширины */}
         <div style={{
-          position:"absolute", left:"50%", top:"50%",
-          width:`${fit.w}px`, height:`${fit.h}px`,
-          transform:"translate(-50%,-50%)", overflow:"hidden", background:"#000", zIndex:1
+          position:"absolute", left:0, right:0, top:"50%",
+          width:"100vw", height: `${fitH}px`,
+          transform:"translateY(-50%)",
+          overflow:"hidden", background:"#000", zIndex:1
         }}>
           <iframe
             id="vimeo-embed-m"
             ref={iframeRef}
-            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=1&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1&color=000000`}
+            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=1&controls=0&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1&color=000000`}
             title="Vimeo player"
             frameBorder="0"
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
@@ -629,7 +620,7 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
         </div>
       </div>
 
-      {/* Нижняя кнопка — TAP TO UNMUTE/MUTE */}
+      {/* Только нижняя кнопка TAP TO UNMUTE/MUTE */}
       <button
         onClick={(e)=>{ e.stopPropagation(); toggleMute(); }}
         onPointerDown={(e)=> e.stopPropagation()}
@@ -647,6 +638,7 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
     </div>
   );
 }
+
 
 
 
