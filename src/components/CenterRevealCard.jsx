@@ -1018,7 +1018,7 @@ const plateWrapStyle = {
             </h2>
           </PrePlate>
 
-         {/* Имя — волна + дыхание в противоход кругу */}
+         {/* Имя — волна + дыхание в противоход кругу (MOBILE) */}
 <PrePlate active={true}>
   <h1
     onClick={() => { clickSnd(); setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
@@ -1035,29 +1035,37 @@ const plateWrapStyle = {
     }}
     title="Подробнее"
   >
-    {nameLatin.map((ch, i) => (
-      <span
-        key={i}
-        data-idx={i}
-        data-group="name"
-        onMouseEnter={() => activateLetter("name", i, setStickName, setColorsName)}
-        onPointerDown={() => activateLetter("name", i, setStickName, setColorsName, "click")}
-        style={{
-          display: "inline-block",
-          whiteSpace: "pre",
-          transform: stickName[i] ? "scale(1.22)" : "scale(1)",
-          transition: "transform 140ms ease, color 160ms ease",
-          // ВАЖНО: при активной букве гасим анимацию, чтобы color применился
-          animation: stickName[i]
-            ? "none"
-            : `waveGrayLetters 4200ms ease-in-out ${i * 180}ms infinite`,
-          color: stickName[i] ? colorsName[i] : "#ffffff",
-          textShadow: "0 1px 2px rgba(0,0,0,0.25)"
-        }}
-      >
-        {stickName[i] ? (mapName[ch] || ch) : (ch === " " ? "\u00A0" : ch)}
-      </span>
-    ))}
+    {Array.from(nameLatin || "RUSTAM ROMANOV").map((ch, i) => {
+      const active = !!(stickName && stickName[i]);
+      const col = active
+        ? (colorsName && colorsName[i]) || "#ffffff"
+        : "#ffffff";
+      const letter = active
+        ? ((mapName && mapName[ch]) ?? (ch === " " ? "\u00A0" : ch))
+        : (ch === " " ? "\u00A0" : ch);
+
+      return (
+        <span
+          key={i}
+          data-idx={i}
+          data-group="name"
+          onMouseEnter={() => activateLetter("name", i, setStickName, setColorsName)}
+          onPointerDown={() => activateLetter("name", i, setStickName, setColorsName, "click")}
+          style={{
+            display: "inline-block",
+            whiteSpace: "pre",
+            transform: active ? "scale(1.22)" : "scale(1)",
+            transition: "transform 140ms ease, color 160ms ease",
+            // ВАЖНО: гасим волну на активной букве → цвет применяется
+            animation: active ? "none" : `waveGrayLetters 4200ms ease-in-out ${i * 180}ms infinite`,
+            color: col,
+            textShadow: "0 1px 2px rgba(0,0,0,0.25)"
+          }}
+        >
+          {letter}
+        </span>
+      );
+    })}
   </h1>
 </PrePlate>
 
