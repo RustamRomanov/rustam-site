@@ -430,15 +430,40 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
   );
 }
 
-/* ===== Vimeo overlay (анти-белый экран + TAP TO UNMUTE/MUTE) ===== */
-/* ===== Vimeo overlay (мобайл фуллскрин + анти-белый экран + TAP TO UNMUTE/MUTE) ===== */
-function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = false }) {
+/* ===== Vimeo overlay (full-screen cover на мобиле, без верхнего Unmute, с TAP TO UNMUTE/MUTE) ===== */
+function VideoOverlay({ open, onClose, vimeoId, full = true }) {
   const dragRef = useRef({ active: false, startY: 0, dy: 0 });
   const iframeRef = useRef(null);
   const panelRef = useRef(null);
-  const [isMuted, setIsMuted] = useState(true);   // стартуем muted
+  const [isMuted, setIsMuted] = useState(true);     // стартуем с mute
   const [frameReady, setFrameReady] = useState(false);
-  const [fsTried, setFsTried] = useState(false);  // чтобы не спамить fullscreen запросами
+  const [fsTried, setFsTried] = useState(false);
+
+  // размеры «cover» под 16:9 (горизонт полностью)
+  const [fit, setFit] = useState({ w: window.innerWidth, h: window.innerHeight });
+  useEffect(() => {
+    const R = 16 / 9;
+    const recalc = () => {
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      const screenR = W / H;
+      if (screenR >= R) {
+        // шире 16:9 → тянем по ширине
+        setFit({ w: W, h: Math.round(W / R) });
+      } else {
+        // уже 16:9 → тянем по высоте
+        const h = Math.round(Math.max(H, window.visualViewport?.height || H)); // ближе к 100svh
+        setFit({ w: Math.round(h * R), h });
+      }
+    };
+    recalc();
+    window.addEventListener("resize", recalc, { passive: true });
+    window.addEventListener("orientationchange", recalc, { passive: true });
+    return () => {
+      window.removeEventListener("resize", recalc);
+      window.removeEventListener("orientationchange", recalc);
+    };
+  }, []);
 
   if (!open) return null;
 
@@ -451,14 +476,11 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
   };
 
   const onPD = (e) => {
-    if (full) {
-      // первый жест пользователя — пробуем войти в native fullscreen
-      tryEnterFullscreen();
-      dragRef.current = { active: true, startY: e.clientY, dy: 0 };
-      e.currentTarget.setPointerCapture?.(e.pointerId);
-    }
+    if (!full) return;
+    tryEnterFullscreen();
+    dragRef.current = { active: true, startY: e.clientY, dy: 0 };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
   };
-
   const onPM = (e) => {
     if (!full) return;
     const d = dragRef.current;
@@ -470,16 +492,14 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
       panel.style.opacity = String(clamp(1 - Math.abs(d.dy) / 260, 0.25, 1));
     }
   };
-
   const onPU = () => {
     if (!full) return;
     const d = dragRef.current;
     dragRef.current = { active: false, startY: 0, dy: 0 };
     const panel = panelRef.current;
     if (!panel) return;
-    if (Math.abs(d.dy) > 140) {
-      onClose();
-    } else {
+    if (Math.abs(d.dy) > 140) onClose();
+    else {
       panel.style.transition = "transform 220ms ease, opacity 220ms ease";
       panel.style.transform = "translateY(0)";
       panel.style.opacity = "1";
@@ -490,44 +510,27 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
   const post = (method, value) => {
     try { iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); } catch {}
   };
-
   const onIframeLoad = () => {
-    // чёрный плейсхолдер — скрываем белый экран до старта
     setTimeout(() => {
       setFrameReady(true);
       post("play");
-      post("setMuted", true);
+      post("setMuted", true); // начинаем в mute — Vimeo не будет показывать свой «Unmute»
     }, 80);
   };
-
   const toggleMute = () => {
     const next = !isMuted;
     setIsMuted(next);
     post("setMuted", next);
-    if (!next) { post("setVolume", 1); post("play"); }
+    if (!next) { post("setVolume", 1); post("play"); } // сразу даём звук и продолжаем Play
   };
 
   const containerStyle = full
-    ? {
-        position: "relative",
-        width: "100vw",
-        height: "100svh",    // важнее чем 100vh для iOS
-        borderRadius: 0,
-        background: "#000"
-      }
-    : {
-        position: "relative",
-        width: "60vw",
-        maxWidth: 1200,
-        height: "60vh",
-        borderRadius: 12,
-        overflow: "hidden",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.55)",
-        background: "#000"
-      };
+    ? { position: "relative", width: "100vw", height: "100svh", borderRadius: 0, background: "#000" }
+    : { position: "relative", width: "60vw", maxWidth: 1200, height: "60vh", borderRadius: 12, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.55)", background: "#000" };
 
-  // iframe всегда с muted=1, далее управляем PostMessage
+  // отключаем UI Vimeo — чтобы не было их верхнего «Unmute»
   const queryMuted = 1;
+  const vimeoControls = 0;
 
   return (
     <div
@@ -543,7 +546,7 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: full ? 0 : "3vw",  // фулскрин — без отступов
+        padding: full ? 0 : "3vw",
         overflow: "hidden"
       }}
     >
@@ -565,45 +568,59 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
           zIndex: 3
         }}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24">
-          <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
-        </svg>
+        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
       </button>
 
       <div ref={panelRef} className="player-panel" onClick={(e) => e.stopPropagation()} style={containerStyle}>
-        {/* чёрный плейсхолдер поверх до полной готовности */}
+        {/* чёрный плейсхолдер до полной готовности */}
         {!frameReady && <div style={{ position: "absolute", inset: 0, background: "#000", zIndex: 2 }} />}
-        <iframe
-          id="vimeo-embed"
-          ref={iframeRef}
-          src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=${queryMuted}&controls=1&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1&color=000000`}
-          title="Vimeo player"
-          frameBorder="0"
-          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-          allowFullScreen
-          onLoad={onIframeLoad}
+
+        {/* cover-блок для iframe (горизонт всегда заполнен) */}
+        <div
           style={{
             position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            display: "block",
+            left: "50%",
+            top: "50%",
+            width: `${fit.w}px`,
+            height: `${fit.h}px`,
+            transform: "translate(-50%, -50%)",
+            overflow: "hidden",
             background: "#000",
-            opacity: frameReady ? 1 : 0,
-            transition: "opacity 160ms ease",
             zIndex: 1
           }}
-        />
+        >
+          <iframe
+            id="vimeo-embed"
+            ref={iframeRef}
+            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=${queryMuted}&controls=${vimeoControls}&playsinline=1&title=0&byline=0&portrait=0&transparent=0&autopause=1&color=000000`}
+            title="Vimeo player"
+            frameBorder="0"
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+            allowFullScreen
+            onLoad={onIframeLoad}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              display: "block",
+              background: "#000",
+              opacity: frameReady ? 1 : 0,
+              transition: "opacity 160ms ease"
+            }}
+          />
+        </div>
       </div>
 
-      {(full || showMuteToggle) && (
+      {/* Наша кнопка TAP TO UNMUTE/MUTE снизу (без верхней от Vimeo) */}
+      {full && (
         <button
           onClick={() => { tryEnterFullscreen(); toggleMute(); }}
           style={{
             position: "absolute",
             left: "50%",
             transform: "translateX(-50%)",
-            bottom: full ? "6%" : 16,
+            bottom: "6%",
             padding: "10px 16px",
             borderRadius: 999,
             background: "rgba(0,0,0,0.55)",
