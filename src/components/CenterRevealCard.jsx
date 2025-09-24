@@ -151,8 +151,8 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
   const FAMILY_HEADER = "'Uni Sans Heavy','UniSans-Heavy','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
   const FAMILY_BODY = "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
   const COLOR = "rgba(255,255,255,0.95)";
-  const maxTextWidth = Math.round(D * 0.80);
-  const TEXT_SHIFT = Math.round(D * 0.05);
+const maxTextWidth = Math.round(D * 0.80);
+const TEXT_SHIFT = Math.round(D * 0.05); 
 
   /* без дыхания и без цветовой анимации */
   function FitHeader({ text, baseRatio = 0.040, minPx = 12 }) {
@@ -217,7 +217,7 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
         <div style={{
           position:"relative", width:"100%", height:"100%", aspectRatio:"1 / 1", borderRadius:"50%", overflow:"hidden",
           boxShadow:"0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.08)",
-          animation: "c2breath 6200ms ease-in-out infinite" /* только фон, текст статичен */
+          animation: "c2breath 6200ms ease-in-out infinite" /* фон мягко дышит */
         }}>
           <img src={imgSrc} alt="circle2"
             onError={()=>{ if (!imgSrc.endsWith(".JPG")) setImgSrc("/rustam-site/assents/foto/circle2.JPG"); }}
@@ -231,7 +231,7 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
             backdropFilter:"blur(2px) saturate(1.08)", WebkitBackdropFilter:"blur(10px) saturate(1.08)"
           }}/>
 
-          {/* Контент (без дыхания текста) */}
+          {/* Контент без дыхания текста */}
           <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
                         textAlign:"center", padding:"clamp(14px,3vw,36px)" }}>
             <div style={{ maxWidth: maxTextWidth, color:"rgba(255,255,255,0.95)", transform:`translateY(${TEXT_SHIFT}px)` }}>
@@ -274,7 +274,20 @@ function BioOverlay({ open, onClose, imageSrc }) {
   }, [open, isMuted]);
 
   if (!open) return null;
-  const textBio = `В начале 2000-х я сделал свой первый клип. Камера Hi8, магнитофон и видеоплеер — как монтажный стол. Это была настоящая магия без компьютера. В 2009 я переехал в Москву. Снимал рэп-клипы на «зеркалку» с горящими глазами и верой, что все получится. Получилось! В 2010 году я оказался в команде Gazgolder, а в 2011 отправился с Бастой в тур по Америке. В 2012 я снял первый документальный фильм о Тимати. Так началась большая глава с Black Star, а вместе с ней и десятки клипов. 2014 год стал переломным - клип L’One «Океан» открыл для меня новые горизонты. А в 2015 работа Doni feat. Натали — «Ты такой» побила все рекорды, став первым клипом в России, преодолевшим 100 млн просмотров на YouTube. Дальше — сотни проектов, работа с топовыми артистами разных жанров и масштабов: от Макса Коржа, Iowa, Pizza до Стаса Михайлова, Николая Баскова и Филиппа Киркорова. Сегодня мой багаж 200+ проектов, более 2-х миллиардов просмотров на Youtube и более сотни артистов с кем мне довелось поработать.`;
+  const textBio = `В начале 2000-х я сделал свой первый клип. Камера Hi8, магнитофон и видеоплеер — как монтажный стол. Это была настоящая магия без компьютера.
+
+В 2009 я переехал в Москву. Снимал рэп-клипы на «зеркалку» с горящими глазами и верой, что все получится. Получилось! 
+
+В 2010 году я оказался в команде Gazgolder, а в 2011 отправился с Бастой в тур по Америке. 
+
+В 2012 я снял первый документальный фильм о Тимати. Так началась большая глава с Black Star, а вместе с ней и десятки клипов.
+
+2014 год стал переломным - клип L’One «Океан» открыл для меня новые горизонты. А в 2015 работа Doni feat. Натали — «Ты такой» побила все рекорды, став первым клипом в России, преодолевшим 100 млн просмотров на YouTube.
+
+Дальше — сотни проектов, работа с топовыми артистами разных жанров и масштабов: от Макса Коржа, Iowa, Pizza до Стаса Михайлова, Николая Баскова и Филиппа Киркорова. 
+
+Сегодня мой багаж 200+ проектов, более 2-х миллиардов просмотров на Youtube и более сотни артистов с кем мне довелось поработать.`;
+
   const inset = "clamp(10px,1.2vw,18px)";
   const leftPart = "40%";
 
@@ -527,12 +540,12 @@ function DesktopCard() {
   const baseDiam = Math.min(size.w, size.h);
   const circleDiam = Math.round(baseDiam * 1.10);
 
-  // реакция/прозрачность/масштаб в зависимости от близости курсора
-  const BASE_OPACITY = PLATE_OPACITY_MAX * 0.8;
+  // реакция/прозрачность/масштаб
+  const BASE_OPACITY = PLATE_OPACITY_MAX * 0.6;
   const plateTargetRef = useRef(BASE_OPACITY);
   const plateAlphaRef = useRef(BASE_OPACITY);
   const [plateAlpha, setPlateAlpha] = useState(BASE_OPACITY);
-  const [plateProx, setPlateProx] = useState(0); // 0 — далеко, 1 — близко
+  const [plateProx, setPlateProx] = useState(0);
 
   useEffect(()=>{
     let raf=0;
@@ -573,7 +586,7 @@ function DesktopCard() {
   const [bioOpen,setBioOpen]=useState(false);
   const [circle2Open, setCircle2Open] = useState(false);
 
-  // Имя (звук+цвет, сброс через 10с без наведения)
+  // Имя: волна + цвет при наведении + автосброс через 10с (из центра)
   const showreelText="SHOWREEL";
   const nameLatin="RUSTAM ROMANOV";
   const titleBase=24;
@@ -581,24 +594,69 @@ function DesktopCard() {
   const directedFS = Math.round((titleFS/1.5)*1.2);
   const nameFS = Math.round(titleFS*1.32);
 
-  const [nameStick,setNameStick]=useState(Array.from(nameLatin).map(()=>false));
-  const [nameColors,setNameColors]=useState(Array.from(nameLatin).map(()=>"#cfcfcf"));
+  const nameChars = Array.from(nameLatin);
+  const letterIdx = nameChars.map((ch,i)=> ch===" " ? null : i).filter(i=>i!==null);
+
+  const [nameStick,setNameStick]=useState(nameChars.map(()=>false));
+  const [nameColors,setNameColors]=useState(nameChars.map(()=>"#cfcfcf"));
   const [hoveringName,setHoveringName]=useState(false);
 
-  useEffect(()=>{
-    if (!hoveringName && nameStick.every(Boolean)) {
-      const t = setTimeout(()=>{
-        setNameStick(Array.from(nameLatin).map(()=>false));
-        setNameColors(Array.from(nameLatin).map(()=>"#cfcfcf"));
-      },10000); // 10 секунд
-      return ()=>clearTimeout(t);
-    }
-  },[hoveringName, nameStick, nameLatin]);
+  // таймеры автосброса
+  const hoverTimerRef = useRef(null);
+  const resetStaggersRef = useRef([]);
+  const hoveringNameRef = useRef(false);
 
+  const clearAllNameTimers = () => {
+    if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
+    resetStaggersRef.current.forEach(id=>clearTimeout(id));
+    resetStaggersRef.current = [];
+  };
+
+  // центр→наружу; сбрасываем только реально прилипшие буквы
+  const startNameStaggerReset = () => {
+    const n = letterIdx.length;
+    if (!n) return;
+
+    const order = [];
+    if (n % 2 === 1) {
+      let mid = Math.floor(n/2);
+      order.push(letterIdx[mid]);
+      let L = mid-1, R = mid+1;
+      while (L >= 0 || R < n) { if (R < n) order.push(letterIdx[R++]); if (L >= 0) order.push(letterIdx[L--]); }
+    } else {
+      let midR = n/2, midL = midR-1;
+      order.push(letterIdx[midR], letterIdx[midL]);
+      let L = midL-1, R = midR+1;
+      while (L >= 0 || R < n) { if (R < n) order.push(letterIdx[R++]); if (L >= 0) order.push(letterIdx[L--]); }
+    }
+
+    const step = 90;
+    order.forEach((idx, k) => {
+      const id = setTimeout(() => {
+        if (hoveringNameRef.current) return;
+        setNameStick(prev => {
+          if (!prev[idx]) return prev;
+          const next=[...prev]; next[idx]=false; return next;
+        });
+        // цвета не трогаем — при stick=false снова видна «волна»
+      }, k*step);
+      resetStaggersRef.current.push(id);
+    });
+  };
+
+  // всегда через 10 сек без наведения
+  const scheduleNameAutoReset = () => {
+    clearAllNameTimers();
+    hoverTimerRef.current = setTimeout(() => {
+      if (!hoveringNameRef.current) startNameStaggerReset();
+    }, 10000);
+  };
+
+  // SHOWREEL (как было)
   const [srStick,setSrStick]=useState(Array.from(showreelText).map(()=>false));
   const [srColors,setSrColors]=useState(Array.from(showreelText).map(()=>"#bfbfbf"));
 
-  // масштаб плашки: далеко — 1.08 (больше и прозрачнее), близко — 1.00 (чётче и чуть меньше)
+  // масштаб плашки
   const plateScale = 1.08 - plateProx * 0.08;
 
   const plateStyle = {
@@ -614,6 +672,8 @@ function DesktopCard() {
     display:"flex", alignItems:"center", justifyContent:"center",
     padding:0, overflow:"visible", pointerEvents:"auto", zIndex:2147483600
   };
+
+  useEffect(()=>()=>clearAllNameTimers(),[]);
 
   return (
     <>
@@ -637,7 +697,7 @@ function DesktopCard() {
               <div onMouseLeave={()=> setSrStick(Array.from(showreelText).map(()=>false))}
                    onClick={()=>{ setVimeoId("1001147905"); setPlayerOpen(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
                    style={{ position:"relative", display:"inline-block", marginTop: Math.round(titleFS*0.3),
-                            marginBottom: Math.round(directedFS*0.2), cursor: `url(${CURSOR_URL}) 10 10, default` }}
+                            marginBottom: Math.round(directedFS*0.2), cursor: "pointer" }}
                    title="Открыть шоу-рил">
                 <h2 className="hover-click" style={{ margin:0, fontSize: directedFS, letterSpacing:"0.08em", whiteSpace:"nowrap",
                       userSelect:"none", position:"relative", zIndex:1, fontFamily:"'Royal Crescent','Uni Sans Heavy','Uni Sans',system-ui" }}>
@@ -657,23 +717,42 @@ function DesktopCard() {
               </div>
             </PrePlate>
 
-            {/* Имя — звук + волновой серый + лёгкое дыхание */}
+            {/* Имя — волна + цвет при наведении + автосброс через 10с */}
             <PrePlate active={true}>
-              <h1 onMouseEnter={()=>setHoveringName(true)} onMouseLeave={()=>setHoveringName(false)}
-                  onClick={()=>{ setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
-                  style={{ margin:0, fontSize:nameFS, letterSpacing:"0.02em", whiteSpace:"nowrap", userSelect:"none", cursor:"pointer",
-                           fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
-                           animation: "nameBreathDesk 5200ms ease-in-out infinite" }} title="Подробнее">
-                {Array.from(nameLatin).map((ch,i)=>(
-                  <span key={`n-${i}`}
-                        onMouseEnter={()=>{ if(!nameStick[i]) { playHoverSoft(); }
-                          setNameStick(s=>{const a=[...s]; a[i]=true; return a;});
-                          setNameColors(c=>{const a=[...c]; a[i]=randColor(); return a;}); }}
-                        style={{ display:"inline-block", whiteSpace:"pre",
-                                 color: nameStick[i] ? nameColors[i] : undefined,
-                                 animation: `waveGrayDesk 4200ms ease-in-out ${i*110}ms infinite`,
-                                 transform: nameStick[i] ? "scale(1.16)" : "scale(1)",
-                                 transition:"transform 140ms ease, color 160ms ease", textShadow:"0 1px 2px rgba(0,0,0,0.25)" }}>
+              <h1
+                onMouseEnter={()=>{ setHoveringName(true); hoveringNameRef.current = true; clearAllNameTimers(); }}
+                onMouseLeave={()=>{ setHoveringName(false); hoveringNameRef.current = false; scheduleNameAutoReset(); }}
+                onClick={()=>{ setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
+                style={{
+                  margin:0, fontSize:nameFS, letterSpacing:"0.02em", whiteSpace:"nowrap",
+                  userSelect:"none", cursor:"pointer",
+                  fontFamily:"'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
+                  animation: "nameBreathDesk 5200ms ease-in-out infinite"
+                }}
+                title="Подробнее"
+              >
+                {nameChars.map((ch,i)=>(
+                  <span
+                    key={`n-${i}`}
+                    onMouseEnter={()=>{
+                      if (ch !== " ") {
+                        playHoverSoft();
+                        setNameStick(s=>{ const a=[...s]; a[i]=true; return a; });
+                        setNameColors(c=>{ const a=[...c]; a[i]=randColor(); return a; });
+                      }
+                    }}
+                    style={{
+                      display:"inline-block",
+                      whiteSpace:"pre",
+                      transform: nameStick[i] ? "scale(1.16)" : "scale(1)",
+                      transition:"transform 160ms ease, color 160ms ease",
+                      textShadow:"0 1px 2px rgba(0,0,0,0.25)",
+                      animation: (nameStick[i] || ch===" ")
+                        ? "none"
+                        : `waveGrayDesk 4200ms ease-in-out ${i*160}ms infinite`,
+                      color: nameStick[i] ? nameColors[i] : undefined
+                    }}
+                  >
                     {ch===" " ? "\u00A0" : ch}
                   </span>
                 ))}
@@ -731,11 +810,11 @@ function DesktopCard() {
         .hover-click{ transition: transform 140ms ease, text-shadow 140ms ease; }
         .hover-click:hover{ transform: scale(1.035); text-shadow: 0 8px 26px rgba(0,0,0,0.35); }
 
-        /* плавный волновой серый у имени (desktop) */
+        /* «волна» по цвету (desktop) */
         @keyframes waveGrayDesk { 0%,100%{ color:#ffffff } 50%{ color:#6e6e6e } }
         /* лёгкое дыхание имени (desktop) */
         @keyframes nameBreathDesk { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-1px) } }
-        /* нежное дыхание плашки (desktop) через отдельный контейнер, чтобы не конфликтовать со scale */
+        /* дыхание плашки (desktop) */
         .d-breath { animation: dBreath 5200ms ease-in-out infinite; }
         @keyframes dBreath { 0%,100%{ filter: saturate(1) } 50%{ filter: saturate(1.06) } }
       `}</style>
@@ -788,7 +867,7 @@ function MobileCard() {
   };
 
   const baseDiam = Math.min(size.w, size.h);
-  const circleDiam = Math.round(baseDiam * 1.20);
+  const circleDiam = Math.round(baseDiam * 1.50);
 
   const plateStyle = {
     position:"absolute", left:"50%", top:"50%", width:circleDiam, height:circleDiam,
