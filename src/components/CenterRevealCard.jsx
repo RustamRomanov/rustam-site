@@ -1169,7 +1169,7 @@ const plateStyle = {
     /* широкий и прозрачный */
     0%, 100% { transform: scale(1.08); opacity: 0.32; }
     /* меньше и плотнее */
-    50%      { transform: scale(1.00); opacity: 0.95; }
+    50%      { transform: scale(1.00); opacity: 0.90; }
   }
 `}</style>
 
