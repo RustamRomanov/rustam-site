@@ -1308,7 +1308,7 @@ const plateStyle = {
       </div>
 
       {/* Оверлеи */}
-     <VideoOverlayDesktop
+    <VideoOverlayMobile
   open={playerOpen}
   onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }}
   vimeoId={vimeoId}
