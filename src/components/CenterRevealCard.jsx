@@ -921,7 +921,7 @@ const plateStyle = {
   borderRadius: "50%",
   pointerEvents: "none",
   willChange: "transform, opacity",
-  animation: "mPlateBreath 5200ms ease-in-out infinite"
+  animation: "mPlateBreath 4800ms ease-in-out infinite"
 };
 
 
@@ -1167,7 +1167,7 @@ const plateStyle = {
   /* ЭТУ используем на самом круге */
   @keyframes mPlateBreath {
     /* широкий и прозрачный */
-    0%, 100% { transform: scale(1.08); opacity: 0.32; }
+    0%, 100% { transform: scale(1.08); opacity: 0.38; }
     /* меньше и плотнее */
     50%      { transform: scale(1.00); opacity: 0.90; }
   }
