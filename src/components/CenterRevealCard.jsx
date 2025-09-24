@@ -431,35 +431,51 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
 }
 
 /* ===== Vimeo overlay (анти-белый экран + TAP TO UNMUTE/MUTE) ===== */
+/* ===== Vimeo overlay (мобайл фуллскрин + анти-белый экран + TAP TO UNMUTE/MUTE) ===== */
 function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = false }) {
   const dragRef = useRef({ active: false, startY: 0, dy: 0 });
   const iframeRef = useRef(null);
-  // всегда стартуем без звука — кнопка есть и в compact-режиме
-  const [isMuted, setIsMuted] = useState(true);
+  const panelRef = useRef(null);
+  const [isMuted, setIsMuted] = useState(true);   // стартуем muted
   const [frameReady, setFrameReady] = useState(false);
+  const [fsTried, setFsTried] = useState(false);  // чтобы не спамить fullscreen запросами
+
   if (!open) return null;
 
-  const onPD = (e) => {
-    if (!full) return;
-    dragRef.current = { active: true, startY: e.clientY, dy: 0 };
-    e.currentTarget.setPointerCapture?.(e.pointerId);
+  const tryEnterFullscreen = () => {
+    if (fsTried) return;
+    setFsTried(true);
+    const el = panelRef.current;
+    const req = el?.requestFullscreen || el?.webkitRequestFullscreen || el?.msRequestFullscreen;
+    try { req && req.call(el); } catch {}
   };
+
+  const onPD = (e) => {
+    if (full) {
+      // первый жест пользователя — пробуем войти в native fullscreen
+      tryEnterFullscreen();
+      dragRef.current = { active: true, startY: e.clientY, dy: 0 };
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    }
+  };
+
   const onPM = (e) => {
     if (!full) return;
     const d = dragRef.current;
     if (!d.active) return;
     d.dy = e.clientY - d.startY;
-    const panel = e.currentTarget.querySelector(".player-panel");
+    const panel = panelRef.current;
     if (panel) {
       panel.style.transform = `translateY(${d.dy}px)`;
       panel.style.opacity = String(clamp(1 - Math.abs(d.dy) / 260, 0.25, 1));
     }
   };
-  const onPU = (e) => {
+
+  const onPU = () => {
     if (!full) return;
     const d = dragRef.current;
     dragRef.current = { active: false, startY: 0, dy: 0 };
-    const panel = e.currentTarget.querySelector(".player-panel");
+    const panel = panelRef.current;
     if (!panel) return;
     if (Math.abs(d.dy) > 140) {
       onClose();
@@ -467,35 +483,38 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
       panel.style.transition = "transform 220ms ease, opacity 220ms ease";
       panel.style.transform = "translateY(0)";
       panel.style.opacity = "1";
-      setTimeout(() => {
-        panel.style.transition = "";
-      }, 230);
+      setTimeout(() => { panel.style.transition = ""; }, 230);
     }
   };
 
   const post = (method, value) => {
     try { iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); } catch {}
   };
+
   const onIframeLoad = () => {
-    // чёрный плейсхолдер до готовности — белого кадра не видно
+    // чёрный плейсхолдер — скрываем белый экран до старта
     setTimeout(() => {
       setFrameReady(true);
       post("play");
-      post("setMuted", true); // стартуем всегда muted
+      post("setMuted", true);
     }, 80);
   };
+
   const toggleMute = () => {
     const next = !isMuted;
     setIsMuted(next);
     post("setMuted", next);
-    if (!next) {
-      post("setVolume", 1);
-      post("play");
-    }
+    if (!next) { post("setVolume", 1); post("play"); }
   };
 
   const containerStyle = full
-    ? { position: "relative", width: "100vw", height: "100vh", borderRadius: 0, background: "#000" }
+    ? {
+        position: "relative",
+        width: "100vw",
+        height: "100svh",    // важнее чем 100vh для iOS
+        borderRadius: 0,
+        background: "#000"
+      }
     : {
         position: "relative",
         width: "60vw",
@@ -507,7 +526,7 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
         background: "#000"
       };
 
-  // src всегда с muted=1, дальше управляем постмесседжем
+  // iframe всегда с muted=1, далее управляем PostMessage
   const queryMuted = 1;
 
   return (
@@ -524,7 +543,8 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "3vw"
+        padding: full ? 0 : "3vw",  // фулскрин — без отступов
+        overflow: "hidden"
       }}
     >
       <button
@@ -542,7 +562,7 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
           cursor: "pointer",
           display: "grid",
           placeItems: "center",
-          zIndex: 2
+          zIndex: 3
         }}
       >
         <svg width="18" height="18" viewBox="0 0 24 24">
@@ -550,7 +570,7 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
         </svg>
       </button>
 
-      <div className="player-panel" onClick={(e) => e.stopPropagation()} style={containerStyle}>
+      <div ref={panelRef} className="player-panel" onClick={(e) => e.stopPropagation()} style={containerStyle}>
         {/* чёрный плейсхолдер поверх до полной готовности */}
         {!frameReady && <div style={{ position: "absolute", inset: 0, background: "#000", zIndex: 2 }} />}
         <iframe
@@ -578,7 +598,7 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
 
       {(full || showMuteToggle) && (
         <button
-          onClick={toggleMute}
+          onClick={() => { tryEnterFullscreen(); toggleMute(); }}
           style={{
             position: "absolute",
             left: "50%",
@@ -591,7 +611,7 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
             border: "1px solid rgba(255,255,255,0.35)",
             fontFamily: "UniSans-Heavy, 'Uni Sans'",
             letterSpacing: "0.06em",
-            zIndex: 3
+            zIndex: 4
           }}
         >
           {isMuted ? "TAP TO UNMUTE" : "TAP TO MUTE"}
@@ -600,6 +620,7 @@ function VideoOverlay({ open, onClose, vimeoId, full = true, showMuteToggle = fa
     </div>
   );
 }
+
 
 
 /* ===== BIOGRAPHY per-letter (desktop) ===== */
