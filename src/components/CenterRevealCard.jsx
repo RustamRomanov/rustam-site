@@ -898,6 +898,9 @@ function MobileCard() {
 
   const baseDiam = Math.min(size.w, size.h);
   const circleDiam = Math.round(baseDiam * 1.50);
+// чтобы не падало: базовые значения для круга
+const plateScale = 1;
+const plateAlpha = 0.96;
 
   // новый стиль обёртки (для дыхания)
 const plateWrapStyle = {
@@ -938,15 +941,15 @@ const plateWrapStyle = {
   // звук при переходе на новую букву
   const { playHoverSoft: hoverSnd, playDot: clickSnd } = useAudio();
   const lastHitRef = useRef({ bio: null, name: null, sr: null });
-  const activateLetter = (group, idx, setterStick, setterColor, mode = "hover") => {
-    const force = mode === "click";
-    if (force || lastHitRef.current[group] !== idx) {
-      lastHitRef.current[group] = idx;
-      setterStick(prev => { if (!prev[idx]) { const a=[...prev]; a[idx]=true; return a; } return prev; });
-      setterColor(c => { const a=[...c]; a[idx]=randColor(); return a; });
-      force ? clickSnd() : hoverSnd();
-    }
-  };
+  const activateLetter = (group, idx, setterStick, setterColor, mode="hover") => {
+  const force = mode === "click";
+  if (force || lastHitRef.current[group] !== idx) {
+    lastHitRef.current[group] = idx;
+    setterStick(prev => { if (!prev[idx]) { const a=[...prev]; a[idx]=true; return a; } return prev; });
+    setterColor(c => { const a=[...c]; a[idx]=randColor(); return a; }); // ← цвет тут
+    force ? clickSnd() : hoverSnd();
+  }
+};
 
   // drag/«скролл» по буквам (п.1)
   const draggingRef = useRef(false);
