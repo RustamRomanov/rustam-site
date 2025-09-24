@@ -897,7 +897,7 @@ function MobileCard() {
   };
 
   const baseDiam = Math.min(size.w, size.h);
-  const circleDiam = Math.round(baseDiam * 1.50);
+  const circleDiam = Math.round(baseDiam * 1.30);
 // чтобы не падало: базовые значения для круга
 const plateScale = 1;
 const plateAlpha = 0.96;
@@ -1167,7 +1167,7 @@ const plateStyle = {
   /* ЭТУ используем на самом круге */
   @keyframes mPlateBreath {
     /* широкий и прозрачный */
-    0%, 100% { transform: scale(1.08); opacity: 0.28; }
+    0%, 100% { transform: scale(1.08); opacity: 0.32; }
     /* меньше и плотнее */
     50%      { transform: scale(1.00); opacity: 0.95; }
   }
