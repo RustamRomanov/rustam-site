@@ -3,7 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 
-
 /* ========= Fonts (GLOBAL, вне любых @media!) ========= */
 /* — ABC_TypeWriterRussian (используется в мобильной и десктопной биографии) */
 @font-face {
@@ -24,7 +23,7 @@
     url("/rustam-site/assents/fonts/Rostov.woff2") format("woff2"),
     url("/rustam-site/assents/fonts/Rostov.woff") format("woff"),
     url("/rustam-site/assents/fonts/Rostov.otf") format("opentype");
-  font-weight: 800;
+  font-weight: 800; /* подгони под фактический вес */
   font-style: normal;
   font-display: swap;
 }
@@ -36,7 +35,7 @@
     url("/rustam-site/assents/fonts/RoyalCrescent.woff2") format("woff2"),
     url("/rustam-site/assents/fonts/RoyalCrescent.woff") format("woff"),
     url("/rustam-site/assents/fonts/RoyalCrescent.ttf") format("truetype");
-  font-weight: 400;
+  font-weight: 400; /* скорректируй при необходимости */
   font-style: normal;
   font-display: swap;
 }
@@ -63,7 +62,7 @@
   font-display: swap;
 }
 
-/* алиас "UniSans-Heavy" */
+/* алиас под имя "UniSans-Heavy", если где-то в коде встречается именно такое */
 @font-face {
   font-family: "UniSans-Heavy";
   src:
@@ -85,7 +84,7 @@
   font-display: swap;
 }
 
-/* — Uni Sans Thin */
+/* — Uni Sans Thin (опционально, как у тебя было) */
 @font-face {
   font-family: "Uni Sans Thin";
   src:
@@ -107,7 +106,7 @@
   font-display: swap;
 }
 
-/* — Jura */
+/* — Jura (как у тебя) */
 @font-face {
   font-family: "Jura-Ofont";
   src:
@@ -125,7 +124,6 @@
   --bg: #000;
   --fg: #fff;
   overscroll-behavior: none;
-  --vvh: 100svh; /* fallback, пока main.jsx не применил реальные пиксели */
 
   /* safe-area (работает при viewport-fit=cover) */
   --safe-t: env(safe-area-inset-top, 0px);
@@ -138,16 +136,16 @@
 *::before,
 *::after { box-sizing: border-box; }
 
-/* Корень растягиваем на «большую» высоту устройства, без прокрутки */
+/* ключ: не используем 100vh */
 html, body, #root {
-  margin: 0;
-  padding: 0;
-  background: #000;
-  width: 100%;
-  min-height: 100lvh;                 /* заполняем весь экран, включая зоны под UI */
+  height: auto;
+  min-height: 100dvh;          /* актуальные Safari/Chrome */
+  background: transparent;
 }
 
 html, body {
+  margin: 0;
+  padding: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto,
                "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -156,9 +154,8 @@ html, body {
   touch-action: manipulation;
 }
 
-body {
-  overflow: hidden;                    /* сайт без вертикального скролла */
-}
+/* учитываем нижний гешт (дом-бар) всегда */
+body { padding-bottom: var(--safe-b); }
 
 #root { isolation: isolate; }
 
@@ -186,29 +183,27 @@ button, input, select, textarea {
   outline-offset: 2px;
 }
 
-/* ========= Layout ========= */
-/* Контент: занимает видимую высоту (устанавливается в main.jsx через --vvh) */
+/* ВАЖНО: .app больше не 100vh */
 .app {
   position: relative;
-  z-index: 2;                        /* над фоном */
   width: 100vw;
-  height: var(--vvh, 100svh);        /* именно видимая высота — без чёрных полос */
-  min-height: var(--vvh, 100svh);
+  height: 100svh;              /* видимая область с адресной строкой */
+  min-height: 100dvh;          /* когда панели скрылись */
   overflow: hidden;
   background: transparent;
 }
 
-/* Фон: тянем на «большую» высоту 100lvh, чтобы перекрыть зоны под UI */
+/* Фикс-подложка фона на всю "большую" высоту (видна под адресной строкой/дом-баром) */
 .bg-fixed-under-ui {
   position: fixed;
   inset: 0;
   width: 100vw;
-  height: 100lvh;                    /* фон тянется под UI-панели */
+  height: 100lvh;           /* именно lvh: заполняет даже когда панели скрыты */
   z-index: 0;
-  pointer-events: none;              /* слой не перехватывает клики */
+  pointer-events: none;     /* чтобы не мешал кликам */
   overflow: hidden;
-  background: #000;                  /* подложка, пока канвас рисует */
 }
+
 
 /* ========= Utility helpers ========= */
 .font-abc          { font-family: "ABC_TypeWriterRussian", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }

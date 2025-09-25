@@ -1,8 +1,6 @@
 // src/components/MosaicBackground.jsx
 import React, { useEffect, useRef, useState, useCallback } from "react";
 
-const IS_TOUCH = typeof window !== "undefined" &&
-  (("ontouchstart" in window) || (navigator?.maxTouchPoints > 0));
 /* ===== СЕТКА / АНИМАЦИЯ ===== */
 const BASE_TILE_W = 80, BASE_TILE_H = 45;
 const WAVE_STEP = 90, WAVE_PERIOD_MIN = 5000, WAVE_PERIOD_MAX = 9000;
@@ -54,23 +52,8 @@ const clamp01 = (x)=>Math.max(0,Math.min(1,x));
 const randInt = (min,max)=>Math.floor(min + Math.random()*(max-min+1));
 const parseSeq = (url)=>{ const f=(url.split("/").pop()||"").toLowerCase(); const m=f.match(/(\d+)(?=\.(jpg|jpeg|png|webp)$)/i); return m?parseInt(m[1],10):Number.MAX_SAFE_INTEGER; };
 
-const getVP = () => {
-  const w = Math.max(document.documentElement?.clientWidth || 0, window.innerWidth || 0) || 1;
-  const h = Math.max(document.documentElement?.clientHeight || 0, window.innerHeight || 0) || 1;
-  return { w: Math.round(w), h: Math.round(h) };
-};
-
-
 export default function MosaicBackground() {
   const canvasRef = useRef(null), ctxRef = useRef(null);
-
-  // Берём фактический CSS-размер канваса, а не window.innerHeight
-const getCanvasSize = () => {
-  const c = canvasRef.current;
-  const w = Math.max(1, c?.clientWidth  || 1);
-  const h = Math.max(1, c?.clientHeight || 1);
-  return { w, h };
-};
 
   /* ===== Пулы изображений (3 этапа) ===== */
   const img1Ref        = useRef(null);
@@ -317,7 +300,7 @@ const getCanvasSize = () => {
 
     const resize=()=>{
       const dpr=(window.innerWidth<=MOBILE_BREAKPOINT)?1:Math.max(1,Math.min(3,window.devicePixelRatio||1));
-      const { w, h } = getVP();
+      const w=window.innerWidth, h=window.innerHeight;
       canvas.style.width=`${w}px`; canvas.style.height=`${h}px`;
       canvas.width=Math.floor(w*dpr); canvas.height=Math.floor(h*dpr);
       ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -345,15 +328,10 @@ const getCanvasSize = () => {
       tryScheduleNextPhase();
     };
 
-   resize();
-  window.addEventListener("resize", resize);
-  window.addEventListener("orientationchange", resize);
-
-  return () => {
-    window.removeEventListener("resize", resize);
-    window.removeEventListener("orientationchange", resize);
-  };
-}, []);
+    resize();
+    window.addEventListener("resize",resize);
+    return ()=>window.removeEventListener("resize",resize);
+  },[]);
 
   /* ===== Списки URL для mobile/desktop ===== */
   const fetchListForBase = useCallback(async (base)=>{
@@ -613,7 +591,7 @@ const getCanvasSize = () => {
 
   function drawVeil(ctx){
     if(!VEIL_ENABLED) return;
-    const { w, h } = getVP(); // ← важно: совпадает с размерами канваса
+    const w = window.innerWidth, h = window.innerHeight;
     const mx = mouseRef.current.x, my = mouseRef.current.y;
     const noPointer = !(mx > -1e5 && my > -1e5);
     if(noPointer){
@@ -636,7 +614,7 @@ const getCanvasSize = () => {
 
   function draw(t){
     const ctx=ctxRef.current; if(!ctx) return;
-     const { w, h } = getVP(); 
+    const w=window.innerWidth,h=window.innerHeight;
     ctx.clearRect(0,0,w,h); ctx.fillStyle="#000"; ctx.fillRect(0,0,w,h);
 
     if(!tilesRef.current.length) initTiles();
@@ -907,19 +885,12 @@ const getCanvasSize = () => {
 
   /* ===== РЕНДЕР КАНВАСА (без обработчиков, не перехватывает клики) ===== */
   return (
-  <canvas
-    ref={canvasRef}
-    // канвас сам фиксируется на весь экран, ровно по layout viewport
-    style={{
-      position: "fixed",
-      inset: 0,
-      width: "100vw",
-      height: "100lvh",
-      pointerEvents: "none",   // события ловим глобально
-      zIndex: 10
-    }}
-  />
-);
+    <canvas
+      ref={canvasRef}
+      className="mosaic-canvas absolute top-0 left-0 w-full h-full z-10"
+      style={{ pointerEvents: "none" }}
+    />
+  );
 }
 
 /* ===========================================================
