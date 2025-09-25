@@ -17,6 +17,24 @@ if (!rootEl) {
   document.body.appendChild(rootEl);
 }
 
+// === iOS full-viewport height (без скролла) ===
+(function setupVvh() {
+  const docEl = document.documentElement;
+
+  function apply() {
+    const vv = window.visualViewport;
+    const vh = Math.round((vv?.height || window.innerHeight || 0));
+    // В переменной — чистая видимая высота
+    docEl.style.setProperty("--vvh", vh + "px");
+  }
+
+  apply();
+
+  window.addEventListener("resize", apply, { passive: true });
+  window.visualViewport?.addEventListener("resize", apply, { passive: true });
+  window.visualViewport?.addEventListener("scroll", apply, { passive: true });
+})();
+
 /* Рендер приложения */
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

@@ -62,6 +62,14 @@ const getVP = () => {
 export default function MosaicBackground() {
   const canvasRef = useRef(null), ctxRef = useRef(null);
 
+  // Берём фактический CSS-размер канваса, а не window.innerHeight
+const getCanvasSize = () => {
+  const c = canvasRef.current;
+  const w = Math.max(1, c?.clientWidth  || 1);
+  const h = Math.max(1, c?.clientHeight || 1);
+  return { w, h };
+};
+
   /* ===== Пулы изображений (3 этапа) ===== */
   const img1Ref        = useRef(null);
   const mobileUrlsRef  = useRef([]);
