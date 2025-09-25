@@ -1067,7 +1067,7 @@ const runCenterOutReset = ()=>{
   vimeoId={vimeoId}
 />
 <BioOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio.jpg"/>
-<Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam*1.22)}/>
+<Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam*1.22*1.2)}/>
 
       <style>{`
         .glass-plate.circle{
@@ -1386,7 +1386,7 @@ const plateStyle = {
 />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
       <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)}
-        diameter={Math.round(circleDiam * 1.25 * 1.05)} hideClose backdropClose bodyInc={-1} />
+        diameter={Math.round(circleDiam * 1.25 * 1.1)} hideClose backdropClose bodyInc={-1} />
 
       {/* Локальные стили мобилки */}
       <style>{`
