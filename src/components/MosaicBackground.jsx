@@ -1,6 +1,9 @@
 // src/components/MosaicBackground.jsx
 import React, { useEffect, useRef, useState, useCallback } from "react";
 
+const IS_TOUCH = typeof window !== "undefined" &&
+  (("ontouchstart" in window) || (navigator?.maxTouchPoints > 0));
+
 /* ===== СЕТКА / АНИМАЦИЯ ===== */
 const BASE_TILE_W = 80, BASE_TILE_H = 45;
 const WAVE_STEP = 90, WAVE_PERIOD_MIN = 5000, WAVE_PERIOD_MAX = 9000;
@@ -609,28 +612,41 @@ const getCanvasSize = () => {
     else ctx.drawImage(img,sx,sy,sw,sh,cx-drawW/2,cy-drawH/2,drawW,drawH);
   }
 
-  function drawVeil(ctx){
-    if(!VEIL_ENABLED) return;
-    const { w, h } = getVP(); // ← важно: совпадает с размерами канваса
-    const mx = mouseRef.current.x, my = mouseRef.current.y;
-    const noPointer = !(mx > -1e5 && my > -1e5);
-    if(noPointer){
-      ctx.globalAlpha = VEIL_ALPHA;
-      ctx.fillStyle = "#000";
-      ctx.fillRect(0,0,w,h);
-      ctx.globalAlpha = 1;
-      return;
-    }
-    const r = clamp(VEIL_HOLE_R, VEIL_MIN_R, VEIL_MAX_R);
-    const outer = r + VEIL_FEATHER;
-    const g = ctx.createRadialGradient(mx, my, Math.max(1, r*0.3), mx, my, outer);
-    const innerStop = r / outer;
-    g.addColorStop(0, "rgba(0,0,0,0)");
-    g.addColorStop(clamp01(innerStop), "rgba(0,0,0,0)");
-    g.addColorStop(1, `rgba(0,0,0,${VEIL_ALPHA})`);
-    ctx.fillStyle = g;
-    ctx.fillRect(0,0,w,h);
+  function drawVeil(ctx, w, h){
+  // если вуаль выключена глобально — ничего не делаем
+  if (!VEIL_ENABLED) return;
+
+  const mx = mouseRef.current.x, my = mouseRef.current.y;
+  const hasPointer = (mx > -1e5 && my > -1e5);
+
+  // === ГЛАВНОЕ ИЗМЕНЕНИЕ ===
+  // На тач-устройствах НЕ рисуем чёрную пелену, пока нет касания/курсор не внутри.
+  // Это убирает «чёрные поля» на iOS.
+  if (IS_TOUCH && !hasPointer) return;
+
+  // дальше — как было: либо десктоп, либо мобилка при активном касании
+  if (!hasPointer) {
+    // fallback (десктоп со скрытым курсором): лёгкая затемняющая подложка
+    ctx.globalAlpha = VEIL_ALPHA;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1;
+    return;
   }
+
+  const r = clamp(VEIL_HOLE_R, VEIL_MIN_R, VEIL_MAX_R);
+  const outer = r + VEIL_FEATHER;
+  const g = ctx.createRadialGradient(mx, my, Math.max(1, r * 0.3), mx, my, outer);
+  const innerStop = r / outer;
+
+  g.addColorStop(0, "rgba(0,0,0,0)");
+  g.addColorStop(clamp01(innerStop), "rgba(0,0,0,0)");
+  g.addColorStop(1, `rgba(0,0,0,${VEIL_ALPHA})`);
+
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+}
+
 
   function draw(t){
     const ctx=ctxRef.current; if(!ctx) return;
@@ -812,7 +828,7 @@ const getCanvasSize = () => {
       waveRef.current.nextWaveAt = t + randInt(WAVE_PERIOD_MIN, WAVE_PERIOD_MAX);
     }
 
-    drawVeil(ctx);
+    drawVeil(ctx, w, h); // используем размеры текущего канваса
   }
 
   /* ===== Хелперы событий ===== */
