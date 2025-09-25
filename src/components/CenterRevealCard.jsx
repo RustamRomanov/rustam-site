@@ -268,7 +268,7 @@ const TEXT_SHIFT = Math.round(D * 0.05);
     );
   }
 
-  const BODY_FS = Math.max(12, Math.round(D * 0.020));
+  const BODY_FS = Math.max(12, Math.round(D * 0.018));
   const BodyLine = ({ children, mt = Math.round(D * 0.018) }) => (
     <div style={{ marginTop: mt, textAlign: "center" }}>
       <span style={{
