@@ -324,9 +324,9 @@ const TEXT_SHIFT = Math.round(D * 0.05);
               <FitHeader text="Режиссёр · Продюсер · Сценарист"/>
               <div style={{ height: 20 }}/>
               <BodyLine>100+ артистов · 200+ проектов · 2+ млрд просмотров</BodyLine>
-              <BodyLine>Большой опыт работы с топовыми артистами и селебрити-блогерами.</BodyLine>
-              <BodyLine mt={Math.round(D * 0.022)}>Оперативно пишу тритменты, мотивирую команду и соблюдаю дедлайны.</BodyLine>
-              <BodyLine mt={Math.round(D * 0.022)}>Каждый проект — это эмоция, а эмоции всегда выигрывают.</BodyLine>
+               <div style={{ height: 15 }}/>
+              <BodyLine mt={Math.round(D * 0.022)}>Имею большой опыт работы с топовыми артистами и селебрити-блогерами. Оперативно пишу тритменты, мотивирую команду и соблюдаю дедлайны. </BodyLine>
+               <BodyLine> Для меня каждый проект — это эмоции, а эмоции всегда выигрывают.</BodyLine>
               <BodyLine mt={Math.round(D * 0.022)}>Welcome!</BodyLine>
             </div>
           </div>
