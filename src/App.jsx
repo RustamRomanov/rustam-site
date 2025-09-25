@@ -34,8 +34,8 @@ export default function App(){
           position: "fixed",
           inset: 0,
           zIndex: 1,
-          pointerEvents: "auto",    // ← было "none" — из-за этого канвас не ловил события
-          background: "#000",
+          pointerEvents: "none",    
+          background: "transparent",
         }}
       >
         <ErrorBoundary>

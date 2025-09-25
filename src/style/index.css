@@ -201,11 +201,11 @@ button, input, select, textarea {
   position: fixed;
   inset: 0;
   width: 100vw;
-  height: 100svh;      /* фон тянется под UI-панели */
+  height: 100lvh;      /* фон тянется под UI-панели */
   z-index: 0;
   pointer-events: none;   /* ← ВАЖНО: слой не перехватывает клики */
   overflow: hidden;
-  background: #000;
+  background: transparent;
 }
 
 /* ========= Utility helpers ========= */
