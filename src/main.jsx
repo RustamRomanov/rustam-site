@@ -8,6 +8,8 @@ import "./style/fonts.css";
 /* Базовые стили проекта */
 import "./style/index.css";
 
+console.log("vvh:", window.visualViewport?.height, "innerHeight:", window.innerHeight);
+
 /* Находим/создаём корневой контейнер */
 let rootEl = document.getElementById("root");
 if (!rootEl) {

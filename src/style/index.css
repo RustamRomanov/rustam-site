@@ -136,10 +136,9 @@
 *::before,
 *::after { box-sizing: border-box; }
 
-/* ключ: не используем 100vh */
 html, body, #root {
-  height: auto;
-  min-height: 100dvh;          /* актуальные Safari/Chrome */
+  height: var(--vvh);
+  min-height: var(--vvh);
   background: transparent;
 }
 
@@ -183,12 +182,11 @@ button, input, select, textarea {
   outline-offset: 2px;
 }
 
-/* ВАЖНО: .app больше не 100vh */
 .app {
   position: relative;
   width: 100vw;
-  height: 100svh;              /* видимая область с адресной строкой */
-  min-height: 100dvh;          /* когда панели скрылись */
+  height: var(--vvh);
+  min-height: var(--vvh);
   overflow: hidden;
   background: transparent;
 }

@@ -5,6 +5,10 @@ body {
   background-color: transparent; /* был источник чёрных полей */
   color: white;
   overflow: hidden;
+
+  /* ВАЖНО: iOS-патч для safe-area */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 img {
