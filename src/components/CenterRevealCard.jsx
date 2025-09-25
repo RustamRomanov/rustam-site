@@ -268,7 +268,7 @@ const TEXT_SHIFT = Math.round(D * 0.05);
     );
   }
 
-  const BODY_FS = Math.max(12, Math.round(D * 0.0225));
+  const BODY_FS = Math.max(12, Math.round(D * 0.020));
   const BodyLine = ({ children, mt = Math.round(D * 0.018) }) => (
     <div style={{ marginTop: mt, textAlign: "center" }}>
       <span style={{
@@ -325,8 +325,8 @@ const TEXT_SHIFT = Math.round(D * 0.05);
               <div style={{ height: 20 }}/>
               <BodyLine>100+ артистов · 200+ проектов · 2+ млрд просмотров</BodyLine>
               <BodyLine>Большой опыт работы с топовыми артистами и селебрити-блогерами.</BodyLine>
-              <BodyLine mt={Math.round(D * 0.022)}>Оперативно пишу тритменты и соблюдаю дедлайны.</BodyLine>
-              <BodyLine mt={Math.round(D * 0.022)}>Мои проекты — это эмоции, а эмоции всегда выигрывают.</BodyLine>
+              <BodyLine mt={Math.round(D * 0.022)}>Оперативно пишу тритменты, мотивирую команду и соблюдаю дедлайны.</BodyLine>
+              <BodyLine mt={Math.round(D * 0.022)}>Каждый проект — это эмоция, а эмоции всегда выигрывают.</BodyLine>
               <BodyLine mt={Math.round(D * 0.022)}>Welcome!</BodyLine>
             </div>
           </div>
