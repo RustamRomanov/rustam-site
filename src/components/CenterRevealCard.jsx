@@ -237,7 +237,7 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
   const FAMILY_HEADER = "'Uni Sans Heavy','UniSans-Heavy','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
   const FAMILY_BODY = "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
   const COLOR = "rgba(255,255,255,0.95)";
-const maxTextWidth = Math.round(D * 0.80);
+const maxTextWidth = Math.round(D * 0.85);
 const TEXT_SHIFT = Math.round(D * 0.05); 
 
   /* без дыхания и без цветовой анимации */
