@@ -53,11 +53,11 @@ const randInt = (min,max)=>Math.floor(min + Math.random()*(max-min+1));
 const parseSeq = (url)=>{ const f=(url.split("/").pop()||"").toLowerCase(); const m=f.match(/(\d+)(?=\.(jpg|jpeg|png|webp)$)/i); return m?parseInt(m[1],10):Number.MAX_SAFE_INTEGER; };
 
 const getVP = () => {
-  const vv = typeof window !== "undefined" ? window.visualViewport : null;
-  const w = Math.round((vv?.width || window.innerWidth) || 1);
-  const h = Math.round((vv?.height || window.innerHeight) || 1);
-  return { w, h };
+  const w = Math.max(document.documentElement?.clientWidth || 0, window.innerWidth || 0) || 1;
+  const h = Math.max(document.documentElement?.clientHeight || 0, window.innerHeight || 0) || 1;
+  return { w: Math.round(w), h: Math.round(h) };
 };
+
 
 export default function MosaicBackground() {
   const canvasRef = useRef(null), ctxRef = useRef(null);
@@ -335,15 +335,15 @@ export default function MosaicBackground() {
       tryScheduleNextPhase();
     };
 
-    resize();
-    window.addEventListener("resize",resize);
-    const vv = window.visualViewport;
-if (vv) {
-  vv.addEventListener("resize", resize, { passive: true });
-  vv.addEventListener("scroll", resize, { passive: true }); // адресная строка прячется/появляется
-}
-    return ()=>window.removeEventListener("resize",resize);
-  },[]);
+   resize();
+  window.addEventListener("resize", resize);
+  window.addEventListener("orientationchange", resize);
+
+  return () => {
+    window.removeEventListener("resize", resize);
+    window.removeEventListener("orientationchange", resize);
+  };
+}, []);
 
   /* ===== Списки URL для mobile/desktop ===== */
   const fetchListForBase = useCallback(async (base)=>{

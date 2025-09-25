@@ -142,7 +142,7 @@ html, body, #root {
   padding: 0;
   background: transparent;                /* CHANGED: было transparent */
   height: auto;                     /* помогает старым WebKit */
-  min-height: 100svh;               /* видимая высота */
+  min-height: 100lvh;               /* видимая высота */
   min-height: -webkit-fill-available; /* старые Safari */
 }
 
@@ -190,8 +190,8 @@ button, input, select, textarea {
   position: relative;
   z-index: 2;                        /* над фоном */
   width: 100vw;
-  height: 100svh;                    /* CHANGED */
-  min-height: 100svh;                /* страховка */
+  height: 100lvh;                    /* CHANGED */
+  min-height: 100lvh;                /* страховка */
   overflow: hidden;
   background: transparent;
 }
