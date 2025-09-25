@@ -35,94 +35,164 @@ const BIO_TEXT = `В начале 2000-х я сделал свой первый 
 Сегодня мой багаж 200+ проектов, более 2-х миллиардов просмотров на Youtube и более сотни артистов с кем мне довелось поработать.`;
 
 
-/* ===== Звук ===== */
+/* ===== Звук (глушим ИМЕННО ПЕРВЫЙ звук) ===== */
 function useAudio() {
   const ctxRef = useRef(null);
+
   const getCtx = async () => {
-    try{
+    try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
-      if(!Ctx) return null;
-      if(!ctxRef.current) ctxRef.current = new Ctx();
-      if(ctxRef.current.state==="suspended") await ctxRef.current.resume().catch(()=>{});
+      if (!Ctx) return null;
+      if (!ctxRef.current) ctxRef.current = new Ctx();
+      if (ctxRef.current.state === "suspended") await ctxRef.current.resume().catch(()=>{});
       return ctxRef.current;
-    }catch{ return null; }
+    } catch { return null; }
   };
-  useEffect(()=>{
-    let armed=true;
-    const prime=async()=>{
-      if(!armed) return;
-      const ctx=await getCtx();
-      if(ctx){
-        try{
-          const o=ctx.createOscillator(), g=ctx.createGain();
-          g.gain.value=0.00001;
+
+  // помечаем момент первичной инициализации аудио
+  useEffect(() => {
+    let armed = true;
+    const prime = async () => {
+      if (!armed) return;
+      const ctx = await getCtx();
+      if (ctx) {
+        try {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          g.gain.value = 0.00001;
           o.connect(g).connect(ctx.destination);
-          o.start(); o.stop(ctx.currentTime+0.01);
-        }catch{}
+          o.start(); o.stop(ctx.currentTime + 0.01);
+          // запоминание момента resume/init
+          window.__audioPrimedAt = ctx.currentTime;
+        } catch {}
       }
-      armed=false;
-      window.removeEventListener("pointerdown",prime,true);
-      window.removeEventListener("touchstart",prime,true);
-      window.removeEventListener("click",prime,true);
+      armed = false;
+      window.removeEventListener("pointerdown", prime, true);
+      window.removeEventListener("touchstart", prime, true);
+      window.removeEventListener("click", prime, true);
     };
-    window.addEventListener("pointerdown",prime,true);
-    window.addEventListener("touchstart",prime,true);
-    window.addEventListener("click",prime,true);
-    return ()=> {
-      window.removeEventListener("pointerdown",prime,true);
-      window.removeEventListener("touchstart",prime,true);
-      window.removeEventListener("click",prime,true);
+    window.addEventListener("pointerdown", prime, true);
+    window.addEventListener("touchstart", prime, true);
+    window.addEventListener("click", prime, true);
+    return () => {
+      window.removeEventListener("pointerdown", prime, true);
+      window.removeEventListener("touchstart", prime, true);
+      window.removeEventListener("click", prime, true);
     };
-  },[]);
+  }, []);
+
+  // микшер с «тихим первым выстрелом»
+  function makeMix(ctx, t0, target = 0.55) {
+    const primedAt = window.__audioPrimedAt ?? 0;
+    const justResumed = (ctx.currentTime - primedAt) < 0.20; // в первые 200мс после resume
+    const firstEver = !window.__firstUiSoundDone;
+
+    const mix = ctx.createGain();
+    if (firstEver || justResumed) {
+      // СИЛЬНО притушаем самый первый/после-resume,
+      // и плавно поднимаем громкость
+      mix.gain.setValueAtTime(0.0001, t0);
+      mix.gain.exponentialRampToValueAtTime(target, t0 + 0.45);
+      // этот флаг снимаем после первого использования
+      window.__firstUiSoundDone = true;
+    } else {
+      mix.gain.setValueAtTime(target, t0);
+    }
+    mix.connect(ctx.destination);
+    return mix;
+  }
+
   const playHoverSoft = async () => {
     const ctx = await getCtx(); if (!ctx) return;
-    const t0 = ctx.currentTime;
-    const mix = ctx.createGain(); mix.gain.value = 0.55; mix.connect(ctx.destination);
+    // маленький сдвиг старта, чтобы избежать фазового щелчка
+    const t0 = ctx.currentTime + 0.02;
+    const mix = makeMix(ctx, t0, 0.55);
+
     const o1 = ctx.createOscillator(), g1 = ctx.createGain();
-    o1.type="triangle"; o1.frequency.setValueAtTime(480,t0); o1.frequency.exponentialRampToValueAtTime(880,t0+0.11);
-    g1.gain.setValueAtTime(0.0001,t0); g1.gain.exponentialRampToValueAtTime(0.12,t0+0.02); g1.gain.exponentialRampToValueAtTime(0.0001,t0+0.18);
+    o1.type = "triangle";
+    o1.frequency.setValueAtTime(480, t0);
+    o1.frequency.exponentialRampToValueAtTime(880, t0 + 0.11);
+    g1.gain.setValueAtTime(0.0001, t0);
+    g1.gain.exponentialRampToValueAtTime(0.12, t0 + 0.02);
+    g1.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
     o1.connect(g1).connect(mix);
+
     const o2 = ctx.createOscillator(), g2 = ctx.createGain();
-    o2.type="sine"; o2.frequency.setValueAtTime(920,t0); o2.frequency.exponentialRampToValueAtTime(1300,t0+0.08);
-    g2.gain.setValueAtTime(0.0001,t0); g2.gain.exponentialRampToValueAtTime(0.07,t0+0.015); g2.gain.exponentialRampToValueAtTime(0.0001,t0+0.14);
+    o2.type = "sine";
+    o2.frequency.setValueAtTime(920, t0);
+    o2.frequency.exponentialRampToValueAtTime(1300, t0 + 0.08);
+    g2.gain.setValueAtTime(0.0001, t0);
+    g2.gain.exponentialRampToValueAtTime(0.07, t0 + 0.015);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
     o2.connect(g2).connect(mix);
-    o1.start(t0);o2.start(t0);o1.stop(t0+0.22);o2.stop(t0+0.17);
+
+    o1.start(t0); o2.start(t0);
+    o1.stop(t0 + 0.22); o2.stop(t0 + 0.17);
   };
+
   const playIcon = async () => {
     const ctx = await getCtx(); if (!ctx) return;
-    const t0 = ctx.currentTime;
+    const t0 = ctx.currentTime + 0.02;
+    const mix = makeMix(ctx, t0, 0.55);
+
     const o = ctx.createOscillator(), g = ctx.createGain();
-    o.type="triangle"; o.frequency.setValueAtTime(1200,t0);
-    g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(0.14,t0+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t0+0.15);
-    o.connect(g).connect(ctx.destination); o.start(t0); o.stop(t0+0.16);
+    o.type = "triangle";
+    o.frequency.setValueAtTime(1200, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.14, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.15);
+    o.connect(g).connect(mix);
+    o.start(t0); o.stop(t0 + 0.16);
   };
+
   const playDot = async () => {
     const ctx = await getCtx(); if (!ctx) return;
-    const t0 = ctx.currentTime;
+    const t0 = ctx.currentTime + 0.02;
+    const mix = makeMix(ctx, t0, 0.55);
+
     const o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = "sine"; o.frequency.setValueAtTime(180, t0); o.frequency.exponentialRampToValueAtTime(60, t0 + 0.25);
-    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25);
-    o.connect(g).connect(ctx.destination); o.start(t0); o.stop(t0 + 0.3);
+    o.type = "sine";
+    o.frequency.setValueAtTime(180, t0);
+    o.frequency.exponentialRampToValueAtTime(60, t0 + 0.25);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25);
+    o.connect(g).connect(mix);
+    o.start(t0); o.stop(t0 + 0.3);
   };
+
   const playAppear = async () => {
     const ctx = await getCtx(); if (!ctx) return;
-    const t0 = ctx.currentTime;
-    const len = Math.floor(ctx.sampleRate*0.3);
-    const buf = ctx.createBuffer(1,len,ctx.sampleRate);
+    const t0 = ctx.currentTime + 0.02;
+    const mix = makeMix(ctx, t0, 0.55);
+
+    const len = Math.floor(ctx.sampleRate * 0.3);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
-    for (let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
-    const noise = ctx.createBufferSource(); noise.buffer=buf;
-    const bp = ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1500; bp.Q.value=4;
-    const gN = ctx.createGain(); gN.gain.setValueAtTime(0.0001,t0); gN.gain.exponentialRampToValueAtTime(0.18,t0+0.05); gN.gain.exponentialRampToValueAtTime(0.0001,t0+0.28);
-    noise.connect(bp).connect(gN).connect(ctx.destination); noise.start(t0); noise.stop(t0+0.3);
-    [392,523.25,659.25].forEach((f,i)=>{ const o=ctx.createOscillator(), g=ctx.createGain();
-      o.type="sine"; o.frequency.value=f;
-      g.gain.setValueAtTime(0.0001,t0+i*0.05); g.gain.exponentialRampToValueAtTime(0.18,t0+i*0.05+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t0+i*0.05+0.20);
-      o.connect(g).connect(ctx.destination); o.start(t0+i*0.05); o.stop(t0+i*0.05+0.22);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+
+    const noise = ctx.createBufferSource(); noise.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1500; bp.Q.value = 4;
+    const gN = ctx.createGain();
+    gN.gain.setValueAtTime(0.0001, t0);
+    gN.gain.exponentialRampToValueAtTime(0.18, t0 + 0.05);
+    gN.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+    noise.connect(bp).connect(gN).connect(mix);
+    noise.start(t0); noise.stop(t0 + 0.3);
+
+    [392, 523.25, 659.25].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0 + i * 0.05);
+      g.gain.exponentialRampToValueAtTime(0.18, t0 + i * 0.05 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + i * 0.05 + 0.20);
+      o.connect(g).connect(mix);
+      o.start(t0 + i * 0.05); o.stop(t0 + i * 0.05 + 0.22);
     });
   };
+
   return { playHoverSoft, playIcon, playDot, playAppear };
 }
+
 
 /* ===== Соц-иконка ===== */
 function IconLink({ href, whiteSrc, colorSrc, label, onHoverSound, size=28 }) {
@@ -256,6 +326,7 @@ const TEXT_SHIFT = Math.round(D * 0.05);
               <BodyLine>100+ артистов · 200+ проектов · 2+ млрд просмотров</BodyLine>
               <BodyLine>Большой опыт работы с топовыми артистами и селебрити-блогерами.</BodyLine>
               <BodyLine mt={Math.round(D * 0.022)}>Оперативно пишу тритменты и соблюдаю дедлайны.</BodyLine>
+              <BodyLine mt={Math.round(D * 0.022)}>Мои проекты — это эмоции, а эмоции всегда выигрывают.</BodyLine>
               <BodyLine mt={Math.round(D * 0.022)}>Буду рад сотрудничеству!</BodyLine>
             </div>
           </div>

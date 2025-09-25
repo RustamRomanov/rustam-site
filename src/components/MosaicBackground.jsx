@@ -31,11 +31,8 @@ const TRY_EXTS = ["jpg","jpeg","png","webp"];
 const MAX_INDEX_SCAN = 10000;
 
 /* ===== АНТИ-БЛИЗОСТЬ ===== */
-const NEI_RADIUS = 10; // мягкая "живость"
-const NEI_DELTA  = 15; // мягкий штраф
-// ЖЁСТКОЕ ПРАВИЛО: не ставить рядом и "рядом с рядом" (радиус 2) номера, отличающиеся <= 15
-const STRICT_NEI_RADIUS = 2;
-const STRICT_SEQ_DELTA = 15;
+const NEI_RADIUS = 10;
+const NEI_DELTA  = 15;
 
 /* ===== ВУАЛЬ (тёмная пелена с «дыркой» у курсора) ===== */
 const VEIL_ENABLED = true;
@@ -146,6 +143,7 @@ export default function MosaicBackground() {
     };
   },[]);
   const playDirectionalAir = async (_strength = 1, _pan = 0, _dirX = 0, _v = 0.5, _dirY = 0) => {
+    // ... без изменений (звук)
     const strength = Number.isFinite(_strength) ? _strength : 1;
     const pan      = Number.isFinite(_pan)      ? _pan      : 0;
     const dirX     = Number.isFinite(_dirX)     ? _dirX     : 0;
@@ -399,7 +397,7 @@ export default function MosaicBackground() {
   useEffect(()=>{
     let cancelled=false;
     (async()=>{
-      // img1: мобила — строго MOBILE_DIR; десктоп — сначала mobile, затем fallback desktop
+      // img1: теперь строго из MOBILE_DIR на мобиле, а на десктопе — mobile, затем fallback desktop
       const tryImg1 = async (bases)=>{
         for (const base of bases){
           for(const ext of TRY_EXTS){
@@ -415,14 +413,14 @@ export default function MosaicBackground() {
 
       const basesForImg1 = isMobile ? [MOBILE_DIR] : [MOBILE_DIR, DESKTOP_DIR];
       img1Ref.current = await tryImg1(basesForImg1);
-      phaseRef.current = "img1";
+      phaseRef.current = img1Ref.current ? "img1" : "img1"; // как было
       allowRandomRef.current = false;
       doingWaveRef.current = false;
 
-      // rAF немедленно
+      // Старт rAF немедленно, чтобы анимация «сразу работала»
       if(!rafRef.current) start();
 
-      // Пулы: мобила — только mobile; десктоп — mobile → desktop
+      // Тянем списки: мобила — только mobile; десктоп — mobile → desktop
       if (isMobile) {
         const mobileUrls = await fetchListForBase(MOBILE_DIR);
         if(cancelled) return;
@@ -431,8 +429,10 @@ export default function MosaicBackground() {
           const { pool, seq } = await preloadPool(mobileUrlsRef.current);
           if(cancelled) return;
           mobilePoolRef.current = pool; mobileSeqRef.current = seq;
-          schedulePhaseWave("mobile"); // сразу
+          // сразу волна mobile
+          schedulePhaseWave("mobile");
         }
+        // НИКАКИХ desktop на мобиле
         desktopUrlsRef.current = [];
         desktopPoolRef.current = [];
         desktopSeqRef.current  = [];
@@ -461,7 +461,7 @@ export default function MosaicBackground() {
       }
     })();
     return ()=>{ cancelled=true; };
-  },[isMobile]);
+  },[isMobile]); // ← завязано на платформу
 
   function enqueuePhase(tag){
     const q = pendingPhasesRef.current;
@@ -480,19 +480,6 @@ export default function MosaicBackground() {
     if(target==="mobile" && !(mobilePoolRef.current?.length)) return;
     if(target==="desktop" && !(desktopPoolRef.current?.length)) return;
     schedulePhaseWave(target);
-  }
-
-  /* ===== Вспомогательные по соседям ===== */
-  function neighborsWithinRadius(id, cols, rows, radius){
-    const r=Math.floor(id/cols), c=id%cols;
-    const list=[];
-    for(let rr=Math.max(0,r-radius); rr<=Math.min(rows-1,r+radius); rr++){
-      for(let cc=Math.max(0,c-radius); cc<=Math.min(cols-1,c+radius); cc++){
-        const j=rr*cols+cc;
-        if(j!==id && Math.max(Math.abs(cc-c),Math.abs(rr-r))<=radius) list.push(j);
-      }
-    }
-    return list;
   }
 
   /* ===== Тайлы под текущую фазу/ img1 ===== */
@@ -539,6 +526,7 @@ export default function MosaicBackground() {
       if(target==="desktop"){
         allowRandomRef.current = true;
       } else {
+        // На мобиле тоже сразу «живость», но из mobile-пула
         if (isMobile) allowRandomRef.current = true;
       }
       tryScheduleNextPhase();
@@ -547,9 +535,16 @@ export default function MosaicBackground() {
 
   /* ===== Анти-близость и гарантированная смена ===== */
   function neighborsOf(id, cols, rows){
-    return neighborsWithinRadius(id, cols, rows, NEI_RADIUS);
+    const r=Math.floor(id/cols), c=id%cols;
+    const list=[];
+    for(let rr=Math.max(0,r-NEI_RADIUS); rr<=Math.min(rows-1,r+NEI_RADIUS); rr++){
+      for(let cc=Math.max(0,c-NEI_RADIUS); cc<=Math.min(cols-1,c+NEI_RADIUS); cc++){
+        const j=rr*cols+cc;
+        if(j!==id && Math.max(Math.abs(cc-c),Math.abs(rr-r))<=NEI_RADIUS) list.push(j);
+      }
+    }
+    return list;
   }
-
   function penaltyForImg(candidateImg, candidateSeq, id, tiles, cols, rows){
     let pen=0;
     for(const j of neighborsOf(id, cols, rows)){
@@ -562,42 +557,14 @@ export default function MosaicBackground() {
     }
     return pen;
   }
-
-  function violatesStrictSeq(candidateSeq, id, targetTag, tiles, cols, rows){
-    if(candidateSeq==null || !Number.isFinite(candidateSeq)) return false;
-    // Проверяем только тайлы этой же целевой фазы (mobile/desktop), чтобы не "залипать" на img1
-    for(const j of neighborsWithinRadius(id, cols, rows, STRICT_NEI_RADIUS)){
-      const t=tiles[j]; if(!t) continue;
-      const neighborTag = t.poolTag;
-      if(neighborTag !== targetTag) continue;
-      const neighborSeq = t._seq;
-      if(neighborSeq==null) continue;
-      if(Math.abs(neighborSeq - candidateSeq) <= STRICT_SEQ_DELTA) return true;
-    }
-    return false;
-  }
-
-  function minStrictSeqDiff(candidateSeq, id, targetTag, tiles, cols, rows){
-    let minDiff = Infinity;
-    for(const j of neighborsWithinRadius(id, cols, rows, STRICT_NEI_RADIUS)){
-      const t=tiles[j]; if(!t) continue;
-      if(t.poolTag !== targetTag) continue;
-      const neighborSeq = t._seq;
-      if(neighborSeq==null) continue;
-      const d = Math.abs(neighborSeq - candidateSeq);
-      if(d < minDiff) minDiff = d;
-    }
-    return minDiff;
-  }
-
   function pickFromPoolFor(id, targetTag, excludeImg){
     const useMobile = isMobile || targetTag==="mobile";
     const pool = useMobile ? mobilePoolRef.current : desktopPoolRef.current;
     const seq  = useMobile ? mobileSeqRef.current  : desktopSeqRef.current;
     if(!pool?.length) return {img:null, seq:null};
 
-    // 1) базовый список кандидатов (исключаем текущую картинку)
-    let candIdx=[];
+    // отбор кандидатов
+    const candIdx=[];
     for(let i=0;i<pool.length;i++){
       const im = pool[i];
       if(!im) continue;
@@ -609,30 +576,9 @@ export default function MosaicBackground() {
       if(!candIdx.length) return {img:null, seq:null};
     }
 
-    // 2) СТРОГИЙ ФИЛЬТР по соседям радиус 2 и Δ<=15
-    const tiles=tilesRef.current, { cols, rows } = gridRef.current;
-    const strictOk = candIdx.filter(i=>{
-      const s = seq[i];
-      return !violatesStrictSeq(s, id, targetTag==="desktop" && !isMobile ? "desktop" : "mobile", tiles, cols, rows);
-    });
-
-    let finalIdx = strictOk.length ? strictOk : candIdx; // если вдруг ничего не осталось, ослабляем, но учтём "лучшую дистанцию"
-
-    // 3) Если строгих нет — выбираем с максимальной минимальной разницей по номерам (в радиусе 2)
-    if (!strictOk.length) {
-      let best=[], bestScore=-Infinity;
-      for(const i of finalIdx){
-        const s = seq[i];
-        const score = minStrictSeqDiff(s, id, targetTag==="desktop" && !isMobile ? "desktop" : "mobile", tiles, cols, rows);
-        if(score > bestScore){ bestScore=score; best=[i]; }
-        else if(score === bestScore){ best.push(i); }
-      }
-      finalIdx = best;
-    }
-
-    // 4) На оставшихся — мягкая оптимизация (штрафы), чтобы разнести одинаковые
     let best=[], bestPen=Infinity;
-    for(const i of finalIdx){
+    const tiles=tilesRef.current, { cols, rows } = gridRef.current;
+    for(const i of candIdx){
       const img=pool[i];
       const p = penaltyForImg(img, seq[i], id, tiles, cols, rows);
       if(p < bestPen){ bestPen = p; best = [i]; }
@@ -817,7 +763,8 @@ export default function MosaicBackground() {
         const marginY = isMobile ? hView * 0.03 : Math.max(16, hView * 0.04);
 
         if (isMobile) {
-          // На мобиле overlay появляется ТОЛЬКО по TAP
+          // На мобиле overlay появляется ТОЛЬКО по TAP (мы ставим clickedTileIdRef в pointerup),
+          // при скролле overlay не открывается.
           const availW = wView - marginX * 2;
           const scale = availW / img.width;
           const drawW = Math.floor(img.width * scale);
@@ -911,7 +858,7 @@ export default function MosaicBackground() {
     if (isMobile) {
       dragFlagRef.current = false;
       touchStartRef.current = { x:e.clientX, y:e.clientY, t:performance.now(), id: hoveredTileId() };
-      // overlay не открываем здесь — только в pointerup при TAP
+      // ВАЖНО: НЕ открываем overlay здесь — только в pointerup при TAP
     } else {
       onClick();
     }
@@ -939,13 +886,6 @@ export default function MosaicBackground() {
     }
   };
 
-  const resetMobileHover = ()=>{
-    mouseRef.current={x:-1e6,y:-1e6};
-    prevHoverIdRef.current=-1;
-    prevHoverColRef.current=-1;
-    prevHoverRowRef.current=-1;
-  };
-
   const onPointerUp=()=>{ 
     if (isMobile) {
       const dt = performance.now() - touchStartRef.current.t;
@@ -953,21 +893,17 @@ export default function MosaicBackground() {
       const isTap = !dragFlagRef.current && dt <= TAP_MAX_MS && idUp>=0;
 
       if (isTap) {
-        clickedTileIdRef.current = idUp; // разовый тап — открыть
+        // Разовый TAP — открыть overlay на текущем тайле
+        clickedTileIdRef.current = idUp;
       } else {
-        clickedTileIdRef.current = -1;   // после скролла — закрыть
+        // После скролла — всё возвращается (overlay закрыт)
+        clickedTileIdRef.current = -1;
       }
-      // В любом случае после отпускания пальца — вернуть ховер в исходное состояние
-      resetMobileHover();
     }
     pointerActiveRef.current=false; 
   };
 
-  const onPointerCancel=()=>{ 
-    pointerActiveRef.current=false; 
-    clickedTileIdRef.current=-1; 
-    if (isMobile) resetMobileHover();
-  };
+  const onPointerCancel=()=>{ pointerActiveRef.current=false; clickedTileIdRef.current=-1; };
 
   return (
     <canvas
