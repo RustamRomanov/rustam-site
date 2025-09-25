@@ -140,10 +140,9 @@
 html, body, #root {
   margin: 0;
   padding: 0;
-  background: transparent;                /* CHANGED: было transparent */
-  height: auto;                     /* помогает старым WebKit */
-  min-height: 100lvh;               /* видимая высота */
-  min-height: -webkit-fill-available; /* старые Safari */
+  height: var(--vvh, 100svh);          /* ← ключ */
+  min-height: var(--vvh, 100svh);
+  background: #000;
 }
 
 html, body {
