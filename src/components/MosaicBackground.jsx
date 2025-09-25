@@ -897,12 +897,19 @@ export default function MosaicBackground() {
 
   /* ===== РЕНДЕР КАНВАСА (без обработчиков, не перехватывает клики) ===== */
   return (
-    <canvas
-      ref={canvasRef}
-      className="mosaic-canvas absolute top-0 left-0 w-full h-full z-10"
-      style={{ pointerEvents: "none" }}
-    />
-  );
+  <canvas
+    ref={canvasRef}
+    // канвас сам фиксируется на весь экран, ровно по layout viewport
+    style={{
+      position: "fixed",
+      inset: 0,
+      width: "100vw",
+      height: "100lvh",
+      pointerEvents: "none",   // события ловим глобально
+      zIndex: 10
+    }}
+  />
+);
 }
 
 /* ===========================================================
