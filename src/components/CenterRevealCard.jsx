@@ -327,7 +327,7 @@ const TEXT_SHIFT = Math.round(D * 0.05);
               <BodyLine>Большой опыт работы с топовыми артистами и селебрити-блогерами.</BodyLine>
               <BodyLine mt={Math.round(D * 0.022)}>Оперативно пишу тритменты и соблюдаю дедлайны.</BodyLine>
               <BodyLine mt={Math.round(D * 0.022)}>Мои проекты — это эмоции, а эмоции всегда выигрывают.</BodyLine>
-              <BodyLine mt={Math.round(D * 0.022)}>Буду рад сотрудничеству!</BodyLine>
+              <BodyLine mt={Math.round(D * 0.022)}>Welcome!</BodyLine>
             </div>
           </div>
 
