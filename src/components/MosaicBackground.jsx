@@ -603,7 +603,7 @@ if (vv) {
 
   function drawVeil(ctx){
     if(!VEIL_ENABLED) return;
-    const w = window.innerWidth, h = window.innerHeight;
+    const { w, h } = getVP(); // ← важно: совпадает с размерами канваса
     const mx = mouseRef.current.x, my = mouseRef.current.y;
     const noPointer = !(mx > -1e5 && my > -1e5);
     if(noPointer){
