@@ -12,8 +12,12 @@ const MOBILE_ZOOM_W_RATIO = 0.95; // 95% ширины экрана
 /* ===== ХОВЕР / КЛИК / ЗУМ ===== */
 const HOVER_BOOST = 1.2, HOVER_BOOST_MOBILE = 1.10;
 const CENTER_15_PERCENT_LESS = 0.85, CLICK_MULT = 2.0;
-const ZOOM_NATIVE_FACTOR = 0.8, ZOOM_MAX_ROT = 0.12, ROT_SENS = 0.0022, ZOOM_RADIUS = 18;
+const ZOOM_RADIUS = 18;
 const CLEAR_RING_DESKTOP = 2; // сбрасываем зум, если курсор ушёл дальше этого кольца
+
+/* ===== Моб. TAP детекция ===== */
+const TAP_SLOP = 10;      // px
+const TAP_MAX_MS = 350;   // ms
 
 /* ===== ПЛАТФОРМА ===== */
 const MOBILE_BREAKPOINT = 768;
@@ -47,8 +51,6 @@ const clamp = (v,min,max)=>Math.min(Math.max(v,min),max);
 const clamp01 = (x)=>Math.max(0,Math.min(1,x));
 const randInt = (min,max)=>Math.floor(min + Math.random()*(max-min+1));
 const parseSeq = (url)=>{ const f=(url.split("/").pop()||"").toLowerCase(); const m=f.match(/(\d+)(?=\.(jpg|jpeg|png|webp)$)/i); return m?parseInt(m[1],10):Number.MAX_SAFE_INTEGER; };
-const shuffle = (a)=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; };
-
 
 export default function MosaicBackground() {
   const canvasRef = useRef(null), ctxRef = useRef(null);
@@ -80,6 +82,11 @@ export default function MosaicBackground() {
   const prevHoverColRef = useRef(-1);
   const prevHoverRowRef = useRef(-1);
   const clickedTileIdRef = useRef(-1);
+
+  /* Для моб. TAP */
+  const pointerActiveRef = useRef(false);
+  const touchStartRef = useRef({x:0,y:0,t:0,id:-1});
+  const dragFlagRef = useRef(false);
 
   const readySentRef = useRef(false);
   const [isMobile, setIsMobile] = useState(
@@ -263,10 +270,8 @@ export default function MosaicBackground() {
     const onResize=()=>{ 
       setIsMobile(window.innerWidth<=MOBILE_BREAKPOINT);
       clickedTileIdRef.current = -1; 
-      // Перераскладываем на полный экран: сбрасываем тайлы и создаём заново
       tilesRef.current = [];
       initTiles(true);
-      // Возвращаем текущую фазу волной, если пулы готовы
       const ph = phaseRef.current;
       if ((ph === "mobile" && mobilePoolRef.current.length) ||
           (ph === "desktop" && desktopPoolRef.current.length)) {
@@ -313,10 +318,8 @@ export default function MosaicBackground() {
         tileH=Math.ceil(h/rows);
       }
       gridRef.current={ cols, rows, tileW, tileH };
-      // Полный пересчёт тайлов при изменении сетки
       tilesRef.current = [];
       initTiles(true);
-      // Возврат текущей фазы
       const ph = phaseRef.current;
       if ((ph === "mobile" && mobilePoolRef.current.length) ||
           (ph === "desktop" && desktopPoolRef.current.length)) {
@@ -651,7 +654,7 @@ export default function MosaicBackground() {
       prevHoverIdRef.current=hoveredId;
     }
 
-    // === АВТОСБРОС ЗУМА (ТОЛЬКО ДЕСКТОП) ПРИ УХОДЕ ЗА ПРЕДЕЛЫ 2-ГО КОЛЬЦА ===
+    // автосброс зума (десктоп)
     if (!isMobile && clickedTileIdRef.current >= 0) {
       const c0 = clickedTileIdRef.current % cols;
       const r0 = Math.floor(clickedTileIdRef.current / cols);
@@ -659,11 +662,11 @@ export default function MosaicBackground() {
         ? Math.max(Math.abs(mc - c0), Math.abs(mr - r0))
         : Infinity;
       if (distRing > CLEAR_RING_DESKTOP) {
-        clickedTileIdRef.current = -1; // сброс зума
+        clickedTileIdRef.current = -1;
       }
     }
 
-    // масштаб
+    // плавный масштаб тайлов
     const HOVER_MUL = isMobile ? HOVER_BOOST_MOBILE : HOVER_BOOST;
     const order=new Array(tiles.length);
     for(let i=0;i<tiles.length;i++){
@@ -729,17 +732,12 @@ export default function MosaicBackground() {
         const marginY = isMobile ? hView * 0.03 : Math.max(16, hView * 0.04);
 
         if (isMobile) {
-          // ==== МОБИЛЬНЫЙ ЗУМ (фикс без дёрганий) ====
-          // ЛОКА: запрещаем авто-скидку по "не тот тайл": больше не трогаем clickedTileId до pointerup
           const availW = wView - marginX * 2;
           const scale = availW / img.width;
           const drawW = Math.floor(img.width * scale);
           const drawH = Math.floor(img.height * scale);
-
-          // центрируем по X
           const drawX = Math.floor((wView - drawW) / 2);
 
-          // якорим по верху/низу в зависимости от положения исходного тайла
           const tileCenterY = tile.r * tileH + tileH / 2;
           const anchorTop = tileCenterY < (hView / 2);
           const extraBottom = -hView * 0.01;
@@ -755,11 +753,9 @@ export default function MosaicBackground() {
           ctx.restore();
 
         } else {
-          // ==== ДЕСКТОПНЫЙ ЗУМ: 60% реального размера, с ограничением по вьюпорту ====
           const NAT_W = img.width * 0.60;
           const NAT_H = img.height * 0.60;
 
-          // вписываем в окно с небольшими полями
           let drawW = Math.min(NAT_W, wView - marginX*2);
           let drawH = NAT_H * (drawW / NAT_W);
           if (drawH > hView - marginY*2) {
@@ -767,7 +763,6 @@ export default function MosaicBackground() {
             drawW = NAT_W * (drawH / NAT_H);
           }
 
-          // позиционируем к центру кликнутого тайла, но не выходим за края
           const tileCenterX = tile.c * tileW + tileW / 2;
           const tileCenterY2 = tile.r * tileH + tileH / 2;
           let drawX = Math.round(tileCenterX - drawW/2);
@@ -785,10 +780,7 @@ export default function MosaicBackground() {
       }
     }
 
-    // ВАЖНО: убрали авто-скидку на мобиле при небольшом смещении пальца (устранение дёргания)
-    // if (isMobile && ct>=0 && ct!==hoveredId) clickedTileIdRef.current = -1;
-
-    // «живая» случайная жизнь — только после desktop-фазы
+    // случайная жизнь — после desktop-фазы
     if(allowRandomRef.current && !doingWaveRef.current && t>=waveRef.current.nextWaveAt){
       const oc=randInt(0,cols-1), or=randInt(0,rows-1);
       const start=t;
@@ -803,52 +795,100 @@ export default function MosaicBackground() {
     drawVeil(ctx);
   }
 
-  /* ===== События ===== */
+  /* ===== Хелперы событий ===== */
   const updateMouse = (clientX, clientY) => {
     const r=canvasRef.current.getBoundingClientRect();
     mouseRef.current={ x:clientX-r.left, y:clientY-r.top };
   };
-  const onMouseMove=(e)=> updateMouse(e.clientX, e.clientY);
-  const onMouseLeave=()=>{ mouseRef.current={x:-1e6,y:-1e6}; clickedTileIdRef.current=-1; prevHoverIdRef.current=-1; prevHoverColRef.current=-1; };
-  const onClick=()=>{ 
+  const hoveredTileId = ()=>{
     const { cols,tileW,tileH }=gridRef.current; 
     const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH); 
-    if(mc<0||mr<0) return; 
-    const id=mr*cols+mc; 
-    const t=tilesRef.current[id]; 
-    if(!t||!t.img) return; 
-    clickedTileIdRef.current=id; 
+    if(mc<0||mr<0) return -1; 
+    return mr*cols+mc;
   };
 
-  const pointerActiveRef=useRef(false);
-  const onPointerDown=(e)=>{ 
-    updateMouse(e.clientX, e.clientY); 
-    pointerActiveRef.current=true; 
-    canvasRef.current.setPointerCapture?.(e.pointerId); 
-    onClick(); 
-  };
-  const onPointerMove=(e)=>{ 
-    if(isMobile && pointerActiveRef.current && e.cancelable) e.preventDefault(); 
-    updateMouse(e.clientX, e.clientY); 
-  };
-  const onPointerUp=()=>{ 
-    pointerActiveRef.current=false; 
-    // На мобиле убираем зум по отпусканию пальца — это и есть "закрытие" без дёрганий
-    clickedTileIdRef.current=-1; 
-  };
+  /* ===== ГЛОБАЛЬНЫЕ слушатели (важно: канвас pointer-events:none) ===== */
+  useEffect(() => {
+    const onMove = (e) => updateMouse(e.clientX, e.clientY);
 
+    const onLeave = () => {
+      mouseRef.current = { x: -1e6, y: -1e6 };
+      if (!isMobile) clickedTileIdRef.current = -1;
+      prevHoverIdRef.current = -1;
+      prevHoverColRef.current = -1;
+      prevHoverRowRef.current = -1;
+    };
+
+    const onClickWin = () => {
+      if (isMobile) return;
+      const { cols, tileW, tileH } = gridRef.current;
+      const mc = Math.floor(mouseRef.current.x / tileW);
+      const mr = Math.floor(mouseRef.current.y / tileH);
+      if (mc < 0 || mr < 0) return;
+      const id = mr * cols + mc;
+      const t = tilesRef.current[id];
+      if (!t || !t.img) return;
+      clickedTileIdRef.current = id;
+    };
+
+    // мобильные жесты: TAP (открыть/закрыть), скролл — закрыть
+    const onPD = (e) => {
+      updateMouse(e.clientX, e.clientY);
+      pointerActiveRef.current = true;
+      dragFlagRef.current = false;
+      touchStartRef.current = { x:e.clientX, y:e.clientY, t:performance.now(), id: hoveredTileId() };
+      if (!isMobile) onClickWin();
+    };
+    const onPM = (e) => {
+      updateMouse(e.clientX, e.clientY);
+      if (isMobile && pointerActiveRef.current) {
+        const dx = e.clientX - touchStartRef.current.x;
+        const dy = e.clientY - touchStartRef.current.y;
+        if (!dragFlagRef.current && Math.hypot(dx,dy) > TAP_SLOP) {
+          dragFlagRef.current = true; // это скролл/перетаскивание — overlay закрыть
+          clickedTileIdRef.current = -1;
+        }
+      }
+    };
+    const onPU = () => {
+      if (isMobile) {
+        const dt = performance.now() - touchStartRef.current.t;
+        const idUp = hoveredTileId();
+        const isTap = !dragFlagRef.current && dt <= TAP_MAX_MS && idUp>=0;
+        if (isTap) {
+          // toggle: если уже открыт этот же — закроем, иначе откроем на новом
+          clickedTileIdRef.current = (clickedTileIdRef.current === idUp) ? -1 : idUp;
+        }
+      }
+      pointerActiveRef.current=false;
+    };
+    const onPC = () => { pointerActiveRef.current=false; if (isMobile) clickedTileIdRef.current=-1; };
+
+    window.addEventListener("mousemove", onMove, { passive: true });
+    window.addEventListener("mouseleave", onLeave, { passive: true });
+    window.addEventListener("click", onClickWin, { passive: true });
+    window.addEventListener("pointerdown", onPD, { passive: true });
+    window.addEventListener("pointermove", onPM, { passive: true });
+    window.addEventListener("pointerup", onPU, { passive: true });
+    window.addEventListener("pointercancel", onPC, { passive: true });
+
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseleave", onLeave);
+      window.removeEventListener("click", onClickWin);
+      window.removeEventListener("pointerdown", onPD);
+      window.removeEventListener("pointermove", onPM);
+      window.removeEventListener("pointerup", onPU);
+      window.removeEventListener("pointercancel", onPC);
+    };
+  }, [isMobile]);
+
+  /* ===== РЕНДЕР КАНВАСА (без обработчиков, не перехватывает клики) ===== */
   return (
     <canvas
       ref={canvasRef}
       className="mosaic-canvas absolute top-0 left-0 w-full h-full z-10"
-      style={{ touchAction: isMobile ? "none" : "auto" }}
-      onMouseMove={onMouseMove}
-      onMouseLeave={onMouseLeave}
-      onClick={onClick}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      style={{ pointerEvents: "none" }}
     />
   );
 }
