@@ -850,6 +850,7 @@ if (isMobile && !pointerActiveRef.current) {
       dragFlagRef.current = false;
       touchStartRef.current = { x:e.clientX, y:e.clientY, t:performance.now(), id: hoveredTileId() };
       if (!isMobile) onClickWin();
+      primeSound();
     };
     const onPM = (e) => {
       updateMouse(e.clientX, e.clientY);
@@ -863,18 +864,27 @@ if (isMobile && !pointerActiveRef.current) {
       }
     };
     const onPU = () => {
-      if (isMobile) {
-        const dt = performance.now() - touchStartRef.current.t;
-        const idUp = hoveredTileId();
-        const isTap = !dragFlagRef.current && dt <= TAP_MAX_MS && idUp>=0;
-        if (isTap) {
-          // toggle: если уже открыт этот же — закроем, иначе откроем на новом
-          clickedTileIdRef.current = (clickedTileIdRef.current === idUp) ? -1 : idUp;
-        }
-      }
-      pointerActiveRef.current=false;
-    };
-    const onPC = () => { pointerActiveRef.current=false; if (isMobile) clickedTileIdRef.current=-1; };
+  if (isMobile) {
+    const dt = performance.now() - touchStartRef.current.t;
+    const idUp = hoveredTileId();
+    const isTap = !dragFlagRef.current && dt <= TAP_MAX_MS && idUp>=0;
+    if (isTap) {
+      clickedTileIdRef.current = (clickedTileIdRef.current === idUp) ? -1 : idUp;
+    }
+    // << ключевая строка — убираем «ховер» после отпускания
+    mouseRef.current = { x: -1e6, y: -1e6 };
+  }
+  pointerActiveRef.current = false;
+   primeSound();
+};
+    const onPC = () => {
+  pointerActiveRef.current = false;
+  if (isMobile) {
+    clickedTileIdRef.current = -1;
+    // << тоже сбрасываем координаты
+    mouseRef.current = { x: -1e6, y: -1e6 };
+  }
+};
 
     window.addEventListener("mousemove", onMove, { passive: true });
     window.addEventListener("mouseleave", onLeave, { passive: true });
