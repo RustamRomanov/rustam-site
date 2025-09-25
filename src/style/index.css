@@ -3,13 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* фон должен просвечивать: не задавай чёрный фон html/body */
-html, body { background: transparent; }
-
-/* (не обязательно, просто именованные классы из App.jsx) */
-.ios-scroll-track { -webkit-overflow-scrolling: touch; }
-.sticky-viewport  { contain: paint; }
-
 
 /* ========= Fonts (GLOBAL, вне любых @media!) ========= */
 /* — ABC_TypeWriterRussian (используется в мобильной и десктопной биографии) */
