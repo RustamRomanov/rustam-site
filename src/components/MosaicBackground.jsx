@@ -55,11 +55,34 @@ const clamp01 = (x)=>Math.max(0,Math.min(1,x));
 const randInt = (min,max)=>Math.floor(min + Math.random()*(max-min+1));
 const parseSeq = (url)=>{ const f=(url.split("/").pop()||"").toLowerCase(); const m=f.match(/(\d+)(?=\.(jpg|jpeg|png|webp)$)/i); return m?parseInt(m[1],10):Number.MAX_SAFE_INTEGER; };
 
-const getVP = () => {
-  const w = Math.max(document.documentElement?.clientWidth || 0, window.innerWidth || 0) || 1;
-  const h = Math.max(document.documentElement?.clientHeight || 0, window.innerHeight || 0) || 1;
-  return { w: Math.round(w), h: Math.round(h) };
+// === измеряем 100lvh (большой вьюпорт под панелями iOS) ===
+const ensureLVHProbe = () => {
+  let p = document.getElementById("__lvh_probe__");
+  if (!p) {
+    p = document.createElement("div");
+    p.id = "__lvh_probe__";
+    p.style.position = "fixed";
+    p.style.top = "0";
+    p.style.left = "0";
+    p.style.width = "0";
+    p.style.height = "100lvh";      // КЛЮЧ: большая высота
+    p.style.pointerEvents = "none";
+    p.style.opacity = "0";
+    p.style.zIndex = "-1";
+    document.documentElement.appendChild(p);
+  }
+  return p;
 };
+
+const getCanvasSize = () => {
+  const w = Math.max(1, Math.round(window.innerWidth));
+  const probe = document.getElementById("__lvh_probe__");
+  const h = probe
+    ? Math.max(1, Math.round(probe.getBoundingClientRect().height))
+    : Math.max(1, Math.round(window.innerHeight));
+  return { w, h };
+};
+
 
 
 export default function MosaicBackground() {
@@ -311,50 +334,74 @@ const getCanvasSize = () => {
     return ()=>{ document.body.style.overflow=prev; };
   },[isMobile]);
 
-  useEffect(()=>{
-    const canvas=canvasRef.current; if(!canvas) return;
-    const ctx=canvas.getContext("2d",{alpha:false}); if(!ctx) return;
-    ctxRef.current=ctx;
+  useEffect(() => {
+  const canvas = canvasRef.current; if (!canvas) return;
+  const ctx = canvas.getContext("2d", { alpha: false }); if (!ctx) return;
+  ctxRef.current = ctx;
 
-    const resize=()=>{
-      const dpr=(window.innerWidth<=MOBILE_BREAKPOINT)?1:Math.max(1,Math.min(3,window.devicePixelRatio||1));
-      const { w, h } = getVP();
-      canvas.style.width=`${w}px`; canvas.style.height=`${h}px`;
-      canvas.width=Math.floor(w*dpr); canvas.height=Math.floor(h*dpr);
-      ctx.setTransform(dpr,0,0,dpr,0,0);
+  // создаём probe 100lvh
+  const probe = ensureLVHProbe();
 
-      let cols, rows, tileW, tileH;
-      if(window.innerWidth<=MOBILE_BREAKPOINT){
-        cols=8;
-        tileW=Math.floor(w/cols);
-        tileH=Math.max(1,Math.floor(tileW*9/16));
-        rows=Math.ceil(h/tileH)+1;
-      }else{
-        cols=Math.max(1,Math.ceil(w/BASE_TILE_W));
-        rows=Math.max(1,Math.ceil(h/BASE_TILE_H));
-        tileW=Math.ceil(w/cols);
-        tileH=Math.ceil(h/rows);
-      }
-      gridRef.current={ cols, rows, tileW, tileH };
-      tilesRef.current = [];
-      initTiles(true);
-      const ph = phaseRef.current;
-      if ((ph === "mobile" && mobilePoolRef.current.length) ||
-          (ph === "desktop" && desktopPoolRef.current.length)) {
-        schedulePhaseWave(ph);
-      }
-      tryScheduleNextPhase();
-    };
+  const resize = () => {
+    const dpr = (window.innerWidth <= MOBILE_BREAKPOINT)
+      ? 1
+      : Math.max(1, Math.min(3, window.devicePixelRatio || 1));
 
-   resize();
-  window.addEventListener("resize", resize);
-  window.addEventListener("orientationchange", resize);
+    const { w, h } = getCanvasSize(); // КЛЮЧ: берём 100lvh
+    // CSS-размеры канваса
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    // Реальные пиксели буфера
+    canvas.width  = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    // Единицы рисования = CSS-пиксели
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // — сетка
+    let cols, rows, tileW, tileH;
+    if (window.innerWidth <= MOBILE_BREAKPOINT) {
+      cols = 8;
+      tileW = Math.floor(w / cols);
+      tileH = Math.max(1, Math.floor(tileW * 9 / 16));
+      rows = Math.ceil(h / tileH) + 1;
+    } else {
+      cols = Math.max(1, Math.ceil(w / BASE_TILE_W));
+      rows = Math.max(1, Math.ceil(h / BASE_TILE_H));
+      tileW = Math.ceil(w / cols);
+      tileH = Math.ceil(h / rows);
+    }
+    gridRef.current = { cols, rows, tileW, tileH };
+
+    // полный пересчёт
+    tilesRef.current = [];
+    initTiles(true);
+
+    // вернуть текущую фазу волной, если готово
+    const ph = phaseRef.current;
+    if ((ph === "mobile" && mobilePoolRef.current.length) ||
+        (ph === "desktop" && desktopPoolRef.current.length)) {
+      schedulePhaseWave(ph);
+    }
+    tryScheduleNextPhase();
+  };
+
+  resize();
+
+  // слушатели
+  const vv = window.visualViewport;
+  window.addEventListener("resize", resize, { passive: true });
+  window.addEventListener("orientationchange", resize, { passive: true });
+  vv?.addEventListener("resize", resize, { passive: true });
+  vv?.addEventListener("scroll", resize, { passive: true });
 
   return () => {
     window.removeEventListener("resize", resize);
     window.removeEventListener("orientationchange", resize);
+    vv?.removeEventListener("resize", resize);
+    vv?.removeEventListener("scroll", resize);
   };
 }, []);
+
 
   /* ===== Списки URL для mobile/desktop ===== */
   const fetchListForBase = useCallback(async (base)=>{
@@ -613,39 +660,29 @@ const getCanvasSize = () => {
   }
 
   function drawVeil(ctx, w, h){
-  // если вуаль выключена глобально — ничего не делаем
-  if (!VEIL_ENABLED) return;
-
+  if(!VEIL_ENABLED) return;
   const mx = mouseRef.current.x, my = mouseRef.current.y;
-  const hasPointer = (mx > -1e5 && my > -1e5);
+  const noPointer = !(mx > -1e5 && my > -1e5);
 
-  // === ГЛАВНОЕ ИЗМЕНЕНИЕ ===
-  // На тач-устройствах НЕ рисуем чёрную пелену, пока нет касания/курсор не внутри.
-  // Это убирает «чёрные поля» на iOS.
-  if (IS_TOUCH && !hasPointer) return;
-
-  // дальше — как было: либо десктоп, либо мобилка при активном касании
-  if (!hasPointer) {
-    // fallback (десктоп со скрытым курсором): лёгкая затемняющая подложка
+  if(noPointer){
     ctx.globalAlpha = VEIL_ALPHA;
     ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0,0,w,h);
     ctx.globalAlpha = 1;
     return;
   }
 
   const r = clamp(VEIL_HOLE_R, VEIL_MIN_R, VEIL_MAX_R);
   const outer = r + VEIL_FEATHER;
-  const g = ctx.createRadialGradient(mx, my, Math.max(1, r * 0.3), mx, my, outer);
+  const g = ctx.createRadialGradient(mx, my, Math.max(1, r*0.3), mx, my, outer);
   const innerStop = r / outer;
-
   g.addColorStop(0, "rgba(0,0,0,0)");
   g.addColorStop(clamp01(innerStop), "rgba(0,0,0,0)");
   g.addColorStop(1, `rgba(0,0,0,${VEIL_ALPHA})`);
-
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(0,0,w,h);
 }
+
 
 
   function draw(t){
