@@ -487,7 +487,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         <img src={imageSrc} alt="bio-mobile"
              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "90% 22%" }} />
         <div className="bio-scroll-m"
-             style={{ position: "absolute", left: "6%", right: "6%", top: TEXT_TOP_PX, bottom: "5%", overflow: "auto",
+             style={{ position: "absolute", left: "6%", right: "6%", top: TEXT_TOP_PX, bottom: `calc(5% + env(safe-area-inset-bottom, 0px))`, overflow: "auto",
                       color: "#000", fontFamily: "'ABC_TypeWriterRussian', system-ui, -apple-system, 'Segoe UI', Roboto",
                       fontSize: FS_PX, lineHeight: LINE_HEIGHT, paddingRight: 12, textShadow: "none",
                       whiteSpace: "pre-wrap", textAlign: "justify", paddingLeft: `${FS_PX * 1}px`, textAlignLast: "left" }}>
@@ -750,7 +750,7 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
         onPointerDown={(e)=> e.stopPropagation()}
         style={{
           position:"absolute", left:"50%", transform:"translateX(-50%)",
-          bottom:"6%", padding:"10px 16px", borderRadius:999,
+          bottom: `calc(6% + env(safe-area-inset-bottom, 0px))`, padding:"10px 16px", borderRadius:999,
           background:"rgba(0,0,0,0.55)", color:"#fff",
           border:"1px solid rgba(255,255,255,0.35)",
           fontFamily:"UniSans-Heavy, 'Uni Sans'", letterSpacing:"0.06em",
