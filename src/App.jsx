@@ -3,28 +3,21 @@ import * as React from "react";
 import MosaicBackground from "./components/MosaicBackground.jsx";
 import CenterRevealCard from "./components/CenterRevealCard.jsx";
 
+/** Страховка от «белого экрана» */
 class ErrorBoundary extends React.Component {
-  constructor(p){ super(p); this.state = { hasError:false, err:null }; }
-  static getDerivedStateFromError(err){ return { hasError:true, err }; }
-  componentDidCatch(err, info){ console.error("[ErrorBoundary]", err, info); }
+  constructor(p){ super(p); this.state={hasError:false,err:null}; }
+  static getDerivedStateFromError(err){ return {hasError:true,err}; }
+  componentDidCatch(err,info){ console.error("[ErrorBoundary]", err, info); }
   render(){
-    if (this.state.hasError){
+    if(this.state.hasError){
       return (
         <div style={{
-          position: "absolute",
-          inset: 0,
-          display: "grid",
-          placeItems: "center",
-          background: "#000",
-          color: "#f55",
-          fontFamily: "monospace",
-          padding: 16,
-          textAlign: "center",
-          zIndex: 99999
+          position:"absolute", inset:0, display:"grid", placeItems:"center",
+          background:"#000", color:"#f55", fontFamily:"monospace", padding:16, textAlign:"center", zIndex:99999
         }}>
           <div>
-            <div style={{ fontSize: 16, marginBottom: 8 }}>Компонент упал при рендере.</div>
-            <div style={{ fontSize: 14, opacity: 0.8 }}>Открой DevTools → Console.</div>
+            <div style={{ fontSize:16, marginBottom:8 }}>Компонент упал при рендере.</div>
+            <div style={{ fontSize:14, opacity:0.8 }}>Открой DevTools → Console.</div>
           </div>
         </div>
       );
@@ -36,36 +29,15 @@ class ErrorBoundary extends React.Component {
 export default function App(){
   return (
     <>
-      {/* ФОН (канвас): фикс под всем UI, высота по --vvh */}
-      <div
-        style={{
-          position: "fixed",
-          left: 0,
-          top: 0,
-          width: "100vw",
-          height: "var(--vvh, 100svh)", // ключ: реальная видимая высота
-          zIndex: 1,
-          pointerEvents: "none",       // канвас слушает окно; слой фон не перехватывает клики
-          background: "transparent",
-        }}
-      >
+      {/* ФОН: фикс под всем UI, тянется на 100lvh (закрывает «чёлку» и низ) */}
+      <div className="bg-fixed-under-ui">
         <ErrorBoundary>
           <MosaicBackground />
         </ErrorBoundary>
       </div>
 
-      {/* КОНТЕНТ (поверх фона): тоже ровно на видимую высоту */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 2,
-          width: "100vw",
-          height: "var(--vvh, 100svh)", // ключ: та же высота
-          minHeight: "-webkit-fill-available",
-          overflow: "hidden",
-          background: "transparent",
-        }}
-      >
+      {/* КОНТЕНТ: ровно видимая высота (—vvh из main.jsx), без скролла */}
+      <div className="app">
         <ErrorBoundary>
           <div id="hero-card" style={{ position: "relative" }}>
             <CenterRevealCard />

@@ -125,6 +125,7 @@
   --bg: #000;
   --fg: #fff;
   overscroll-behavior: none;
+  --vvh: 100svh; /* fallback, пока main.jsx не применил реальные пиксели */
 
   /* safe-area (работает при viewport-fit=cover) */
   --safe-t: env(safe-area-inset-top, 0px);
@@ -137,13 +138,13 @@
 *::before,
 *::after { box-sizing: border-box; }
 
-/* КЛЮЧ: растягиваем корень на визуальный вьюпорт iOS — без чёрных полос */
+/* Корень растягиваем на «большую» высоту устройства, без прокрутки */
 html, body, #root {
   margin: 0;
   padding: 0;
-  height: var(--vvh, 100svh);          /* ← ключ */
-  min-height: var(--vvh, 100svh);
   background: #000;
+  width: 100%;
+  min-height: 100lvh;                 /* заполняем весь экран, включая зоны под UI */
 }
 
 html, body {
@@ -155,8 +156,9 @@ html, body {
   touch-action: manipulation;
 }
 
-/* учитываем нижний дом-бар всегда */
-body { padding-bottom: var(--safe-b); }
+body {
+  overflow: hidden;                    /* сайт без вертикального скролла */
+}
 
 #root { isolation: isolate; }
 
@@ -185,27 +187,27 @@ button, input, select, textarea {
 }
 
 /* ========= Layout ========= */
-/* ВАЖНО: .app занимает визуальный вьюпорт, без 100vh */
+/* Контент: занимает видимую высоту (устанавливается в main.jsx через --vvh) */
 .app {
   position: relative;
   z-index: 2;                        /* над фоном */
   width: 100vw;
-  height: 100lvh;                    /* CHANGED */
-  min-height: 100lvh;                /* страховка */
+  height: var(--vvh, 100svh);        /* именно видимая высота — без чёрных полос */
+  min-height: var(--vvh, 100svh);
   overflow: hidden;
   background: transparent;
 }
 
-/* Фикс-подложка фона на всю область. ДОЛЖНА принимать события для канваса. */
+/* Фон: тянем на «большую» высоту 100lvh, чтобы перекрыть зоны под UI */
 .bg-fixed-under-ui {
   position: fixed;
   inset: 0;
   width: 100vw;
-  height: 100lvh;      /* фон тянется под UI-панели */
+  height: 100lvh;                    /* фон тянется под UI-панели */
   z-index: 0;
-  pointer-events: none;   /* ← ВАЖНО: слой не перехватывает клики */
+  pointer-events: none;              /* слой не перехватывает клики */
   overflow: hidden;
-  background: transparent;
+  background: #000;                  /* подложка, пока канвас рисует */
 }
 
 /* ========= Utility helpers ========= */
