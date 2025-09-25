@@ -300,39 +300,52 @@ export default function MosaicBackground() {
     const ctx=canvas.getContext("2d",{alpha:false}); if(!ctx) return;
     ctxRef.current=ctx;
 
-    const resize=()=>{
-      const dpr=(window.innerWidth<=MOBILE_BREAKPOINT)?1:Math.max(1,Math.min(3,window.devicePixelRatio||1));
-      const w=window.innerWidth, h=window.innerHeight;
-      canvas.style.width=`${w}px`; canvas.style.height=`${h}px`;
-      canvas.width=Math.floor(w*dpr); canvas.height=Math.floor(h*dpr);
-      ctx.setTransform(dpr,0,0,dpr,0,0);
+    const resize = () => {
+  const dpr = (window.innerWidth <= MOBILE_BREAKPOINT)
+    ? 1
+    : Math.max(1, Math.min(3, window.devicePixelRatio || 1));
 
-      let cols, rows, tileW, tileH;
-      if(window.innerWidth<=MOBILE_BREAKPOINT){
-        cols=8;
-        tileW=Math.floor(w/cols);
-        tileH=Math.max(1,Math.floor(tileW*9/16));
-        rows=Math.ceil(h/tileH)+1;
-      }else{
-        cols=Math.max(1,Math.ceil(w/BASE_TILE_W));
-        rows=Math.max(1,Math.ceil(h/BASE_TILE_H));
-        tileW=Math.ceil(w/cols);
-        tileH=Math.ceil(h/rows);
-      }
-      gridRef.current={ cols, rows, tileW, tileH };
-      tilesRef.current = [];
-      initTiles(true);
-      // сразу запускаем доступную фазу, чтобы "сразу работало"
-      pendingPhasesRef.current = [];
-      allowRandomRef.current = false;
-      if (isMobile) {
-        if (mobilePoolRef.current.length) schedulePhaseWave("mobile");
-      } else {
-        if (mobilePoolRef.current.length) enqueuePhase("mobile");
-        if (desktopPoolRef.current.length) enqueuePhase("desktop");
-        tryScheduleNextPhase();
-      }
-    };
+  // КЛЮЧ: берём размер у контейнера (100lvh), а не у окна
+  const host = canvas.parentElement || document.documentElement;
+  const w = Math.max(1, host.clientWidth);
+  const h = Math.max(1, host.clientHeight);
+
+  // Визуальный размер — всегда 100% родителя (без px!)
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+
+  // Внутренний буфер под DPI — по реальному размеру контейнера
+  canvas.width  = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // дальше без изменений...
+  let cols, rows, tileW, tileH;
+  if (window.innerWidth <= MOBILE_BREAKPOINT) {
+    cols = 8;
+    tileW = Math.floor(w / cols);
+    tileH = Math.max(1, Math.floor(tileW * 9 / 16));
+    rows = Math.ceil(h / tileH) + 1;
+  } else {
+    cols = Math.max(1, Math.ceil(w / BASE_TILE_W));
+    rows = Math.max(1, Math.ceil(h / BASE_TILE_H));
+    tileW = Math.ceil(w / cols);
+    tileH = Math.ceil(h / rows);
+  }
+  gridRef.current = { cols, rows, tileW, tileH };
+  tilesRef.current = [];
+  initTiles(true);
+  pendingPhasesRef.current = [];
+  allowRandomRef.current = false;
+  if (isMobile) {
+    if (mobilePoolRef.current.length) schedulePhaseWave("mobile");
+  } else {
+    if (mobilePoolRef.current.length) enqueuePhase("mobile");
+    if (desktopPoolRef.current.length) enqueuePhase("desktop");
+    tryScheduleNextPhase();
+  }
+};
+
 
     resize();
     window.addEventListener("resize",resize);

@@ -49,26 +49,22 @@ class ErrorBoundary extends React.Component {
 
 export default function App() {
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100vw",
-        height: "100vh",
-        overflow: "hidden",
-        backgroundColor: "#000",
-      }}
-    >
-      {/* Фон-мозаика (канвас) */}
-      <ErrorBoundary>
-        <MosaicBackground />
-      </ErrorBoundary>
+    <>
+      {/* ❶ ФОН — отдельный фикс-слой под всем контентом */}
+      <div className="bg-fixed-under-ui">
+        <ErrorBoundary>
+          <MosaicBackground />
+        </ErrorBoundary>
+      </div>
 
-      {/* Центральная плашка (десктоп/мобайл внутри) */}
-      <ErrorBoundary>
-        <div id="hero-card" style={{ position: "relative", zIndex: 30 }}>
-          <CenterRevealCard />
-        </div>
-      </ErrorBoundary>
-    </div>
+      {/* ❷ КОНТЕНТ — поверх фона, без чёрного фона */}
+      <div className="app">
+        <ErrorBoundary>
+          <div id="hero-card" style={{ position: "relative", zIndex: 30 }}>
+            <CenterRevealCard />
+          </div>
+        </ErrorBoundary>
+      </div>
+    </>
   );
 }
