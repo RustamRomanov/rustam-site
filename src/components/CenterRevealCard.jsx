@@ -323,7 +323,21 @@ const TEXT_SHIFT = Math.round(D * 0.05);
             <div style={{ maxWidth: maxTextWidth, color:"rgba(255,255,255,0.95)", transform:`translateY(${TEXT_SHIFT}px)` }}>
               <FitHeader text="Режиссёр · Продюсер · Сценарист"/>
               <div style={{ height: 20 }}/>
-              <BodyLine>100+ артистов · 200+ проектов · 2+ млрд просмотров</BodyLine>
+              <BodyLine mt={Math.round(D * 0.018)}>
+  <span style={{
+    display: "inline-block",
+    whiteSpace: "nowrap",
+    maxWidth: Math.round(D * 0.95), // ближе к краю круга
+    fontFamily: "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto",
+    fontWeight: 700,
+    fontSize: BODY_FS + bodyInc,
+    lineHeight: 1.24,
+    letterSpacing: "0.02em",
+    color: "rgba(255,255,255,0.95)"
+  }}>
+    100+ артистов · 200+ проектов · 2+ млрд просмотров
+  </span>
+</BodyLine>
                <div style={{ height: 15 }}/>
               <BodyLine mt={Math.round(D * 0.022)}>Имею большой опыт работы с топовыми артистами и селебрити-блогерами. Оперативно пишу тритменты, мотивирую команду и соблюдаю дедлайны. </BodyLine>
                <BodyLine> Для меня каждый проект — это эмоции, </BodyLine>
