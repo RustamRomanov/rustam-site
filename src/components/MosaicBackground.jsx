@@ -35,7 +35,7 @@ const TRY_EXTS = ["jpg","jpeg","png","webp"];
 const MAX_INDEX_SCAN = 10000;
 
 /* ===== АНТИ-БЛИЗОСТЬ ===== */
-const NEI_RADIUS = 10;
+const NEI_RADIUS = 2;
 const NEI_DELTA  = 15;
 
 /* ===== ВУАЛЬ (тёмная пелена с «дыркой» у курсора) ===== */
@@ -498,9 +498,9 @@ export default function MosaicBackground() {
     const waveTime = WAVE_STEP * Math.max(cols, rows) + 2200;
     setTimeout(()=>{
       doingWaveRef.current = false;
-      if(target==="desktop"){
-        allowRandomRef.current = true;
-      }
+      if (target === "mobile" || target === "desktop") {
+  allowRandomRef.current = true;
+}
       tryScheduleNextPhase();
     }, waveTime);
   }
@@ -518,17 +518,25 @@ export default function MosaicBackground() {
     return list;
   }
   function penaltyForImg(candidateImg, candidateSeq, id, tiles, cols, rows){
-    let pen=0;
-    for(const j of neighborsOf(id, cols, rows)){
-      const t=tiles[j]; if(!t) continue;
-      const a = t.fading ? (t.img || t.prevImg) : t.img;
-      if(!a) continue;
-      if(a === candidateImg){ pen += 10000; continue; }
-      const neighborSeq = t._seq;
-      if(neighborSeq!=null && candidateSeq!=null && Math.abs(neighborSeq - candidateSeq) <= NEI_DELTA) pen += 1;
+  let pen=0;
+  for(const j of neighborsOf(id, cols, rows)){
+    const t=tiles[j]; if(!t) continue;
+    const a = t.fading ? (t.img || t.prevImg) : t.img;
+    if(!a) continue;
+    if(a === candidateImg){ pen += 10000; continue; }
+
+    const neighborSeq = t._seq;
+    if (neighborSeq != null && candidateSeq != null) {
+      const seqDiff = Math.abs(neighborSeq - candidateSeq);
+      if (seqDiff <= NEI_DELTA) {
+        // если слишком похожие — штраф в 1000
+        pen += (NEI_DELTA - seqDiff + 1) * 10; // чем ближе, тем больше штраф
+      }
     }
-    return pen;
   }
+
+  return pen;
+}
   function pickFromPoolFor(id, targetTag, excludeImg){
     const pool = targetTag==="mobile" ? mobilePoolRef.current : desktopPoolRef.current;
     const seq  = targetTag==="mobile" ? mobileSeqRef.current  : desktopSeqRef.current;
@@ -568,6 +576,20 @@ export default function MosaicBackground() {
     rafRef.current = requestAnimationFrame(step);
   }
   useEffect(()=>()=>cancelAnimationFrame(rafRef.current),[]);
+
+  const resetHover = () => {
+  for (const t of tilesRef.current) {
+    t.hovered = false;
+  }
+};
+
+window.addEventListener("touchend", resetHover);
+window.addEventListener("touchcancel", resetHover);
+
+return () => {
+  window.removeEventListener("touchend", resetHover);
+  window.removeEventListener("touchcancel", resetHover);
+};
 
   function roundedRect(ctx,x,y,w,h,r){
     const rr=Math.max(0,Math.min(r,Math.min(w,h)/2));
