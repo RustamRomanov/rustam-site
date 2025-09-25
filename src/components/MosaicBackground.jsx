@@ -577,20 +577,6 @@ export default function MosaicBackground() {
   }
   useEffect(()=>()=>cancelAnimationFrame(rafRef.current),[]);
 
-  const resetHover = () => {
-  for (const t of tilesRef.current) {
-    t.hovered = false;
-  }
-};
-
-window.addEventListener("touchend", resetHover);
-window.addEventListener("touchcancel", resetHover);
-
-return () => {
-  window.removeEventListener("touchend", resetHover);
-  window.removeEventListener("touchcancel", resetHover);
-};
-
   function roundedRect(ctx,x,y,w,h,r){
     const rr=Math.max(0,Math.min(r,Math.min(w,h)/2));
     ctx.beginPath();
@@ -813,7 +799,11 @@ return () => {
       }
       waveRef.current.nextWaveAt = t + randInt(WAVE_PERIOD_MIN, WAVE_PERIOD_MAX);
     }
-
+if (isMobile && !pointerActiveRef.current) {
+  for (const tile of tilesRef.current) {
+    tile.scale += (1 - tile.scale) * LERP;
+  }
+}
     drawVeil(ctx);
   }
 
