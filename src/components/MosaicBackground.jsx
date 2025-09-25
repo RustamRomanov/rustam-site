@@ -52,6 +52,13 @@ const clamp01 = (x)=>Math.max(0,Math.min(1,x));
 const randInt = (min,max)=>Math.floor(min + Math.random()*(max-min+1));
 const parseSeq = (url)=>{ const f=(url.split("/").pop()||"").toLowerCase(); const m=f.match(/(\d+)(?=\.(jpg|jpeg|png|webp)$)/i); return m?parseInt(m[1],10):Number.MAX_SAFE_INTEGER; };
 
+const getVP = () => {
+  const vv = typeof window !== "undefined" ? window.visualViewport : null;
+  const w = Math.round((vv?.width || window.innerWidth) || 1);
+  const h = Math.round((vv?.height || window.innerHeight) || 1);
+  return { w, h };
+};
+
 export default function MosaicBackground() {
   const canvasRef = useRef(null), ctxRef = useRef(null);
 
@@ -300,7 +307,7 @@ export default function MosaicBackground() {
 
     const resize=()=>{
       const dpr=(window.innerWidth<=MOBILE_BREAKPOINT)?1:Math.max(1,Math.min(3,window.devicePixelRatio||1));
-      const w=window.innerWidth, h=window.innerHeight;
+      const { w, h } = getVP();
       canvas.style.width=`${w}px`; canvas.style.height=`${h}px`;
       canvas.width=Math.floor(w*dpr); canvas.height=Math.floor(h*dpr);
       ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -330,6 +337,11 @@ export default function MosaicBackground() {
 
     resize();
     window.addEventListener("resize",resize);
+    const vv = window.visualViewport;
+if (vv) {
+  vv.addEventListener("resize", resize, { passive: true });
+  vv.addEventListener("scroll", resize, { passive: true }); // адресная строка прячется/появляется
+}
     return ()=>window.removeEventListener("resize",resize);
   },[]);
 
@@ -614,7 +626,7 @@ export default function MosaicBackground() {
 
   function draw(t){
     const ctx=ctxRef.current; if(!ctx) return;
-    const w=window.innerWidth,h=window.innerHeight;
+     const { w, h } = getVP(); 
     ctx.clearRect(0,0,w,h); ctx.fillStyle="#000"; ctx.fillRect(0,0,w,h);
 
     if(!tilesRef.current.length) initTiles();

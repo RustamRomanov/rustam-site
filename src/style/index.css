@@ -140,8 +140,8 @@
 html, body, #root {
   margin: 0;
   padding: 0;
-  background: #000;                 /* CHANGED: было transparent */
-  height: 100%;                     /* помогает старым WebKit */
+  background: transparent;                /* CHANGED: было transparent */
+  height: auto;                     /* помогает старым WebKit */
   min-height: 100svh;               /* видимая высота */
   min-height: -webkit-fill-available; /* старые Safari */
 }
@@ -200,12 +200,12 @@ button, input, select, textarea {
 .bg-fixed-under-ui {
   position: fixed;
   inset: 0;
-  z-index: 1;                        /* под .app */
   width: 100vw;
-  height: 100svh;                    /* CHANGED: достаточно svh, inset:0 всё равно покрывает экран */
-  pointer-events: auto;              /* CHANGED: было none — из-за этого канвас не получал события */
+  height: 100svh;      /* фон тянется под UI-панели */
+  z-index: 0;
+  pointer-events: none;   /* ← ВАЖНО: слой не перехватывает клики */
   overflow: hidden;
-  background: #000;                  /* чтобы под канвасом не светило */
+  background: #000;
 }
 
 /* ========= Utility helpers ========= */
