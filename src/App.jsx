@@ -3,42 +3,20 @@ import * as React from "react";
 import MosaicBackground from "./components/MosaicBackground.jsx";
 import CenterRevealCard from "./components/CenterRevealCard.jsx";
 
-/** Страховка от «белого экрана», если что-то внутри упадёт */
 class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, err: null };
-  }
-  static getDerivedStateFromError(err) {
-    return { hasError: true, err };
-  }
-  componentDidCatch(err, info) {
-    console.error("[ErrorBoundary]", err, info);
-  }
-  render() {
-    if (this.state.hasError) {
+  constructor(p){ super(p); this.state={hasError:false,err:null}; }
+  static getDerivedStateFromError(err){ return {hasError:true,err}; }
+  componentDidCatch(err,info){ console.error("[ErrorBoundary]", err, info); }
+  render(){
+    if(this.state.hasError){
       return (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "grid",
-            placeItems: "center",
-            background: "#000",
-            color: "#f55",
-            fontFamily: "monospace",
-            padding: 16,
-            textAlign: "center",
-            zIndex: 99999,
-          }}
-        >
+        <div style={{
+          position:"absolute", inset:0, display:"grid", placeItems:"center",
+          background:"#000", color:"#f55", fontFamily:"monospace", padding:16, textAlign:"center", zIndex:99999
+        }}>
           <div>
-            <div style={{ fontSize: 16, marginBottom: 8 }}>
-              Компонент упал при рендере.
-            </div>
-            <div style={{ fontSize: 14, opacity: 0.8 }}>
-              Открой DevTools → Console, там будет точная ошибка.
-            </div>
+            <div style={{ fontSize:16, marginBottom:8 }}>Компонент упал при рендере.</div>
+            <div style={{ fontSize:14, opacity:0.8 }}>Открой DevTools → Console.</div>
           </div>
         </div>
       );
@@ -47,20 +25,38 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-export default function App() {
+export default function App(){
   return (
     <>
-      {/* ❶ ФОН — отдельный фикс-слой под всем контентом */}
-      <div className="bg-fixed-under-ui">
+      {/* ФОН (канвас): фикс под всем UI, ВАЖНО — pointerEvents: 'auto' */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1,
+          pointerEvents: "auto",    // ← было "none" — из-за этого канвас не ловил события
+          background: "#000",
+        }}
+      >
         <ErrorBoundary>
           <MosaicBackground />
         </ErrorBoundary>
       </div>
 
-      {/* ❷ КОНТЕНТ — поверх фона, без чёрного фона */}
-      <div className="app">
+      {/* КОНТЕНТ (поверх фона): занимает визуальный вьюпорт на iOS */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 2,
+          width: "100vw",
+          height: "100svh",          // корректная высота iOS
+          minHeight: "-webkit-fill-available",
+          overflow: "hidden",
+          background: "transparent",
+        }}
+      >
         <ErrorBoundary>
-          <div id="hero-card" style={{ position: "relative", zIndex: 30 }}>
+          <div id="hero-card" style={{ position: "relative" }}>
             <CenterRevealCard />
           </div>
         </ErrorBoundary>

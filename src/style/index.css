@@ -23,7 +23,7 @@
     url("/rustam-site/assents/fonts/Rostov.woff2") format("woff2"),
     url("/rustam-site/assents/fonts/Rostov.woff") format("woff"),
     url("/rustam-site/assents/fonts/Rostov.otf") format("opentype");
-  font-weight: 800; /* подгони под фактический вес */
+  font-weight: 800;
   font-style: normal;
   font-display: swap;
 }
@@ -35,7 +35,7 @@
     url("/rustam-site/assents/fonts/RoyalCrescent.woff2") format("woff2"),
     url("/rustam-site/assents/fonts/RoyalCrescent.woff") format("woff"),
     url("/rustam-site/assents/fonts/RoyalCrescent.ttf") format("truetype");
-  font-weight: 400; /* скорректируй при необходимости */
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
@@ -62,7 +62,7 @@
   font-display: swap;
 }
 
-/* алиас под имя "UniSans-Heavy", если где-то в коде встречается именно такое */
+/* алиас "UniSans-Heavy" */
 @font-face {
   font-family: "UniSans-Heavy";
   src:
@@ -84,7 +84,7 @@
   font-display: swap;
 }
 
-/* — Uni Sans Thin (опционально, как у тебя было) */
+/* — Uni Sans Thin */
 @font-face {
   font-family: "Uni Sans Thin";
   src:
@@ -106,7 +106,7 @@
   font-display: swap;
 }
 
-/* — Jura (как у тебя) */
+/* — Jura */
 @font-face {
   font-family: "Jura-Ofont";
   src:
@@ -136,16 +136,17 @@
 *::before,
 *::after { box-sizing: border-box; }
 
-/* ключ: не используем 100vh */
+/* КЛЮЧ: растягиваем корень на визуальный вьюпорт iOS — без чёрных полос */
 html, body, #root {
-  height: auto;
-  min-height: 100dvh;          /* актуальные Safari/Chrome */
-  background: transparent;
+  margin: 0;
+  padding: 0;
+  background: #000;                 /* CHANGED: было transparent */
+  height: 100%;                     /* помогает старым WebKit */
+  min-height: 100svh;               /* видимая высота */
+  min-height: -webkit-fill-available; /* старые Safari */
 }
 
 html, body {
-  margin: 0;
-  padding: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto,
                "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -154,7 +155,7 @@ html, body {
   touch-action: manipulation;
 }
 
-/* учитываем нижний гешт (дом-бар) всегда */
+/* учитываем нижний дом-бар всегда */
 body { padding-bottom: var(--safe-b); }
 
 #root { isolation: isolate; }
@@ -183,27 +184,29 @@ button, input, select, textarea {
   outline-offset: 2px;
 }
 
-/* ВАЖНО: .app больше не 100vh */
+/* ========= Layout ========= */
+/* ВАЖНО: .app занимает визуальный вьюпорт, без 100vh */
 .app {
   position: relative;
+  z-index: 2;                        /* над фоном */
   width: 100vw;
-  height: 100svh;              /* видимая область с адресной строкой */
-  min-height: 100dvh;          /* когда панели скрылись */
+  height: 100svh;                    /* CHANGED */
+  min-height: 100svh;                /* страховка */
   overflow: hidden;
   background: transparent;
 }
 
-/* Фикс-подложка фона на всю "большую" высоту (видна под адресной строкой/дом-баром) */
+/* Фикс-подложка фона на всю область. ДОЛЖНА принимать события для канваса. */
 .bg-fixed-under-ui {
   position: fixed;
   inset: 0;
+  z-index: 1;                        /* под .app */
   width: 100vw;
-  height: 100lvh;           /* именно lvh: заполняет даже когда панели скрыты */
-  z-index: 0;
-  pointer-events: none;     /* чтобы не мешал кликам */
+  height: 100svh;                    /* CHANGED: достаточно svh, inset:0 всё равно покрывает экран */
+  pointer-events: auto;              /* CHANGED: было none — из-за этого канвас не получал события */
   overflow: hidden;
+  background: #000;                  /* чтобы под канвасом не светило */
 }
-
 
 /* ========= Utility helpers ========= */
 .font-abc          { font-family: "ABC_TypeWriterRussian", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
@@ -212,4 +215,3 @@ button, input, select, textarea {
 .font-uni-heavy    { font-family: "Uni Sans Heavy", "UniSans-Heavy", "Uni Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
 .font-uni-thin     { font-family: "Uni Sans Thin", "Uni Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
 .font-jura         { font-family: "Jura-Ofont", Jura, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
-.mosaic-canvas { display:block; }
