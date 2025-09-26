@@ -22,9 +22,14 @@ const Role = ({ title, desc }) => {
 
 export default function Header() {
   return (
-    <div className="absolute inset-0 z-[5] flex items-center justify-center">
+    <div
+      data-no-mosaic
+      className="absolute inset-0 z-20 flex items-center justify-center"
+    >
       <header className="text-center">
-        <h1 className="text-5xl font-extrabold tracking-wide fade-up">РУСТАМ РОМАНОВ</h1>
+        <h1 className="text-5xl font-extrabold tracking-wide fade-up">
+          РУСТАМ РОМАНОВ
+        </h1>
         <div className="mt-6 flex justify-center fade-up">
           <Role title="Режиссёр" desc="Любовь" />
           <Role title="Продюсер" desc="Предпродакшн — Постпродакшн" />
