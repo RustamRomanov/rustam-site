@@ -57,7 +57,7 @@ const clamp01 = (x)=>Math.max(0,Math.min(1,x));
 const randInt = (min,max)=>Math.floor(min + Math.random()*(max-min+1));
 const parseSeq = (url)=>{ const f=(url.split("/").pop()||"").toLowerCase(); const m=f.match(/(\d+)(?=\.(jpg|jpeg|png|webp)$)/i); return m?parseInt(m[1],10):Number.MAX_SAFE_INTEGER; };
 
-/* ===== Поиск плашки и хит-тест по координатам ===== */
+/* ===== ПЛАШКА: поиск и хиты по координатам ===== */
 function getPlateEl(){
   return (
     document.querySelector('[data-mosaic-block]') ||
@@ -65,11 +65,25 @@ function getPlateEl(){
     document.querySelector('.center-plate')
   );
 }
-function pointInPlate(x, y){
+function inPlateXY(x, y){
   const el = getPlateEl();
   if (!el) return false;
   const r = el.getBoundingClientRect();
   return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+}
+function inPlateHitTest(x, y){
+  const el = getPlateEl();
+  if (!el) return false;
+  const n = document.elementFromPoint?.(x, y);
+  return !!(n && (n === el || n.closest?.('[data-mosaic-block],.mosaic-block,.center-plate')));
+}
+function inPlate(x, y){
+  // Страховка: считаем «внутри», если ИЛИ по rect, ИЛИ по elementFromPoint
+  return inPlateXY(x, y) || inPlateHitTest(x, y);
+}
+function getXY(e){
+  const t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+  return { x: t.clientX ?? 0, y: t.clientY ?? 0 };
 }
 
 export default function MosaicBackground() {
@@ -103,7 +117,7 @@ export default function MosaicBackground() {
   const pointerActiveRef = useRef(false);
   const touchStartRef = useRef({x:0,y:0,t:0,id:-1});
   const dragFlagRef = useRef(false);
-  const plateGestureRef = useRef(false); // «жест начался на плашке»
+  const plateGestureRef = useRef(false); // Жест начался на плашке?
 
   /* Моб. оверлей */
   const overlayRef = useRef({ id:-1, holdUntil:0, fadeStart:0, alpha:0 });
@@ -846,8 +860,8 @@ export default function MosaicBackground() {
 
   /* ===== Хелперы событий ===== */
   const updateMouse = (clientX, clientY) => {
-    // если курсор/палец над плашкой — не двигаем «мышь» мозайки
-    if (pointInPlate(clientX, clientY)) {
+    // если координаты внутри плашки — мозайка молчит (ховер/звук/дыра off)
+    if (inPlate(clientX, clientY)) {
       mouseRef.current = { x: -1e6, y: -1e6 };
       return;
     }
@@ -864,12 +878,13 @@ export default function MosaicBackground() {
   /* ===== ГЛОБАЛЬНЫЕ слушатели ===== */
   useEffect(() => {
     const onMove = (e) => {
-      // десктоп: блокируем ховер, если над плашкой
-      if (!isMobile && pointInPlate(e.clientX, e.clientY)) {
+      const { x, y } = getXY(e);
+      // десктоп: ховер/звук игнорим, пока курсор над плашкой
+      if (!isMobile && inPlate(x, y)) {
         mouseRef.current = { x: -1e6, y: -1e6 };
         return;
       }
-      updateMouse(e.clientX, e.clientY);
+      updateMouse(x, y);
     };
 
     const onLeave = () => {
@@ -880,12 +895,13 @@ export default function MosaicBackground() {
       prevHoverRowRef.current = -1;
     };
 
-    // десктоп: игнор клика по плашке
+    // десктоп: клик над плашкой игнорим
     const onClickWin = (e) => {
       if (isMobile) return;
-      if (pointInPlate(e.clientX, e.clientY)) return;
+      const { x, y } = getXY(e);
+      if (inPlate(x, y)) return;
 
-      updateMouse(e.clientX, e.clientY);
+      updateMouse(x, y);
 
       const { cols, tileW, tileH } = gridRef.current;
       const mc = Math.floor(mouseRef.current.x / tileW);
@@ -899,86 +915,86 @@ export default function MosaicBackground() {
 
     // мобильные жесты
     const onPD = (e) => {
-      // если тап начался на плашке — блокируем мозайку до скролла
-      plateGestureRef.current = isMobile && pointInPlate(e.clientX, e.clientY);
+      const { x, y } = getXY(e);
+      // если тап начался на плашке — глушим мозайку, ПОКА палец внутри плашки
+      plateGestureRef.current = isMobile && inPlate(x, y);
 
       if (plateGestureRef.current) {
-        // прячем «дырку» и ховер
-        mouseRef.current = { x: -1e6, y: -1e6 };
+        mouseRef.current = { x: -1e6, y: -1e6 }; // «дыры» нет
       } else {
-        updateMouse(e.clientX, e.clientY);
+        updateMouse(x, y);
       }
 
       pointerActiveRef.current = true;
       dragFlagRef.current = false;
       touchStartRef.current = {
-        x: e.clientX,
-        y: e.clientY,
-        t: performance.now(),
-        id: hoveredTileId()
+        x, y, t: performance.now(), id: hoveredTileId()
       };
 
       if (!isMobile) onClickWin(e);
     };
 
     const onPM = (e) => {
-      // если жест начался на плашке — до момента скролла мозайку не кормим координатами
-      if (!plateGestureRef.current) {
-        updateMouse(e.clientX, e.clientY);
+      const { x, y } = getXY(e);
+
+      // Если жест стартовал на плашке — до выхода из плашки МОЛЧИМ
+      if (plateGestureRef.current) {
+        if (inPlate(x, y)) {
+          // всё ещё внутри плашки: не дышим, не звук, не оверлей
+          mouseRef.current = { x: -1e6, y: -1e6 };
+          return;
+        }
+        // ВЫШЕЛ из плашки — с этого момента реагируем как обычно
+        plateGestureRef.current = false;
+        updateMouse(x, y);
+      } else {
+        // жест не на плашке — обычное поведение
+        updateMouse(x, y);
       }
 
+      // логика скролла (для закрытия оверлея) — работает только когда реакция разрешена
       if (isMobile && pointerActiveRef.current) {
-        const dx = e.clientX - touchStartRef.current.x;
-        const dy = e.clientY - touchStartRef.current.y;
-
+        const dx = x - touchStartRef.current.x;
+        const dy = y - touchStartRef.current.y;
         if (!dragFlagRef.current && Math.hypot(dx, dy) > TAP_SLOP) {
-          // стал скроллом
           dragFlagRef.current = true;
-
-          // теперь разрешаем реакцию мозайки, даже под плашкой
-          if (plateGestureRef.current) {
-            plateGestureRef.current = false;
-            updateMouse(e.clientX, e.clientY);
-          }
-
-          // закрыть возможный оверлей
           clickedTileIdRef.current = -1;
           overlayRef.current = { id: -1, holdUntil: 0, fadeStart: 0, alpha: 0 };
         }
       }
     };
 
-    const onPU = () => {
+    const onPU = (e) => {
       if (isMobile) {
+        const { x, y } = getXY(e);
         const dt = performance.now() - touchStartRef.current.t;
         const idUp = hoveredTileId();
         const isTap = !dragFlagRef.current && dt <= TAP_MAX_MS && idUp >= 0;
 
-        if (isTap) {
-          if (plateGestureRef.current) {
-            // тап по словам на плашке — игнор для мозайки
+        if (plateGestureRef.current) {
+          // палец отпущен, но так и не вышли из плашки — полностью игнорируем
+          clickedTileIdRef.current = -1;
+          overlayRef.current = { id: -1, holdUntil: 0, fadeStart: 0, alpha: 0 };
+          mouseRef.current = { x: -1e6, y: -1e6 };
+        } else if (isTap) {
+          // обычный тап по мозайке
+          const same = (clickedTileIdRef.current === idUp);
+          const now = performance.now();
+          if (same) {
             clickedTileIdRef.current = -1;
             overlayRef.current = { id: -1, holdUntil: 0, fadeStart: 0, alpha: 0 };
-            mouseRef.current = { x: -1e6, y: -1e6 };
           } else {
-            // обычный тап по мозайке
-            const same = (clickedTileIdRef.current === idUp);
-            const now = performance.now();
-            if (same) {
-              clickedTileIdRef.current = -1;
-              overlayRef.current = { id: -1, holdUntil: 0, fadeStart: 0, alpha: 0 };
-            } else {
-              clickedTileIdRef.current = idUp;
-              overlayRef.current = {
-                id: idUp,
-                holdUntil: now + OVERLAY_HOLD_MS,
-                fadeStart: 0,
-                alpha: 1
-              };
-            }
+            clickedTileIdRef.current = idUp;
+            overlayRef.current = {
+              id: idUp,
+              holdUntil: now + OVERLAY_HOLD_MS,
+              fadeStart: 0,
+              alpha: 1
+            };
           }
         }
-        // очистка
+
+        // чистим hover-дыру после отпускания
         mouseRef.current = { x: -1e6, y: -1e6 };
       }
 
