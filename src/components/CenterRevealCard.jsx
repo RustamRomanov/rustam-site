@@ -1570,7 +1570,7 @@ const plateStyle = {
   <style>{`
     @media (pointer: coarse) and (hover: none) {
       .m-soc-color {
-        animation: mSocPulse 1500ms ease-in-out infinite;
+        animation: mSocPulse 500ms ease-in-out infinite;
       }
     }
     @keyframes mSocPulse {
