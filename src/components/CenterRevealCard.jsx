@@ -1469,7 +1469,7 @@ const plateStyle = {
         </div>
       </div>
 
-   /* ===== Соц-иконки (Mobile) ===== */
+   /* ===== Соц-иконки (Mobile) — пульс только на мобилке ===== */
 <div
   style={{
     position: "fixed",
@@ -1482,24 +1482,105 @@ const plateStyle = {
     zIndex: 2147483601
   }}
 >
-  <IconLink
+  {/* Instagram */}
+  <a
     href="https://instagram.com/rustamromanov.ru"
-    label="Instagram"
-    whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
-    colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
-    onHoverSound={playDot}
-    size={37}
-    pulse   // <<< включили пульс раз в 3 сек
-  />
-  <IconLink
+    target="_blank"
+    rel="noreferrer"
+    aria-label="Instagram"
+    style={{
+      position: "relative",
+      width: 37,
+      height: 37,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }}
+  >
+    {/* белый слой */}
+    <img
+      src="/rustam-site/assents/icons/instagram-white.svg?v=3"
+      alt="Instagram"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "contain"
+      }}
+    />
+    {/* цветной слой — пульсит на мобилке */}
+    <img
+      src="/rustam-site/assents/icons/instagram-color.svg?v=3"
+      alt="Instagram"
+      className="m-soc-color"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+        opacity: 0
+      }}
+    />
+  </a>
+
+  {/* Telegram */}
+  <a
     href="https://t.me/rustamromanov"
-    label="Telegram"
-    whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
-    colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3"
-    onHoverSound={playDot}
-    size={37}
-    pulse   // <<< включили пульс раз в 3 сек
-  />
+    target="_blank"
+    rel="noreferrer"
+    aria-label="Telegram"
+    style={{
+      position: "relative",
+      width: 37,
+      height: 37,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }}
+  >
+    <img
+      src="/rustam-site/assents/icons/telegram-white.svg?v=3"
+      alt="Telegram"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "contain"
+      }}
+    />
+    <img
+      src="/rustam-site/assents/icons/telegram-color.svg?v=3"
+      alt="Telegram"
+      className="m-soc-color"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+        opacity: 0
+      }}
+    />
+  </a>
+
+  {/* CSS: пульс только на устройствах с тачём (мобилки/планшеты) */}
+  <style>{`
+    @media (pointer: coarse) and (hover: none) {
+      .m-soc-color {
+        animation: mSocPulse 3000ms ease-in-out infinite;
+      }
+    }
+    @keyframes mSocPulse {
+      0%   { opacity: 0;   transform: scale(1);    }
+      8%   { opacity: 1;   transform: scale(1.06); }
+      18%  { opacity: 1;   transform: scale(1.08); }
+      28%  { opacity: 0;   transform: scale(1);    }
+      100% { opacity: 0;   transform: scale(1);    }
+    }
+  `}</style>
 </div>
 
 
