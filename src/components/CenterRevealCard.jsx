@@ -288,23 +288,44 @@ const TEXT_SHIFT = Math.round(D * 0.05);
            style={{ position:"relative", width:D, height:D, aspectRatio:"1 / 1", borderRadius:"50%",
                     overflow:"visible", transform:"scale(0.6)", opacity:0, flex:"0 0 auto",
                     animation:"c2pop 320ms cubic-bezier(.18,.8,.2,1) forwards", willChange:"transform,opacity" }}>
-        {!hideClose && (
-          <button aria-label="Close" onClick={onClose}
-            style={{ position:"absolute", top:-20, right:-20, width:38, height:38, borderRadius:999,
-                     background:"rgba(0,0,0,0.6)", border:"1px solid rgba(255,255,255,0.45)", cursor:"pointer",
-                     display:"grid", placeItems:"center", boxShadow:"0 12px 28px rgba(0,0,0,0.5)", zIndex:3 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </button>
-        )}
+      
 
         {/* Круг */}
-        <div style={{
-          position:"relative", width:"100%", height:"100%", aspectRatio:"1 / 1", borderRadius:"50%", overflow:"hidden",
-          boxShadow:"0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.08)",
-          animation: "c2breath 6200ms ease-in-out infinite" /* фон мягко дышит */
-        }}>
+        
+        {/* Круг */}
+<div style={{
+  position:"relative", width:"100%", height:"100%", aspectRatio:"1 / 1", borderRadius:"50%", overflow:"hidden",
+  boxShadow:"0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.08)",
+  animation: "c2breath 6200ms ease-in-out infinite"
+}}>
+  {/* КРЕСТ ВНУТРИ КРУГА, СВЕРХУ ПО ЦЕНТРУ (5%) */}
+  {!hideClose && (
+    <button
+      aria-label="Close"
+      onClick={onClose}
+      style={{
+        position: "absolute",
+        top: "5%",              // отступ 5% от верха круга
+        left: "50%",            // по центру
+        transform: "translateX(-50%)",
+        width: 38,
+        height: 38,
+        borderRadius: 999,
+        background: "rgba(0,0,0,0.6)",
+        border: "1px solid rgba(255,255,255,0.45)",
+        cursor: "pointer",
+        display: "grid",
+        placeItems: "center",
+        boxShadow: "0 12px 28px rgba(0,0,0,0.5)",
+        zIndex: 4
+      }}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+      </svg>
+    </button>
+  )}
+
           <img src={imgSrc} alt="circle2"
             onError={()=>{ if (!imgSrc.endsWith(".JPG")) setImgSrc("/rustam-site/assents/foto/circle2.JPG"); }}
             style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition:"50% 50%",
@@ -1401,7 +1422,7 @@ const plateStyle = {
 />
       <BioMobileOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio_mobile.jpg"/>
       <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)}
-        diameter={Math.round(circleDiam * 1.25 * 1.1)} hideClose backdropClose bodyInc={-1} />
+        diameter={Math.round(circleDiam * 1.25 * 1.1)} backdropClose bodyInc={-1} />
 
       {/* Локальные стили мобилки */}
       <style>{`
