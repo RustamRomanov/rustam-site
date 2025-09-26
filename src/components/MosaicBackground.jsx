@@ -694,37 +694,41 @@ export default function MosaicBackground() {
 
     const { tileW,tileH,cols,rows } = gridRef.current;
 
-    // ======== ЗВУК ПРИ ВХОДЕ В НОВЫЙ ТАЙЛ (с аттенюацией по X) ========
-    const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH);
-    const hoveredId=(mc>=0 && mr>=0) ? (mr*cols + mc) : -1;
-    if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
-      const pan = cols>1 ? ((mc/(cols-1))*2 - 1) : 0;
-      const prevCol = prevHoverColRef.current>=0 ? prevHoverColRef.current : mc;
-      const dirX = Math.max(-1,Math.min(1, mc - prevCol));
-      prevHoverColRef.current = mc;
+   // ======== ЗВУК ПРИ ВХОДЕ В НОВЫЙ ТАЙЛ (только X) ========
+const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH);
+const hoveredId=(mc>=0 && mr>=0) ? (mr*cols + mc) : -1;
+if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
+  const pan = cols>1 ? ((mc/(cols-1))*2 - 1) : 0;
+  const prevCol = prevHoverColRef.current>=0 ? prevHoverColRef.current : mc;
+  const dirX = Math.max(-1,Math.min(1, mc - prevCol));
+  prevHoverColRef.current = mc;
 
-      const v = rows>1 ? (1 - mr/(rows-1)) : 0.5;
-      const prevRow = prevHoverRowRef.current>=0 ? prevHoverRowRef.current : mr;
-      const dirY = Math.max(-1, Math.min(1, mr - prevRow));
-      prevHoverRowRef.current = mr;
+  const v = rows>1 ? (1 - mr/(rows-1)) : 0.5;
+  const prevRow = prevHoverRowRef.current>=0 ? prevHoverRowRef.current : mr;
+  const dirY = Math.max(-1, Math.min(1, mr - prevRow));
+  prevHoverRowRef.current = mr;
 
-      const tx=(hoveredId%cols)*tileW + tileW/2;
-      const ty=Math.floor(hoveredId/cols)*tileH + tileH/2;
-      const dx=Math.abs(mouseRef.current.x - tx)/(tileW/2);
-      const dy=Math.abs(mouseRef.current.y - ty)/(tileH/2);
-      const dist=Math.min(1,Math.hypot(dx,dy));
-      const baseStrength=1 - 0.6*dist;
+  const tx=(hoveredId%cols)*tileW + tileW/2;
+  // const ty=Math.floor(hoveredId/cols)*tileH + tileH/2; // больше не нужен для громкости
 
-      // НОВОЕ: множитель громкости по X (центральная 20% — 0, затем плавно 0→1)
-      const audioMul = audioMulAtX(mouseRef.current.x);
-      const strength = baseStrength * audioMul;
+  // НОРМАЛИЗОВАННОЕ отклонение только по X (0 в центре тайла → 1 на краях тайла)
+  const dx=Math.abs(mouseRef.current.x - tx)/(tileW/2);
+  const dxClamped = Math.min(1, dx);
 
-      if (strength > 0.001) {
-        try { playDirectionalAir(strength, pan, dirX, v, dirY); } catch {}
-      }
-      prevHoverIdRef.current=hoveredId;
-    }
-    // ===================================================================
+  // ГРОМКОСТЬ ТЕПЕРЬ ТОЛЬКО ОТ X (вертикаль не влияет)
+  const baseStrength = 1 - 0.6*dxClamped;
+
+  // Аттенюация по горизонтальной центральной зоне экрана (20% mute + перья)
+  const audioMul = audioMulAtX(mouseRef.current.x);
+  const strength = baseStrength * audioMul;
+
+  if (strength > 0.001) {
+    try { playDirectionalAir(strength, pan, dirX, v, dirY); } catch {}
+  }
+
+  prevHoverIdRef.current=hoveredId;
+}
+// ==========================================================
 
     // автосброс зума (десктоп)
     if (!isMobile && clickedTileIdRef.current >= 0) {
