@@ -1469,7 +1469,7 @@ const plateStyle = {
         </div>
       </div>
 
-   /* ===== Соц-иконки (Mobile) — пульс только на мобилке ===== */
+   {/* ===== Соц-иконки (Mobile) — пульс только на мобилке ===== */}
 <div
   style={{
     position: "fixed",
@@ -1570,7 +1570,7 @@ const plateStyle = {
   <style>{`
     @media (pointer: coarse) and (hover: none) {
       .m-soc-color {
-        animation: mSocPulse 3000ms ease-in-out infinite;
+        animation: mSocPulse 1500ms ease-in-out infinite;
       }
     }
     @keyframes mSocPulse {
