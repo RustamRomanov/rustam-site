@@ -937,6 +937,8 @@ export default function MosaicBackground() {
 
     // мобильные жесты
     const onPD = (e) => {
+      // ⛔ НЕ запускать мозаичный zoom, если клик по важным элементам UI
+if (e.target.closest("button, a, h1, h2, h3, [data-stop-zoom]")) return;
       updateMouse(e.clientX, e.clientY);
       pointerActiveRef.current = true;
       dragFlagRef.current = false;
