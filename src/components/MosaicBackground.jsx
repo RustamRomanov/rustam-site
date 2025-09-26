@@ -667,6 +667,7 @@ export default function MosaicBackground() {
 
   function drawVeil(ctx){
     if(!VEIL_ENABLED) return;
+    if (window.__mosaicBlocked) return;
     const w = window.innerWidth, h = window.innerHeight;
     const mx = mouseRef.current.x, my = mouseRef.current.y;
     const noPointer = !(mx > -1e5 && my > -1e5);
