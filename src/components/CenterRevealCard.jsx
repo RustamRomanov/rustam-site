@@ -1112,7 +1112,7 @@ const runCenterOutReset = ()=>{
             </PrePlate>
           </div>
         </div>
-      </div>
+      </div> 
 
       <VideoOverlayDesktop
   open={playerOpen}
@@ -1314,7 +1314,11 @@ const plateStyle = {
 
   return (
     <>
-      <div style={wrapper}>
+      <div
+  style={wrapper}
+  onTouchStart={() => window.dispatchEvent(new Event("mosaic:pause"))}
+  onTouchEnd={() => window.dispatchEvent(new Event("mosaic:resume"))}
+>
        {/* КРУГ 1 */}
 <div style={plateWrapStyle}>
   <div className="glass-plate circle" style={plateStyle}>
