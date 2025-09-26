@@ -1096,7 +1096,10 @@ const runCenterOutReset = ()=>{
 
             {/* BIO */}
             <div style={{ marginTop: Math.round(titleFS*0.9) }}>
-              <PrePlate active={true}><BiographyWordPerLetter onOpen={()=>setBioOpen(true)} /></PrePlate>
+              <PrePlate active={true}><BiographyWordPerLetter onOpen={() => {
+  window.__mosaicBlocked = true;
+  setBioOpen(true);
+}} /></PrePlate>
             </div>
 
             {/* Соц-иконки */}
@@ -1114,13 +1117,33 @@ const runCenterOutReset = ()=>{
         </div>
       </div> 
 
-      <VideoOverlayDesktop
+     <VideoOverlayDesktop
   open={playerOpen}
-  onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }}
+  onClose={() => {
+    setPlayerOpen(false);
+    setVimeoId(null);
+    setTimeout(() => { window.__mosaicBlocked = false }, 600);
+  }}
   vimeoId={vimeoId}
 />
-<BioOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio.jpg"/>
-<Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam*1.22*1.2)}/>
+
+<BioOverlay
+  open={bioOpen}
+  onClose={() => {
+    setBioOpen(false);
+    setTimeout(() => { window.__mosaicBlocked = false }, 600);
+  }}
+  imageSrc="/rustam-site/assents/foto/bio.jpg"
+/>
+
+<Circle2Overlay
+  open={circle2Open}
+  onClose={() => {
+    setCircle2Open(false);
+    setTimeout(() => { window.__mosaicBlocked = false }, 600);
+  }}
+  diameter={Math.round(circleDiam*1.22*1.2)}
+/>
 
       <style>{`
         .glass-plate.circle{
