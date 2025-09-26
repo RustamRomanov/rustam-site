@@ -1207,33 +1207,6 @@ function MobileCard() {
   const [playerOpen,setPlayerOpen]=useState(false);
   const [vimeoId,setVimeoId]=useState(null);
   const [circle2Open, setCircle2Open] = useState(false);
-  // Пульс соц-иконок (по очереди)
-  const [pulseIndex, setPulseIndex] = useState(-1);
-
-  useEffect(() => {
-    let alive = true;
-
-    const runPulse = () => {
-      if (!alive) return;
-
-      // 1-я иконка: цвет на 0.5с
-      setPulseIndex(0);
-      setTimeout(() => setPulseIndex(-1), 500);
-
-      // через 0.5с — 2-я иконка: цвет на 0.5с
-      setTimeout(() => {
-        if (!alive) return;
-        setPulseIndex(1);
-        setTimeout(() => setPulseIndex(-1), 500);
-      }, 500);
-    };
-
-    // первый запуск и потом каждые 3с
-    runPulse();
-    const id = setInterval(runPulse, 3000);
-
-    return () => { alive = false; clearInterval(id); };
-  }, []);
 
   const openShowreel = () => {
     // закрыть увеличенное изображение в мозайке (п.3)
