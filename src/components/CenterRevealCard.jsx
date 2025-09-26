@@ -6,6 +6,31 @@ const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
 const within = (x,y,r)=> x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
 const randColor = () => `hsl(${Math.floor(Math.random()*360)}, 86%, 60%)`;
 
+/* === Блокируем всплытие скролла/тачей к мозаике, когда курсор/палец над плашкой === */
+function useBlockMosaicScroll(ref) {
+  useEffect(() => {
+    const el = ref?.current;
+    if (!el) return;
+
+    const stop = (e) => {
+      // Не ломаем внутренний скролл элемента, просто не пускаем событие наверх к мозаике
+      if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+      e.stopPropagation();
+    };
+
+    const opts = { capture: true, passive: false };
+    el.addEventListener("wheel", stop, opts);
+    el.addEventListener("touchmove", stop, opts);
+    el.addEventListener("scroll", stop, opts);
+
+    return () => {
+      el.removeEventListener("wheel", stop, opts);
+      el.removeEventListener("touchmove", stop, opts);
+      el.removeEventListener("scroll", stop, opts);
+    };
+  }, [ref]);
+}
+
 /* Кастомный курсор (десктоп) */
 const CURSOR_URL = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><circle cx='10' cy='10' r='6' fill='%23E53935'/><circle cx='10' cy='10' r='3' fill='%23ffffff'/></svg>`.replace(/\n|\s{2,}/g,"");
 
@@ -197,8 +222,8 @@ function useAudio() {
 /* ===== Соц-иконка ===== */
 function IconLink({
   href, whiteSrc, colorSrc, label, onHoverSound, size = 28,
-  forceColor = false,        // NEW: принудительно включить цвет
-  fadeMs = 120               // NEW: длительность плавного перехода
+  forceColor = false,        // принудительно включить цвет
+  fadeMs = 120               // длительность плавного перехода
 }) {
   const [hover, setHover] = useState(false);
   const enter = () => { setHover(true); onHoverSound?.(); };
@@ -253,8 +278,8 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
   const FAMILY_HEADER = "'Uni Sans Heavy','UniSans-Heavy','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
   const FAMILY_BODY = "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
   const COLOR = "rgba(255,255,255,0.95)";
-const maxTextWidth = Math.round(D * 0.85);
-const TEXT_SHIFT = Math.round(D * 0.05); 
+  const maxTextWidth = Math.round(D * 0.85);
+  const TEXT_SHIFT = Math.round(D * 0.05); 
 
   /* без дыхания и без цветовой анимации */
   function FitHeader({ text, baseRatio = 0.040, minPx = 12 }) {
@@ -304,44 +329,38 @@ const TEXT_SHIFT = Math.round(D * 0.05);
            style={{ position:"relative", width:D, height:D, aspectRatio:"1 / 1", borderRadius:"50%",
                     overflow:"visible", transform:"scale(0.6)", opacity:0, flex:"0 0 auto",
                     animation:"c2pop 320ms cubic-bezier(.18,.8,.2,1) forwards", willChange:"transform,opacity" }}>
-      
-
         {/* Круг */}
-        
-        {/* Круг */}
-<div style={{
-  position:"relative", width:"100%", height:"100%", aspectRatio:"1 / 1", borderRadius:"50%", overflow:"hidden",
-  boxShadow:"0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.08)",
-  animation: "c2breath 6200ms ease-in-out infinite"
-}}>
-  {/* КРЕСТ ВНУТРИ КРУГА, СВЕРХУ ПО ЦЕНТРУ (5%) */}
- {/* КРЕСТ ВНУТРИ КРУГА, СВЕРХУ ПО ЦЕНТРУ (5%) */}
-{!hideClose && (
-  <button
-    aria-label="Close"
-    onClick={onClose}
-    style={{
-      position: "absolute",
-      top: "5%",
-      left: "50%",
-      transform: "translateX(-50%)",
-      width: 38,
-      height: 38,
-      borderRadius: 999,
-      background: "transparent",   // прозрачный фон
-      border: "none",              // убираем обводку
-      cursor: "pointer",
-      display: "grid",
-      placeItems: "center",
-      zIndex: 4
-    }}
-  >
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-  </button>
-)}
-
+        <div style={{
+          position:"relative", width:"100%", height:"100%", aspectRatio:"1 / 1", borderRadius:"50%", overflow:"hidden",
+          boxShadow:"0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.08)",
+          animation: "c2breath 6200ms ease-in-out infinite"
+        }}>
+          {/* КРЕСТ ВНУТРИ КРУГА, СВЕРХУ ПО ЦЕНТРУ (5%) — прозрачный */}
+          {!hideClose && (
+            <button
+              aria-label="Close"
+              onClick={onClose}
+              style={{
+                position: "absolute",
+                top: "5%",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 38,
+                height: 38,
+                borderRadius: 999,
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                zIndex: 4
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
 
           <img src={imgSrc} alt="circle2"
             onError={()=>{ if (!imgSrc.endsWith(".JPG")) setImgSrc("/rustam-site/assents/foto/circle2.JPG"); }}
@@ -362,24 +381,24 @@ const TEXT_SHIFT = Math.round(D * 0.05);
               <FitHeader text="Режиссёр · Продюсер · Сценарист"/>
               <div style={{ height: 20 }}/>
               <BodyLine mt={Math.round(D * 0.018)}>
-  <span style={{
-    display: "inline-block",
-    whiteSpace: "nowrap",
-    maxWidth: Math.round(D * 0.95), // ближе к краю круга
-    fontFamily: "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto",
-    fontWeight: 700,
-    fontSize: BODY_FS + bodyInc,
-    lineHeight: 1.24,
-    letterSpacing: "0.02em",
-    color: "rgba(255,255,255,0.95)"
-  }}>
-    100+ артистов · 200+ проектов · 2+ млрд просмотров
-  </span>
-</BodyLine>
-               <div style={{ height: 15 }}/>
+                <span style={{
+                  display: "inline-block",
+                  whiteSpace: "nowrap",
+                  maxWidth: Math.round(D * 0.95),
+                  fontFamily: "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto",
+                  fontWeight: 700,
+                  fontSize: BODY_FS + bodyInc,
+                  lineHeight: 1.24,
+                  letterSpacing: "0.02em",
+                  color: "rgba(255,255,255,0.95)"
+                }}>
+                  100+ артистов · 200+ проектов · 2+ млрд просмотров
+                </span>
+              </BodyLine>
+              <div style={{ height: 15 }}/>
               <BodyLine mt={Math.round(D * 0.022)}>Имею большой опыт работы с топовыми артистами и селебрити-блогерами. Оперативно пишу тритменты, мотивирую команду и соблюдаю дедлайны. </BodyLine>
-               <BodyLine> Для меня каждый проект — это эмоции, </BodyLine>
-                <BodyLine mt={Math.round(D * 0.000001)}> а эмоции всегда выигрывают.</BodyLine>
+              <BodyLine> Для меня каждый проект — это эмоции, </BodyLine>
+              <BodyLine mt={Math.round(D * 0.000001)}> а эмоции всегда выигрывают.</BodyLine>
               <BodyLine mt={Math.round(D * 0.022)}>Welcome!</BodyLine>
             </div>
           </div>
@@ -527,7 +546,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
         <div className="bio-scroll-m"
              style={{ position: "absolute", left: "6%", right: "6%", top: TEXT_TOP_PX, bottom: `calc(5% + env(safe-area-inset-bottom, 0px))`, overflow: "auto",
                       color: "#000", fontFamily: "'ABC_TypeWriterRussian', system-ui, -apple-system, 'Segoe UI', Roboto",
-                      fontSize: FS_PX, lineHeight: LINE_HEIGHT, paddingRight: 12, textShadow: "none",
+                      fontSize: FS_PX, lineHeight: 1.28, paddingRight: 12, textShadow: "none",
                       whiteSpace: "pre-wrap", textAlign: "justify", paddingLeft: `${FS_PX * 1}px`, textAlignLast: "left" }}>
           {BIO_TEXT}
             </div>
@@ -925,34 +944,28 @@ function DesktopCard() {
     return order;
   };
 
- // запуск плавного отката (центр → края)
-const runCenterOutReset = ()=>{
-  if (resettingRef.current) return;
-  resettingRef.current = true;
-  const myBatch = ++resetBatchRef.current;
-  const order = getCenterOutOrder(nameLatin.length);
+  // запуск плавного отката (центр → края)
+  const runCenterOutReset = ()=>{
+    if (resettingRef.current) return;
+    resettingRef.current = true;
+    const myBatch = ++resetBatchRef.current;
+    const order = getCenterOutOrder(nameLatin.length);
 
-  order.forEach((idx, step)=>{
+    order.forEach((idx, step)=>{
+      setTimeout(()=>{
+        if (resetBatchRef.current !== myBatch) return; // отменён — выходим
+        setNameStick(s => { if (!s[idx]) return s; const a=[...s]; a[idx]=false; return a; });
+        setNameTrans(t => { if (!t[idx]) return t; const a=[...t]; a[idx]=false; return a; });
+      }, step * 70);
+    });
+
     setTimeout(()=>{
-      if (resetBatchRef.current !== myBatch) return; // отменён — выходим
-
-      // выключаем подсветку буквы
-      setNameStick(s => { if (!s[idx]) return s; const a=[...s]; a[idx]=false; return a; });
-
-      // ВОЗВРАЩАЕМ К ЛАТИНИЦЕ
-      setNameTrans(t => { if (!t[idx]) return t; const a=[...t]; a[idx]=false; return a; });
-    }, step * 70);
-  });
-
-  // финал серии — вернуть цветовую палитру в исходную
-  setTimeout(()=>{
-    if (resetBatchRef.current === myBatch){
-      setNameColors(Array.from(nameLatin).map(()=>"#cfcfcf"));
-      resettingRef.current = false;
-    }
-  }, order.length * 70 + 80);
-};
-
+      if (resetBatchRef.current === myBatch){
+        setNameColors(Array.from(nameLatin).map(()=>"#cfcfcf"));
+        resettingRef.current = false;
+      }
+    }, order.length * 70 + 80);
+  };
 
   // таймер простоя 5с
   useEffect(()=>{
@@ -980,6 +993,10 @@ const runCenterOutReset = ()=>{
 
   // масштаб плашки от близости курсора
   const plateScale = 1.10 - plateProx * 0.08;
+
+  // ===== Глушим скролл для мозаики ТОЛЬКО на обёртке карточки
+  const wrapRef = useRef(null);
+  useBlockMosaicScroll(wrapRef);
 
   // дыхание плашки — обёртка
   const plateWrapStyle = {
@@ -1009,7 +1026,7 @@ const runCenterOutReset = ()=>{
 
   return (
     <>
-      <div style={wrapper}>
+      <div ref={wrapRef} style={wrapper}>
         {/* КРУГ 1 — стеклянная плашка с дыханием */}
         <div style={plateWrapStyle}>
           <div className="glass-plate circle" style={plateStyle}>
@@ -1071,25 +1088,23 @@ const runCenterOutReset = ()=>{
                 title="Подробнее"
               >
                {Array.from(nameLatin).map((ch, i) => (
-  <span
-    key={`n-${i}`}
-    onMouseEnter={() => touchName(i)}
-    style={{
-      display: "inline-block",
-      whiteSpace: "pre",
-      // если буква подсвечена — отключаем волну, иначе оставляем анимацию
-      animation: nameStick[i] ? "none" : `waveGrayDesk 4200ms ease-in-out ${i * 110}ms infinite`,
-      color: nameStick[i] ? nameColors[i] : undefined,
-      transform: nameStick[i] ? "scale(1.16)" : "scale(1)",
-      transition: "transform 160ms ease, color 160ms ease",
-      textShadow: "0 1px 2px rgba(0,0,0,0.25)",
-    }}
-  >
-    {nameTrans[i]
-      ? (nameMap[ch] ?? (ch === " " ? "\u00A0" : ch))
-      : (ch === " " ? "\u00A0" : ch)}
-  </span>
-
+                  <span
+                    key={`n-${i}`}
+                    onMouseEnter={() => touchName(i)}
+                    style={{
+                      display: "inline-block",
+                      whiteSpace: "pre",
+                      animation: nameStick[i] ? "none" : `waveGrayDesk 4200ms ease-in-out ${i * 110}ms infinite`,
+                      color: nameStick[i] ? nameColors[i] : undefined,
+                      transform: nameStick[i] ? "scale(1.16)" : "scale(1)",
+                      transition: "transform 160ms ease, color 160ms ease",
+                      textShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                    }}
+                  >
+                    {nameTrans[i]
+                      ? (nameMap[ch] ?? (ch === " " ? "\u00A0" : ch))
+                      : (ch === " " ? "\u00A0" : ch)}
+                  </span>
                 ))}
               </h1>
             </PrePlate>
@@ -1115,12 +1130,12 @@ const runCenterOutReset = ()=>{
       </div>
 
       <VideoOverlayDesktop
-  open={playerOpen}
-  onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }}
-  vimeoId={vimeoId}
-/>
-<BioOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio.jpg"/>
-<Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam*1.22*1.2)}/>
+        open={playerOpen}
+        onClose={()=>{ setPlayerOpen(false); setVimeoId(null); }}
+        vimeoId={vimeoId}
+      />
+      <BioOverlay open={bioOpen} onClose={()=>setBioOpen(false)} imageSrc="/rustam-site/assents/foto/bio.jpg"/>
+      <Circle2Overlay open={circle2Open} onClose={()=>setCircle2Open(false)} diameter={Math.round(circleDiam*1.22*1.2)}/>
 
       <style>{`
         .glass-plate.circle{
@@ -1210,34 +1225,31 @@ function MobileCard() {
 
   const baseDiam = Math.min(size.w, size.h);
   const circleDiam = Math.round(baseDiam * 1.30);
-// чтобы не падало: базовые значения для круга
-const plateScale = 1;
-const plateAlpha = 0.96;
+  // чтобы не падало: базовые значения для круга
+  const plateScale = 1;
+  const plateAlpha = 0.96;
 
-// обёртка — только центрируем (без анимации)
-const plateWrapStyle = {
-  position: "absolute",
-  left: "50%",
-  top: "50%",
-  transform: "translate(-50%, -50%)",
-  pointerEvents: "none",
-  willChange: "transform"
-};
+  // обёртка — только центрируем (без анимации)
+  const plateWrapStyle = {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    transform: "translate(-50%, -50%)",
+    pointerEvents: "none",
+    willChange: "transform"
+  };
 
-// сам круг — здесь дышим (scale + opacity)
-const plateStyle = {
-  position: "relative",
-  width: circleDiam,
-  height: circleDiam,
-  transformOrigin: "50% 50%",
-  borderRadius: "50%",
-  pointerEvents: "none",
-  willChange: "transform, opacity",
-  animation: "mPlateBreath 4800ms ease-in-out infinite"
-};
-
-
-
+  // сам круг — здесь дышим (scale + opacity)
+  const plateStyle = {
+    position: "relative",
+    width: circleDiam,
+    height: circleDiam,
+    transformOrigin: "50% 50%",
+    borderRadius: "50%",
+    pointerEvents: "none",
+    willChange: "transform, opacity",
+    animation: "mPlateBreath 4800ms ease-in-out infinite"
+  };
 
   // группы букв
   const lettersBio = Array.from("BIOGRAPHY");
@@ -1258,14 +1270,14 @@ const plateStyle = {
   const { playHoverSoft: hoverSnd, playDot: clickSnd } = useAudio();
   const lastHitRef = useRef({ bio: null, name: null, sr: null });
   const activateLetter = (group, idx, setterStick, setterColor, mode="hover") => {
-  const force = mode === "click";
-  if (force || lastHitRef.current[group] !== idx) {
-    lastHitRef.current[group] = idx;
-    setterStick(prev => { if (!prev[idx]) { const a=[...prev]; a[idx]=true; return a; } return prev; });
-    setterColor(c => { const a=[...c]; a[idx]=randColor(); return a; }); // ← цвет тут
-    force ? clickSnd() : hoverSnd();
-  }
-};
+    const force = mode === "click";
+    if (force || lastHitRef.current[group] !== idx) {
+      lastHitRef.current[group] = idx;
+      setterStick(prev => { if (!prev[idx]) { const a=[...prev]; a[idx]=true; return a; } return prev; });
+      setterColor(c => { const a=[...c]; a[idx]=randColor(); return a; }); // ← цвет тут
+      force ? clickSnd() : hoverSnd();
+    }
+  };
 
   // drag/«скролл» по буквам (п.1)
   const draggingRef = useRef(false);
@@ -1279,27 +1291,20 @@ const plateStyle = {
     setSrStick(srLetters.map(()=>false)); setSrColors(srLetters.map(()=>"#ffffff"));
   };
   const onPM = (e) => {
-  if (!draggingRef.current) return;
-  // бывает, что координаты вне вьюпорта или элемент не найден
-  const elRaw = document.elementFromPoint?.(e.clientX, e.clientY);
-  if (!elRaw) return;
-
-  // поднимемся до ближайшего спана с нужными дата-атрибутами
-  const el = elRaw.closest?.("span[data-idx][data-group]");
-  if (!el) return;
-
-  const idxStr = el.getAttribute("data-idx");
-  const group = el.getAttribute("data-group");
-  if (idxStr == null || group == null) return;
-
-  const idx = Number(idxStr);
-  if (!Number.isFinite(idx)) return;
-
-  if (group === "bio")  activateLetter("bio",  idx, setStickBio,  setColorsBio);
-  if (group === "name") activateLetter("name", idx, setStickName, setColorsName);
-  if (group === "sr")   activateLetter("sr",   idx, setSrStick,   setSrColors);
-};
-
+    if (!draggingRef.current) return;
+    const elRaw = document.elementFromPoint?.(e.clientX, e.clientY);
+    if (!elRaw) return;
+    const el = elRaw.closest?.("span[data-idx][data-group]");
+    if (!el) return;
+    const idxStr = el.getAttribute("data-idx");
+    const group = el.getAttribute("data-group");
+    if (idxStr == null || group == null) return;
+    const idx = Number(idxStr);
+    if (!Number.isFinite(idx)) return;
+    if (group === "bio")  activateLetter("bio",  idx, setStickBio,  setColorsBio);
+    if (group === "name") activateLetter("name", idx, setStickName, setColorsName);
+    if (group === "sr")   activateLetter("sr",   idx, setSrStick,   setSrColors);
+  };
 
   // при открытии любого оверлея — сброс цвета имени и закрыть зум (п.1, п.3)
   useEffect(()=>{
@@ -1312,19 +1317,23 @@ const plateStyle = {
 
   const FAMILY_BODY = "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
 
+  // ===== Глушим скролл для мозаики на мобилке (только обёртка карточки)
+  const wrapRef = useRef(null);
+  useBlockMosaicScroll(wrapRef);
+
   return (
     <>
-      <div style={wrapper}>
-       {/* КРУГ 1 */}
-<div style={plateWrapStyle}>
-  <div className="glass-plate circle" style={plateStyle}>
-    <i className="bend ring" />
-    <i className="bend side left" />
-    <i className="bend side right" />
-    <i className="bend side top" />
-    <i className="bend side bottom" />
-  </div>
-</div>
+      <div ref={wrapRef} style={wrapper}>
+        {/* КРУГ 1 */}
+        <div style={plateWrapStyle}>
+          <div className="glass-plate circle" style={plateStyle}>
+            <i className="bend ring" />
+            <i className="bend side left" />
+            <i className="bend side right" />
+            <i className="bend side top" />
+            <i className="bend side bottom" />
+          </div>
+        </div>
 
         {/* Контент — drag по буквам */}
         <div onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
@@ -1353,48 +1362,47 @@ const plateStyle = {
           </PrePlate>
 
           {/* Имя — волна + дыхание в противоход кругу */}
-<PrePlate active={true}>
-  <h1
-    onClick={() => { clickSnd(); setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
-    style={{
-      margin: "0.7em 0 0",
-      fontSize: "clamp(22px, 6.6vw, 28px)",
-      letterSpacing: "0.02em",
-      userSelect: "none",
-      cursor: "pointer",
-      fontFamily: "'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
-      fontWeight: 400,
-      fontSynthesis: "none",
-      animation: "nameBreath 3200ms ease-in-out infinite",
-    }}
-    title="Подробнее"
-  >
-    {nameLatin.map((ch, i) => (
-      <span
-        key={i}
-        data-idx={i}
-        data-group="name"
-        onMouseEnter={() => activateLetter("name", i, setStickName, setColorsName)}
-        onPointerDown={() => activateLetter("name", i, setStickName, setColorsName, "click")}
-        style={{
-          display: "inline-block",
-          whiteSpace: "pre",
-          transform: stickName[i] ? "scale(1.22)" : "scale(1)",
-          transition: "transform 140ms ease, color 160ms ease",
-          // ГАСИМ ВОЛНУ на активной букве, чтобы не перебивала цвет
-          animation: stickName[i]
-            ? "none"
-            : `waveGrayLetters 4200ms ease-in-out ${i * 180}ms infinite`,
-          color: stickName[i] ? colorsName[i] : "#ffffff",
-          textShadow: "0 1px 2px rgba(0,0,0,0.25)",
-        }}
-      >
-        {stickName[i] ? (mapName[ch] || ch) : (ch === " " ? "\u00A0" : ch)}
-      </span>
-    ))}
-  </h1>
-</PrePlate>
-
+          <PrePlate active={true}>
+            <h1
+              onClick={() => { clickSnd(); setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
+              style={{
+                margin: "0.7em 0 0",
+                fontSize: "clamp(22px, 6.6vw, 28px)",
+                letterSpacing: "0.02em",
+                userSelect: "none",
+                cursor: "pointer",
+                fontFamily: "'Rostov','Uni Sans Heavy','Uni Sans',system-ui",
+                fontWeight: 400,
+                fontSynthesis: "none",
+                animation: "nameBreath 3200ms ease-in-out infinite",
+              }}
+              title="Подробнее"
+            >
+              {nameLatin.map((ch, i) => (
+                <span
+                  key={i}
+                  data-idx={i}
+                  data-group="name"
+                  onMouseEnter={() => activateLetter("name", i, setStickName, setColorsName)}
+                  onPointerDown={() => activateLetter("name", i, setStickName, setColorsName, "click")}
+                  style={{
+                    display: "inline-block",
+                    whiteSpace: "pre",
+                    transform: stickName[i] ? "scale(1.22)" : "scale(1)",
+                    transition: "transform 140ms ease, color 160ms ease",
+                    // ГАСИМ ВОЛНУ на активной букве, чтобы не перебивала цвет
+                    animation: stickName[i]
+                      ? "none"
+                      : `waveGrayLetters 4200ms ease-in-out ${i * 180}ms infinite`,
+                    color: stickName[i] ? colorsName[i] : "#ffffff",
+                    textShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                  }}
+                >
+                  {stickName[i] ? (mapName[ch] || ch) : (ch === " " ? "\u00A0" : ch)}
+                </span>
+              ))}
+            </h1>
+          </PrePlate>
 
           {/* SHOWREEL */}
           <PrePlate active={true}>
@@ -1403,7 +1411,7 @@ const plateStyle = {
                          color: "#ffffff", userSelect: "none", cursor:"pointer",
                          fontFamily: FAMILY_BODY, fontWeight: 700, fontSynthesis: "none" }}
                 title="Открыть шоу-рил">
-              {srLetters.map((ch,i)=>(
+              {Array.from("SHOWREEL").map((ch,i)=>(
                 <span key={i} data-idx={i} data-group="sr"
                       onMouseEnter={()=>activateLetter("sr", i, setSrStick, setSrColors)}
                       onPointerDown={()=>activateLetter("sr", i, setSrStick, setSrColors, "click")}
@@ -1418,7 +1426,7 @@ const plateStyle = {
           </PrePlate>
         </div>
       </div>
-
+      
       {/* Соц-иконки */}
       <div style={{ position: "fixed", left: "50%", transform: "translateX(-50%)",
                     bottom: `calc(12px + env(safe-area-inset-bottom, 0px))`,
