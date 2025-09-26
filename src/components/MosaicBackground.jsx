@@ -56,6 +56,7 @@ const clamp = (v,min,max)=>Math.min(Math.max(v,min),max);
 const clamp01 = (x)=>Math.max(0,Math.min(1,x));
 const randInt = (min,max)=>Math.floor(min + Math.random()*(max-min+1));
 const parseSeq = (url)=>{ const f=(url.split("/").pop()||"").toLowerCase(); const m=f.match(/(\d+)(?=\.(jpg|jpeg|png|webp)$)/i); return m?parseInt(m[1],10):Number.MAX_SAFE_INTEGER; };
+const isBlocked = () => (typeof window !== "undefined" && window.__mosaicBlocked === true);
 
 export default function MosaicBackground() {
   const canvasRef = useRef(null), ctxRef = useRef(null);
@@ -628,6 +629,15 @@ export default function MosaicBackground() {
 
   function drawVeil(ctx){
     if(!VEIL_ENABLED) return;
+      if (isBlocked()) {
+    // Полностью глушим «дырку»: сплошная вуаль
+    const w = window.innerWidth, h = window.innerHeight;
+    ctx.globalAlpha = VEIL_ALPHA;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,w,h);
+    ctx.globalAlpha = 1;
+    return;
+  }
     const w = window.innerWidth, h = window.innerHeight;
     const mx = mouseRef.current.x, my = mouseRef.current.y;
     const noPointer = !(mx > -1e5 && my > -1e5);
@@ -652,6 +662,16 @@ export default function MosaicBackground() {
   function draw(t){
     const ctx=ctxRef.current; if(!ctx) return;
     const w=window.innerWidth,h=window.innerHeight;
+        if (isBlocked()) {
+      // Полный покой: нет наведения, нет клика/оверлея, звук не будет запускаться
+      mouseRef.current = { x: -1e6, y: -1e6 };
+      clickedTileIdRef.current = -1;
+      overlayRef.current = { id:-1, holdUntil:0, fadeStart:0, alpha:0 };
+      prevHoverIdRef.current = -1;
+      prevHoverColRef.current = -1;
+      prevHoverRowRef.current = -1;
+    }
+
     ctx.clearRect(0,0,w,h); ctx.fillStyle="#000"; ctx.fillRect(0,0,w,h);
 
     if(!tilesRef.current.length) initTiles();
@@ -862,103 +882,109 @@ export default function MosaicBackground() {
 
   /* ===== ГЛОБАЛЬНЫЕ слушатели (важно: канвас pointer-events:none) ===== */
   useEffect(() => {
-    const onMove = (e) => updateMouse(e.clientX, e.clientY);
+  const onMove = (e) => { if (isBlocked()) return; updateMouse(e.clientX, e.clientY); };
 
-    const onLeave = () => {
-      mouseRef.current = { x: -1e6, y: -1e6 };
-      if (!isMobile) clickedTileIdRef.current = -1;
-      prevHoverIdRef.current = -1;
-      prevHoverColRef.current = -1;
-      prevHoverRowRef.current = -1;
-    };
+  const onLeave = () => {
+    if (isBlocked()) return; // при блоке и так «без указателя»
+    mouseRef.current = { x: -1e6, y: -1e6 };
+    if (!isMobile) clickedTileIdRef.current = -1;
+    prevHoverIdRef.current = -1;
+    prevHoverColRef.current = -1;
+    prevHoverRowRef.current = -1;
+  };
 
-    const onClickWin = () => {
-      if (isMobile) return;
-      const { cols, tileW, tileH } = gridRef.current;
-      const mc = Math.floor(mouseRef.current.x / tileW);
-      const mr = Math.floor(mouseRef.current.y / tileH);
-      if (mc < 0 || mr < 0) return;
-      const id = mr * cols + mc;
-      const t = tilesRef.current[id];
-      if (!t || !t.img) return;
-      clickedTileIdRef.current = id;
-    };
+  const onClickWin = () => {
+    if (isBlocked()) return; // запрет открытия увеличения
+    if (isMobile) return;
+    const { cols, tileW, tileH } = gridRef.current;
+    const mc = Math.floor(mouseRef.current.x / tileW);
+    const mr = Math.floor(mouseRef.current.y / tileH);
+    if (mc < 0 || mr < 0) return;
+    const id = mr * cols + mc;
+    const t = tilesRef.current[id];
+    if (!t || !t.img) return;
+    clickedTileIdRef.current = id;
+  };
 
-    // мобильные жесты: TAP (открыть/закрыть), скролл — закрыть
-    const onPD = (e) => {
-      updateMouse(e.clientX, e.clientY);
-      pointerActiveRef.current = true;
-      dragFlagRef.current = false;
-      touchStartRef.current = { x:e.clientX, y:e.clientY, t:performance.now(), id: hoveredTileId() };
-      if (!isMobile) onClickWin();
-      // !!! удалён вызов primeSound() — лишний
-    };
-    const onPM = (e) => {
-      updateMouse(e.clientX, e.clientY);
-      if (isMobile && pointerActiveRef.current) {
-        const dx = e.clientX - touchStartRef.current.x;
-        const dy = e.clientY - touchStartRef.current.y;
-        if (!dragFlagRef.current && Math.hypot(dx,dy) > TAP_SLOP) {
-          dragFlagRef.current = true; // это скролл/перетаскивание — overlay закрыть
+  const onPD = (e) => {
+    if (isBlocked()) return;
+    updateMouse(e.clientX, e.clientY);
+    pointerActiveRef.current = true;
+    dragFlagRef.current = false;
+    touchStartRef.current = { x:e.clientX, y:e.clientY, t:performance.now(), id: hoveredTileId() };
+    if (!isMobile) onClickWin();
+  };
+  const onPM = (e) => {
+    if (isBlocked()) return;
+    updateMouse(e.clientX, e.clientY);
+    if (isMobile && pointerActiveRef.current) {
+      const dx = e.clientX - touchStartRef.current.x;
+      const dy = e.clientY - touchStartRef.current.y;
+      if (!dragFlagRef.current && Math.hypot(dx,dy) > TAP_SLOP) {
+        dragFlagRef.current = true;
+        clickedTileIdRef.current = -1;
+        overlayRef.current = { id:-1, holdUntil:0, fadeStart:0, alpha:0 };
+      }
+    }
+  };
+  const onPU = () => {
+    if (isBlocked()) { pointerActiveRef.current=false; return; }
+    if (isMobile) {
+      const dt = performance.now() - touchStartRef.current.t;
+      const idUp = hoveredTileId();
+      const isTap = !dragFlagRef.current && dt <= TAP_MAX_MS && idUp>=0;
+      if (isTap) {
+        const same = (clickedTileIdRef.current === idUp);
+        const now = performance.now();
+        if (same) {
           clickedTileIdRef.current = -1;
           overlayRef.current = { id:-1, holdUntil:0, fadeStart:0, alpha:0 };
+        } else {
+          clickedTileIdRef.current = idUp;
+          overlayRef.current = { id:idUp, holdUntil: now + OVERLAY_HOLD_MS, fadeStart: 0, alpha: 1 };
         }
       }
-    };
-    const onPU = () => {
-      if (isMobile) {
-        const dt = performance.now() - touchStartRef.current.t;
-        const idUp = hoveredTileId();
-        const isTap = !dragFlagRef.current && dt <= TAP_MAX_MS && idUp>=0;
-        if (isTap) {
-          const same = (clickedTileIdRef.current === idUp);
-          const now = performance.now();
-          if (same) {
-            clickedTileIdRef.current = -1;
-            overlayRef.current = { id:-1, holdUntil:0, fadeStart:0, alpha:0 };
-          } else {
-            clickedTileIdRef.current = idUp;
-            overlayRef.current = {
-              id: idUp,
-              holdUntil: now + OVERLAY_HOLD_MS,
-              fadeStart: 0,
-              alpha: 1
-            };
-          }
-        }
-        // убираем hover после отпускания
-        mouseRef.current = { x: -1e6, y: -1e6 };
-      }
-      pointerActiveRef.current=false;
-      // !!! удалён вызов primeSound() — лишний
-    };
-    const onPC = () => {
-      pointerActiveRef.current=false;
-      if (isMobile) {
-        clickedTileIdRef.current=-1;
-        overlayRef.current = { id:-1, holdUntil:0, fadeStart:0, alpha:0 };
-        mouseRef.current = { x: -1e6, y: -1e6 };
-      }
-    };
+      mouseRef.current = { x: -1e6, y: -1e6 };
+    }
+    pointerActiveRef.current=false;
+  };
+  const onPC = () => {
+    if (isBlocked()) { pointerActiveRef.current=false; return; }
+    pointerActiveRef.current=false;
+    if (isMobile) {
+      clickedTileIdRef.current=-1;
+      overlayRef.current = { id:-1, holdUntil:0, fadeStart:0, alpha:0 };
+      mouseRef.current = { x: -1e6, y: -1e6 };
+    }
+  };
 
-    window.addEventListener("mousemove", onMove, { passive: true });
-    window.addEventListener("mouseleave", onLeave, { passive: true });
-    window.addEventListener("click", onClickWin, { passive: true });
-    window.addEventListener("pointerdown", onPD, { passive: true });
-    window.addEventListener("pointermove", onPM, { passive: true });
-    window.addEventListener("pointerup", onPU, { passive: true });
-    window.addEventListener("pointercancel", onPC, { passive: true });
+  // быстрая команда закрыть зум (мы её пошлём из плашек)
+  const closeZoom = () => {
+    clickedTileIdRef.current = -1;
+    overlayRef.current = { id:-1, holdUntil:0, fadeStart:0, alpha:0 };
+  };
 
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseleave", onLeave);
-      window.removeEventListener("click", onClickWin);
-      window.removeEventListener("pointerdown", onPD);
-      window.removeEventListener("pointermove", onPM);
-      window.removeEventListener("pointerup", onPU);
-      window.removeEventListener("pointercancel", onPC);
-    };
-  }, [isMobile]);
+  window.addEventListener("mousemove", onMove, { passive: true });
+  window.addEventListener("mouseleave", onLeave, { passive: true });
+  window.addEventListener("click", onClickWin, { passive: true });
+  window.addEventListener("pointerdown", onPD, { passive: true });
+  window.addEventListener("pointermove", onPM, { passive: true });
+  window.addEventListener("pointerup", onPU, { passive: true });
+  window.addEventListener("pointercancel", onPC, { passive: true });
+  window.addEventListener("rr:close-zoom", closeZoom, { passive: true });
+
+  return () => {
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseleave", onLeave);
+    window.removeEventListener("click", onClickWin);
+    window.removeEventListener("pointerdown", onPD);
+    window.removeEventListener("pointermove", onPM);
+    window.removeEventListener("pointerup", onPU);
+    window.removeEventListener("pointercancel", onPC);
+    window.removeEventListener("rr:close-zoom", closeZoom);
+  };
+}, [isMobile]);
+
 
   /* ===== РЕНДЕР КАНВАСА (без обработчиков, не перехватывает клики) ===== */
   return (
@@ -979,3 +1005,5 @@ export const MOSAIC_MOBILE_DIR = MOBILE_DIR; // "/rustam-site/assents/mobile/"
 export const MOSAIC_MOBILE_HOVER = HOVER_BOOST_MOBILE; // 1.10
 export const MOSAIC_CLICK_MULT    = CLICK_MULT;        // 2.0
 export const MOSAIC_MOBILE_ZOOM_RATIO = MOBILE_ZOOM_W_RATIO; // 0.95
+
+111

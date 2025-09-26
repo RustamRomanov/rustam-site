@@ -1,6 +1,14 @@
 // src/components/CenterRevealCard.jsx
 import React, { useEffect, useRef, useState, useLayoutEffect } from "react";
 
+const blockMosaic = (on = true) => {
+  try {
+    window.__mosaicBlocked = !!on;
+    window.dispatchEvent(new Event(on ? "mosaic:pause" : "mosaic:resume"));
+    if (on) window.dispatchEvent(new CustomEvent("rr:close-zoom"));
+  } catch {}
+};
+
 /* ===== Utils ===== */
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
 const within = (x,y,r)=> x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
@@ -253,10 +261,9 @@ function Circle2Overlay({ open, onClose, diameter, hideClose = false, backdropCl
   const FAMILY_HEADER = "'Uni Sans Heavy','UniSans-Heavy','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
   const FAMILY_BODY = "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto";
   const COLOR = "rgba(255,255,255,0.95)";
-const maxTextWidth = Math.round(D * 0.85);
-const TEXT_SHIFT = Math.round(D * 0.05); 
+  const maxTextWidth = Math.round(D * 0.85);
+  const TEXT_SHIFT = Math.round(D * 0.05); 
 
-  /* без дыхания и без цветовой анимации */
   function FitHeader({ text, baseRatio = 0.040, minPx = 12 }) {
     const ref = React.useRef(null);
     const [fs, setFs] = React.useState(Math.max(minPx, Math.round(D * baseRatio)));
@@ -297,51 +304,46 @@ const TEXT_SHIFT = Math.round(D * 0.05);
   const handleBackdrop = backdropClose ? onClose : undefined;
 
   return (
-    <div onClick={handleBackdrop}
+    <div
+      role="dialog" aria-modal="true"
+      onClick={handleBackdrop}
       style={{ position:"fixed", inset:0, zIndex:2147486200, background:"transparent",
                display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
       <div onClick={(e)=>e.stopPropagation()}
            style={{ position:"relative", width:D, height:D, aspectRatio:"1 / 1", borderRadius:"50%",
                     overflow:"visible", transform:"scale(0.6)", opacity:0, flex:"0 0 auto",
                     animation:"c2pop 320ms cubic-bezier(.18,.8,.2,1) forwards", willChange:"transform,opacity" }}>
-      
-
-        {/* Круг */}
-        
-        {/* Круг */}
-<div style={{
-  position:"relative", width:"100%", height:"100%", aspectRatio:"1 / 1", borderRadius:"50%", overflow:"hidden",
-  boxShadow:"0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.08)",
-  animation: "c2breath 6200ms ease-in-out infinite"
-}}>
-  {/* КРЕСТ ВНУТРИ КРУГА, СВЕРХУ ПО ЦЕНТРУ (5%) */}
- {/* КРЕСТ ВНУТРИ КРУГА, СВЕРХУ ПО ЦЕНТРУ (5%) */}
-{!hideClose && (
-  <button
-    aria-label="Close"
-    onClick={onClose}
-    style={{
-      position: "absolute",
-      top: "5%",
-      left: "50%",
-      transform: "translateX(-50%)",
-      width: 38,
-      height: 38,
-      borderRadius: 999,
-      background: "transparent",   // прозрачный фон
-      border: "none",              // убираем обводку
-      cursor: "pointer",
-      display: "grid",
-      placeItems: "center",
-      zIndex: 4
-    }}
-  >
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-  </button>
-)}
-
+        <div style={{
+          position:"relative", width:"100%", height:"100%", aspectRatio:"1 / 1", borderRadius:"50%", overflow:"hidden",
+          boxShadow:"0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.08)",
+          animation: "c2breath 6200ms ease-in-out infinite"
+        }}>
+          {!hideClose && (
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={onClose}
+              style={{
+                position: "absolute",
+                top: "5%",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 38,
+                height: 38,
+                borderRadius: 999,
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                zIndex: 4
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
 
           <img src={imgSrc} alt="circle2"
             onError={()=>{ if (!imgSrc.endsWith(".JPG")) setImgSrc("/rustam-site/assents/foto/circle2.JPG"); }}
@@ -355,31 +357,30 @@ const TEXT_SHIFT = Math.round(D * 0.05);
             backdropFilter:"blur(2px) saturate(1.08)", WebkitBackdropFilter:"blur(10px) saturate(1.08)"
           }}/>
 
-          {/* Контент без дыхания текста */}
           <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
                         textAlign:"center", padding:"clamp(14px,3vw,36px)" }}>
             <div style={{ maxWidth: maxTextWidth, color:"rgba(255,255,255,0.95)", transform:`translateY(${TEXT_SHIFT}px)` }}>
               <FitHeader text="Режиссёр · Продюсер · Сценарист"/>
               <div style={{ height: 20 }}/>
               <BodyLine mt={Math.round(D * 0.018)}>
-  <span style={{
-    display: "inline-block",
-    whiteSpace: "nowrap",
-    maxWidth: Math.round(D * 0.95), // ближе к краю круга
-    fontFamily: "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto",
-    fontWeight: 700,
-    fontSize: BODY_FS + bodyInc,
-    lineHeight: 1.24,
-    letterSpacing: "0.02em",
-    color: "rgba(255,255,255,0.95)"
-  }}>
-    100+ артистов · 200+ проектов · 2+ млрд просмотров
-  </span>
-</BodyLine>
-               <div style={{ height: 15 }}/>
+                <span style={{
+                  display: "inline-block",
+                  whiteSpace: "nowrap",
+                  maxWidth: Math.round(D * 0.95),
+                  fontFamily: "'Uni Sans Thin','UniSans-Thin','Uni Sans',system-ui,-apple-system,Segoe UI,Roboto",
+                  fontWeight: 700,
+                  fontSize: BODY_FS + bodyInc,
+                  lineHeight: 1.24,
+                  letterSpacing: "0.02em",
+                  color: "rgba(255,255,255,0.95)"
+                }}>
+                  100+ артистов · 200+ проектов · 2+ млрд просмотров
+                </span>
+              </BodyLine>
+              <div style={{ height: 15 }}/>
               <BodyLine mt={Math.round(D * 0.022)}>Имею большой опыт работы с топовыми артистами и селебрити-блогерами. Оперативно пишу тритменты, мотивирую команду и соблюдаю дедлайны. </BodyLine>
-               <BodyLine> Для меня каждый проект — это эмоции, </BodyLine>
-                <BodyLine mt={Math.round(D * 0.000001)}> а эмоции всегда выигрывают.</BodyLine>
+              <BodyLine> Для меня каждый проект — это эмоции, </BodyLine>
+              <BodyLine mt={Math.round(D * 0.000001)}> а эмоции всегда выигрывают.</BodyLine>
               <BodyLine mt={Math.round(D * 0.022)}>Welcome!</BodyLine>
             </div>
           </div>
@@ -397,6 +398,7 @@ const TEXT_SHIFT = Math.round(D * 0.05);
     </div>
   );
 }
+
 
 /* ===== BIO overlay (desktop) ===== */
 function BioOverlay({ open, onClose, imageSrc }) {
@@ -430,8 +432,10 @@ function BioOverlay({ open, onClose, imageSrc }) {
   );
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.82)", zIndex:2147485200, display:"flex",
-                  alignItems:"center", justifyContent:"center", padding:"3vw", animation:"bioFade 180ms ease" }}>
+    <div
+      role="dialog" aria-modal="true"
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.82)", zIndex:2147485200, display:"flex",
+               alignItems:"center", justifyContent:"center", padding:"3vw", animation:"bioFade 180ms ease" }}>
       <audio ref={audioRef} src="/rustam-site/assents/music/bio.mp3" preload="auto" loop />
       <div style={{ position:"relative", display:"inline-block", overflow:"visible" }}>
         <div onClick={(e)=>e.stopPropagation()}
@@ -457,15 +461,14 @@ function BioOverlay({ open, onClose, imageSrc }) {
           </div>
         </div>
 
-        {/* Mute / Close */}
-        <button aria-label="Mute/Unmute" onClick={()=>setIsMuted(m=>!m)}
+        <button type="button" aria-label="Mute/Unmute" onClick={()=>setIsMuted(m=>!m)}
           style={{ position:"absolute", top:-34, right:-34, width:36, height:36, borderRadius:999,
                    background: isMuted ? "rgba(255,255,255,0.78)" : "rgba(0,0,0,0.65)",
                    border: isMuted ? "1px solid rgba(0,0,0,0.35)" : "1px solid rgba(255,255,255,0.45)",
                    cursor:"pointer", display:"grid", placeItems:"center", boxShadow:"0 12px 26px rgba(0,0,0,0.5)", zIndex:12 }}>
           <IconSpeaker muted={isMuted} color={isMuted ? "#222" : "white"} />
         </button>
-        <button aria-label="Close" onClick={onClose}
+        <button type="button" aria-label="Close" onClick={onClose}
           style={{ position:"absolute", top:-34, right:-78, width:36, height:36, borderRadius:999,
                    background:"rgba(0,0,0,0.65)", border:"1px solid rgba(255,255,255,0.45)", cursor:"pointer",
                    display:"grid", placeItems:"center", boxShadow:"0 12px 26px rgba(0,0,0,0.5)", zIndex:13 }}>
@@ -482,6 +485,7 @@ function BioOverlay({ open, onClose, imageSrc }) {
     </div>
   );
 }
+
 
 /* ===== BIO Mobile overlay ===== */
 function BioMobileOverlay({ open, onClose, imageSrc }) {
@@ -515,7 +519,9 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
   const TEXT_TOP_PX = Math.round(FS_PX * LINE_HEIGHT * LINES_ABOVE);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "transparent", zIndex: 2147485600, pointerEvents: "auto" }}>
+    <div
+      role="dialog" aria-modal="true"
+      style={{ position: "fixed", inset: 0, background: "transparent", zIndex: 2147485600, pointerEvents: "auto" }}>
       <audio ref={audioRef} src="/rustam-site/assents/music/bio.mp3" preload="auto" loop />
       <div style={{
         position: "absolute", left: SIDE_INSET, right: SIDE_INSET, top: TOP_GAP, bottom: BOT_GAP,
@@ -530,17 +536,23 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
                       fontSize: FS_PX, lineHeight: LINE_HEIGHT, paddingRight: 12, textShadow: "none",
                       whiteSpace: "pre-wrap", textAlign: "justify", paddingLeft: `${FS_PX * 1}px`, textAlignLast: "left" }}>
           {BIO_TEXT}
-            </div>
+        </div>
       </div>
 
-      <button aria-label={isMuted ? "Unmute" : "Mute"} onClick={() => setIsMuted((m) => !m)}
+      <button
+        type="button"
+        aria-label={isMuted ? "Unmute" : "Mute"}
+        onClick={() => setIsMuted((m) => !m)}
         style={{ position: "absolute", top: `calc(${TOP_GAP} - 55px)`, right: `calc(${SIDE_INSET} + 46px)`, width: 40, height: 40,
                  borderRadius: 999, background: isMuted ? "rgba(255,255,255,0.78)" : "rgba(0,0,0,0.55)",
                  border: isMuted ? "1px solid rgba(0,0,0,0.35)" : "1px solid rgba(255,255,255,0.4)", cursor: "pointer",
                  display: "grid", placeItems: "center", boxShadow: "0 6px 18px rgba(0,0,0,0.4)", zIndex: 2147485602 }}>
         <IconSpeaker muted={isMuted} color={isMuted ? "#222" : "white"} />
       </button>
-      <button aria-label="Close" onClick={onClose}
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
         style={{ position: "absolute", top: `calc(${TOP_GAP} - 55px)`, right: SIDE_INSET, width: 40, height: 40,
                  borderRadius: 999, background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.4)", cursor: "pointer",
                  display: "grid", placeItems: "center", boxShadow: "0 6px 18px rgba(0,0,0,0.4)", zIndex: 2147485603 }}>
@@ -557,6 +569,7 @@ function BioMobileOverlay({ open, onClose, imageSrc }) {
   );
 }
 
+
 /* ===== Vimeo overlay — DESKTOP (окно 60vw x 60vh, звук сразу включён, без TAP-кнопки) ===== */
 function VideoOverlayDesktop({ open, onClose, vimeoId }) {
   const dragRef = useRef({active:false,startY:0,dy:0});
@@ -564,7 +577,6 @@ function VideoOverlayDesktop({ open, onClose, vimeoId }) {
   const [frameReady, setFrameReady] = useState(false);
   if (!open) return null;
 
-  // не стартуем drag, если жмём по кнопке/иконке
   const onPD = (e) => {
     const el = e.target;
     if (el && typeof el.closest === "function" && el.closest("button, [data-stop-drag], .no-drag")) return;
@@ -597,12 +609,11 @@ function VideoOverlayDesktop({ open, onClose, vimeoId }) {
     try { iframeRef.current?.contentWindow?.postMessage({ method, value }, "*"); } catch {}
   };
   const onIframeLoad = () => {
-    // убираем чёрный плейсхолдер и включаем звук
     setTimeout(() => {
       setFrameReady(true);
-      post("setMuted", false);   // звук включён
-      post("setVolume", 1);      // громкость
-      post("play");              // играть
+      post("setMuted", false);
+      post("setVolume", 1);
+      post("play");
     }, 80);
   };
 
@@ -614,14 +625,15 @@ function VideoOverlayDesktop({ open, onClose, vimeoId }) {
 
   return (
     <div
+      role="dialog" aria-modal="true"
       onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
       style={{
         position:"fixed", inset:0, zIndex:2147486000, background:"rgba(0,0,0,0.96)",
         display:"flex", alignItems:"center", justifyContent:"center", padding:"3vw"
       }}
     >
-      {/* Кнопка закрытия */}
       <button
+        type="button"
         aria-label="Close"
         onClick={(e)=>{ e.stopPropagation(); onClose(); }}
         onPointerDown={(e)=> e.stopPropagation()}
@@ -636,7 +648,6 @@ function VideoOverlayDesktop({ open, onClose, vimeoId }) {
       </button>
 
       <div className="player-panel" onClick={(e)=>e.stopPropagation()} style={containerStyle}>
-        {/* чёрный плейсхолдер до готовности — белого кадра не видно */}
         {!frameReady && <div style={{ position:"absolute", inset:0, background:"#000", zIndex:2 }} />}
         <iframe
           id="vimeo-embed-d"
@@ -658,6 +669,8 @@ function VideoOverlayDesktop({ open, onClose, vimeoId }) {
 }
 
 
+
+
 /* ===== Vimeo overlay — MOBILE (по ширине, без верхнего Unmute, с нижней TAP TO UNMUTE/MUTE) ===== */
 function VideoOverlayMobile({ open, onClose, vimeoId }) {
   const dragRef = useRef({active:false,startY:0,dy:0});
@@ -667,14 +680,13 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
   const [isMuted, setIsMuted] = useState(true);
   const [frameReady, setFrameReady] = useState(false);
 
-  // Всегда считаем размеры от ширины экрана (16:9)
   const R = 16/9;
   const [fitH, setFitH] = useState( Math.round((typeof window !== "undefined" ? window.innerWidth : 1) / R) );
 
   useEffect(() => {
     const recalc = () => {
       const W = Math.max(1, (typeof window !== "undefined" ? (window.visualViewport?.width || window.innerWidth) : 1));
-      setFitH(Math.round(W / R)); // по ширине всегда, высоту считаем от 16:9
+      setFitH(Math.round(W / R));
     };
     recalc();
     window.addEventListener("resize", recalc, { passive: true });
@@ -697,7 +709,7 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
   };
 
   const onPD = (e) => {
-    if (e.target?.closest?.("button")) return; // не начинаем drag с кнопки
+    if (e.target?.closest?.("button")) return;
     dragRef.current = { active: true, startY: e.clientY, dy: 0 };
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
@@ -719,6 +731,7 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
 
   return (
     <div
+      role="dialog" aria-modal="true"
       onPointerDown={onPD}
       onPointerMove={onPM}
       onPointerUp={onPU}
@@ -728,8 +741,8 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
         display:"flex", alignItems:"center", justifyContent:"center", padding:0, overflow:"hidden"
       }}
     >
-      {/* Кнопка закрытия (сверху), drag здесь не стартует */}
       <button
+        type="button"
         aria-label="Close"
         onClick={(e)=>{ e.stopPropagation(); onClose(); }}
         onPointerDown={(e)=> e.stopPropagation()}
@@ -753,12 +766,10 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
         </svg>
       </button>
 
-      {/* Панель плеера на весь экран */}
       <div ref={panelRef} className="player-panel"
            style={{ position:"relative", width:"100vw", height:"100svh", borderRadius:0, background:"#000" }}>
         {!frameReady && <div style={{ position:"absolute", inset:0, background:"#000", zIndex:2 }} />}
 
-        {/* Внутренний wrapper: всегда по ширине экрана, высота — 16:9 от ширины */}
         <div style={{
           position:"absolute", left:0, right:0, top:"50%",
           width:"100vw", height: `${fitH}px`,
@@ -782,8 +793,8 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
         </div>
       </div>
 
-      {/* Только нижняя кнопка TAP TO UNMUTE/MUTE */}
       <button
+        type="button"
         onClick={(e)=>{ e.stopPropagation(); toggleMute(); }}
         onPointerDown={(e)=> e.stopPropagation()}
         style={{
@@ -800,6 +811,7 @@ function VideoOverlayMobile({ open, onClose, vimeoId }) {
     </div>
   );
 }
+
 
 
 
@@ -1009,7 +1021,14 @@ const runCenterOutReset = ()=>{
 
   return (
     <>
-      <div style={wrapper}>
+      <div
+  style={wrapper}
+  onPointerEnter={() => blockMosaic(true)}
+  onPointerLeave={() => { if(!(bioOpen || playerOpen || circle2Open)) blockMosaic(false); }}
+  onFocusCapture={() => blockMosaic(true)}
+  onBlurCapture={() => { if(!(bioOpen || playerOpen || circle2Open)) blockMosaic(false); }}
+>
+
         {/* КРУГ 1 — стеклянная плашка с дыханием */}
         <div style={plateWrapStyle}>
           <div className="glass-plate circle" style={plateStyle}>
@@ -1030,7 +1049,7 @@ const runCenterOutReset = ()=>{
             <PrePlate active={true}>
               <div
                 onMouseLeave={()=> setSrStick(Array.from(showreelText).map(()=>false))}
-                onClick={()=>{ setVimeoId("1001147905"); setPlayerOpen(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
+                onClick={()=>{ setVimeoId("1001147905"); setPlayerOpen(true); blockMosaic(true);  }}
                 style={{
                   position:"relative", display:"inline-block",
                   marginTop: Math.round(titleFS*0.3), marginBottom: Math.round(directedFS*0.2),
@@ -1061,7 +1080,7 @@ const runCenterOutReset = ()=>{
               <h1
                 onMouseEnter={()=>{ setHoveringName(true); lastHoverRef.current = Date.now(); resetBatchRef.current++; resettingRef.current=false; }}
                 onMouseLeave={()=> setHoveringName(false)}
-                onClick={()=>{ setCircle2Open(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
+                onClick={()=>{ setCircle2Open(true); blockMosaic(true); }}
                 style={{
                   margin:0, fontSize:nameFS, letterSpacing:"0.02em", whiteSpace:"nowrap",
                   userSelect:"none", cursor:"pointer",
@@ -1096,10 +1115,9 @@ const runCenterOutReset = ()=>{
 
             {/* BIO */}
             <div style={{ marginTop: Math.round(titleFS*0.9) }}>
-              <PrePlate active={true}><BiographyWordPerLetter onOpen={() => {
-  window.__mosaicBlocked = true;
-  setBioOpen(true);
-}} /></PrePlate>
+              <PrePlate active={true}><BiographyWordPerLetter 
+              onOpen={() => { blockMosaic(true); setBioOpen(true); }}
+ /></PrePlate>
             </div>
 
             {/* Соц-иконки */}
@@ -1122,7 +1140,7 @@ const runCenterOutReset = ()=>{
   onClose={() => {
     setPlayerOpen(false);
     setVimeoId(null);
-    setTimeout(() => { window.__mosaicBlocked = false }, 600);
+    setTimeout(() => blockMosaic(false), 600);
   }}
   vimeoId={vimeoId}
 />
@@ -1131,7 +1149,7 @@ const runCenterOutReset = ()=>{
   open={bioOpen}
   onClose={() => {
     setBioOpen(false);
-    setTimeout(() => { window.__mosaicBlocked = false }, 600);
+    setTimeout(() => blockMosaic(false), 600);
   }}
   imageSrc="/rustam-site/assents/foto/bio.jpg"
 />
@@ -1140,7 +1158,7 @@ const runCenterOutReset = ()=>{
   open={circle2Open}
   onClose={() => {
     setCircle2Open(false);
-    setTimeout(() => { window.__mosaicBlocked = false }, 600);
+    setTimeout(() => blockMosaic(false), 600);
   }}
   diameter={Math.round(circleDiam*1.22*1.2)}
 />
@@ -1339,9 +1357,14 @@ const plateStyle = {
     <>
       <div
   style={wrapper}
-  onTouchStart={() => window.dispatchEvent(new Event("mosaic:pause"))}
-  onTouchEnd={() => window.dispatchEvent(new Event("mosaic:resume"))}
+  onPointerEnter={() => blockMosaic(true)}
+  onPointerLeave={() => { if(!(bioOpen || playerOpen || circle2Open)) blockMosaic(false); }}
+  onPointerDown={() => blockMosaic(true)}
+  onPointerUp={() => { if(!(bioOpen || playerOpen || circle2Open)) blockMosaic(false); }}
+  onTouchStart={() => blockMosaic(true)}
+  onTouchEnd={() => { if(!(bioOpen || playerOpen || circle2Open)) blockMosaic(false); }}
 >
+
        {/* КРУГ 1 */}
 <div style={plateWrapStyle}>
   <div className="glass-plate circle" style={plateStyle}>
@@ -1361,7 +1384,7 @@ const plateStyle = {
                       textShadow:"0 1px 2px rgba(0,0,0,0.25)" }}>
           {/* BIO */}
           <PrePlate active={true}>
-            <h2 onClick={()=>{ clickSnd(); setBioOpen(true); window.dispatchEvent(new CustomEvent("rr:close-zoom")); }}
+            <h2 onClick={()=>{ clickSnd(); setBioOpen(true); blockMosaic(true); }}
                 style={{ margin: 0, fontSize: "clamp(13px, 4.2vw, 17px)", letterSpacing: "0.08em",
                          userSelect: "none", cursor: "pointer", fontFamily: FAMILY_BODY, fontWeight: 700, fontSynthesis: "none" }}
                 title="BIOGRAPHY">
@@ -1531,3 +1554,5 @@ export default function CenterRevealCard() {
   },[]);
   return isMobile ? <MobileCard/> : <DesktopCard/>;
 }
+
+111
