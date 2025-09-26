@@ -7,17 +7,17 @@ const WAVE_STEP = 90, WAVE_PERIOD_MIN = 5000, WAVE_PERIOD_MAX = 9000;
 const FADE_MS = 800, RING_SCALES = [3, 2, 1.5, 1.2], LERP = 0.22;
 
 /* ===== МОБИЛЬНЫЙ ЗУМ ===== */
-const MOBILE_ZOOM_W_RATIO = 0.95; // 95% ширины экрана
+const MOBILE_ZOOM_W_RATIO = 0.95;
 
 /* ===== ХОВЕР / КЛИК / ЗУМ ===== */
 const HOVER_BOOST = 1.2, HOVER_BOOST_MOBILE = 1.10;
 const CENTER_15_PERCENT_LESS = 0.85, CLICK_MULT = 2.0;
 const ZOOM_RADIUS = 18;
-const CLEAR_RING_DESKTOP = 2; // сбрасываем зум, если курсор ушёл дальше этого кольца
+const CLEAR_RING_DESKTOP = 2;
 
 /* ===== Моб. TAP детекция ===== */
-const TAP_SLOP = 10;      // px
-const TAP_MAX_MS = 350;   // ms
+const TAP_SLOP = 10;
+const TAP_MAX_MS = 350;
 
 /* ===== ПЛАТФОРМА ===== */
 const MOBILE_BREAKPOINT = 768;
@@ -29,10 +29,10 @@ const MOBILE_DIR  = "/rustam-site/assents/mobile/";
 /* ===== АУДИО ===== */
 const SOUND_MIN_GAP_MS = 100;
 
-/* ===== ГЛУШЕНИЕ АУДИО В ЦЕНТРЕ ЭКРАНА ===== */
-/* Центр 20% ширины — полная тишина; ещё по 6% с каждой стороны — плавный подъём громкости */
-const AUDIO_MUTE_CORE_RATIO = 0.20;  // 20% ширины экрана — 0 громкости
-const AUDIO_FEATHER_RATIO   = 0.12;  // 12% ширины (суммарно) — плавный переход 0→1
+/* ===== ГАШЕНИЕ ЗВУКА: КРУГ ПО ПЛАШКЕ ===== */
+// >>> AUDIO CIRCLE MUTE: берём центр плашки и радиус, описанный вокруг неё.
+// Мягкое «перо» = 18% от радиуса (можно поправить).
+const AUDIO_FEATHER_RATIO = 0.18;
 
 /* ===== СКАН КАТАЛОГА ===== */
 const MISS_STREAK_LIMIT = 200;
@@ -43,7 +43,7 @@ const MAX_INDEX_SCAN = 10000;
 const NEI_RADIUS = 2;
 const NEI_DELTA  = 15;
 
-/* ===== ВУАЛЬ (тёмная пелена с «дыркой» у курсора) ===== */
+/* ===== ВУАЛЬ ===== */
 const VEIL_ENABLED = true;
 const VEIL_ALPHA   = 0.55;
 const VEIL_HOLE_R  = 140;
@@ -52,50 +52,60 @@ const VEIL_MIN_R   = 90;
 const VEIL_MAX_R   = 280;
 
 /* ===== Доп. КОНСТАНТЫ (моб. плавности) ===== */
-const LERP_RETURN = 0.08;          // мягкий возврат масштаба на мобилке (~1 c)
-const OVERLAY_HOLD_MS = 4000;      // держим зум 4 c
-const OVERLAY_FADE_MS = 1000;      // затем 1 c плавно исчезает
+const LERP_RETURN = 0.08;
+const OVERLAY_HOLD_MS = 4000;
+const OVERLAY_FADE_MS = 1000;
 
 /* ===== УТИЛИТЫ ===== */
 const clamp = (v,min,max)=>Math.min(Math.max(v,min),max);
 const clamp01 = (x)=>Math.max(0,Math.min(1,x));
 const randInt = (min,max)=>Math.floor(min + Math.random()*(max-min+1));
 const parseSeq = (url)=>{ const f=(url.split("/").pop()||"").toLowerCase(); const m=f.match(/(\d+)(?=\.(jpg|jpeg|png|webp)$)/i); return m?parseInt(m[1],10):Number.MAX_SAFE_INTEGER; };
+const smoothstep01 = (t)=>{ const x=clamp01(t); return x*x*(3-2*x); };
 
-/* ===== АТТЕНЮАТОР ЗВУКА ПО X ===== */
-function smoothstep01(t){ const x=Math.max(0,Math.min(1,t)); return x*x*(3-2*x); }
-/** Возвращает множитель громкости [0..1] в зависимости от clientX */
-function audioMulAtX(mx){
-  const w = window.innerWidth || 1;
-  const cx = w * 0.5;
+/* ===== Поиск плашки ===== */
+function getPlateEl(){
+  return (
+    document.querySelector('[data-mosaic-block]') ||
+    document.querySelector('.mosaic-block') ||
+    document.querySelector('.center-plate')
+  );
+}
 
-  const coreHalf    = (AUDIO_MUTE_CORE_RATIO * w) * 0.5;   // половина от 20% = 10% w
-  const featherHalf = (AUDIO_FEATHER_RATIO   * w) * 0.5;   // половина от 12% = 6% w
+/* ===== Аттенюатор громкости: круг вокруг плашки ===== */
+// Важно: принимает координаты в системе "clientX/clientY"
+function audioMulAtPointClient(mx, my){
+  const el = getPlateEl();
+  if (!el) return 1; // нет плашки — не глушим
 
-  const dx = Math.abs(mx - cx);
+  const r = el.getBoundingClientRect();
+  const cx = (r.left + r.right) * 0.5;
+  const cy = (r.top  + r.bottom) * 0.5;
 
-  if (dx <= coreHalf) return 0; // полная тишина в центральных 20%
+  // Радиус окружности, описанной вокруг прямоугольника плашки:
+  const rx = r.width  * 0.5;
+  const ry = r.height * 0.5;
+  const baseR = Math.hypot(rx, ry); // гарантированно покрывает всю плашку кругом
 
-  if (dx <= coreHalf + featherHalf){
-    // плавный рост 0 → 1 на участке «перья»
-    const t = (dx - coreHalf) / (featherHalf || 1);
+  const feather = Math.max(1, baseR * AUDIO_FEATHER_RATIO);
+  const d = Math.hypot(mx - cx, my - cy);
+
+  if (d <= baseR) return 0; // внутри круга — полная тишина
+  if (d <= baseR + feather){
+    // плавный рост 0→1 на краю круга (перо)
+    const t = (d - baseR) / feather;
     return smoothstep01(t);
   }
-
-  return 1; // за пределами — полный звук
+  return 1; // за пером — без изменений
 }
 
 export default function MosaicBackground() {
   const canvasRef = useRef(null), ctxRef = useRef(null);
 
-  /* ===== Пулы изображений (3 этапа) ===== */
+  /* ===== Пулы изображений ===== */
   const img1Ref        = useRef(null);
-  const mobileUrlsRef  = useRef([]);
-  const mobilePoolRef  = useRef([]);
-  const mobileSeqRef   = useRef([]);
-  const desktopUrlsRef = useRef([]);
-  const desktopPoolRef = useRef([]);
-  const desktopSeqRef  = useRef([]);
+  const mobileUrlsRef  = useRef([]); const mobilePoolRef = useRef([]); const mobileSeqRef = useRef([]);
+  const desktopUrlsRef = useRef([]); const desktopPoolRef= useRef([]); const desktopSeqRef= useRef([]);
 
   /* ===== Текущая сетка/тайлы ===== */
   const tilesRef  = useRef([]);
@@ -105,12 +115,12 @@ export default function MosaicBackground() {
   const rafRef    = useRef(0);
   const waveRef   = useRef({ nextWaveAt: 0 });
   const allowRandomRef = useRef(false);
-  const phaseRef  = useRef("img1"); // img1 -> mobile -> desktop
+  const phaseRef  = useRef("img1");
   const doingWaveRef = useRef(false);
-  const pendingPhasesRef = useRef([]); // очередь фаз: ["mobile","desktop"]
+  const pendingPhasesRef = useRef([]);
 
   /* Наведение / клик */
-  const mouseRef = useRef({ x:-1e6, y:-1e6 });
+  const mouseRef = useRef({ x:-1e6, y:-1e6 }); // координаты ВНУТРИ canvas
   const prevHoverIdRef = useRef(-1);
   const prevHoverColRef = useRef(-1);
   const prevHoverRowRef = useRef(-1);
@@ -121,7 +131,7 @@ export default function MosaicBackground() {
   const touchStartRef = useRef({x:0,y:0,t:0,id:-1});
   const dragFlagRef = useRef(false);
 
-  /* Моб. оверлей (фиксация + затухание) */
+  /* Моб. оверлей */
   const overlayRef = useRef({ id:-1, holdUntil:0, fadeStart:0, alpha:0 });
 
   const readySentRef = useRef(false);
@@ -129,7 +139,7 @@ export default function MosaicBackground() {
     typeof window!=="undefined" ? window.innerWidth<=MOBILE_BREAKPOINT : false
   );
 
-  /* ===== AUDIO ===== */
+  /* ===== AUDIO engine ===== */
   const audioCtxRef    = useRef(null);
   const convolverRef   = useRef(null);
   const masterCompRef  = useRef(null);
@@ -428,7 +438,6 @@ export default function MosaicBackground() {
   useEffect(()=>{
     let cancelled=false;
     (async()=>{
-      // img1 (mobile приоритет)
       const tryImg1 = async (base)=>{
         for(const ext of TRY_EXTS){
           const url=`${base}img1.${ext}`;
@@ -444,7 +453,6 @@ export default function MosaicBackground() {
       allowRandomRef.current = false;
       doingWaveRef.current = false;
 
-      // параллельно тянем списки
       const [mobileUrls, desktopUrls] = await Promise.all([
         fetchListForBase(MOBILE_DIR),
         fetchListForBase(DESKTOP_DIR)
@@ -453,10 +461,8 @@ export default function MosaicBackground() {
       mobileUrlsRef.current = mobileUrls||[];
       desktopUrlsRef.current = desktopUrls||[];
 
-      // Старт rAF
       if(!rafRef.current) start();
 
-      // Прелоад mobile → фаза mobile
       if((mobileUrlsRef.current?.length||0) > 0){
         const { pool, seq } = await preloadPool(mobileUrlsRef.current);
         if(cancelled) return;
@@ -464,7 +470,6 @@ export default function MosaicBackground() {
         enqueuePhase("mobile");
       }
 
-      // Прелоад desktop → фаза desktop
       if((desktopUrlsRef.current?.length||0) > 0){
         const { pool, seq } = await preloadPool(desktopUrlsRef.current);
         if(cancelled) return;
@@ -497,7 +502,7 @@ export default function MosaicBackground() {
   /* ===== Тайлы под текущую фазу/ img1 ===== */
   function initTiles(force=false){
     const { cols, rows } = gridRef.current; if(!cols || !rows) return;
-    if(!img1Ref.current) return; // ждём img1
+    if(!img1Ref.current) return;
     if(tilesRef.current.length && !force) return;
 
     const total = cols*rows;
@@ -542,7 +547,7 @@ export default function MosaicBackground() {
     }, waveTime);
   }
 
-  /* ===== Анти-близость и гарантированная смена ===== */
+  /* ===== Анти-близость ===== */
   function neighborsOf(id, cols, rows){
     const r=Math.floor(id/cols), c=id%cols;
     const list=[];
@@ -564,9 +569,7 @@ export default function MosaicBackground() {
       const neighborSeq = t._seq;
       if (neighborSeq != null && candidateSeq != null) {
         const seqDiff = Math.abs(neighborSeq - candidateSeq);
-        if (seqDiff <= NEI_DELTA) {
-          pen += (NEI_DELTA - seqDiff + 1) * 10; // чем ближе, тем больше штраф
-        }
+        if (seqDiff <= NEI_DELTA) pen += (NEI_DELTA - seqDiff + 1) * 10;
       }
     }
     return pen;
@@ -600,13 +603,11 @@ export default function MosaicBackground() {
     return { img: pool[idx], seq: seq[idx] ?? null };
   }
 
-  /* ===== Вспомог. для моб. оверлея ===== */
+  /* ===== Моб. оверлей - тайминги ===== */
   function isOverlayActive(tNow){
     if (overlayRef.current.id < 0) return false;
-
-    // идёт затухание
     if (overlayRef.current.fadeStart > 0) {
-      const p = Math.max(0, Math.min(1, (tNow - overlayRef.current.fadeStart) / OVERLAY_FADE_MS));
+      const p = clamp01((tNow - overlayRef.current.fadeStart) / OVERLAY_FADE_MS);
       overlayRef.current.alpha = 1 - p;
       if (overlayRef.current.alpha <= 0) {
         overlayRef.current = { id:-1, holdUntil:0, fadeStart:0, alpha:0 };
@@ -615,11 +616,8 @@ export default function MosaicBackground() {
       }
       return true;
     }
-    // удержание
     overlayRef.current.alpha = 1;
-    if (tNow >= overlayRef.current.holdUntil) {
-      overlayRef.current.fadeStart = tNow;
-    }
+    if (tNow >= overlayRef.current.holdUntil) overlayRef.current.fadeStart = tNow;
     return true;
   }
 
@@ -642,7 +640,7 @@ export default function MosaicBackground() {
     ctx.lineTo(x+rr,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-rr);
     ctx.lineTo(x,y+rr); ctx.quadraticCurveTo(x,y,x+rr,y); ctx.closePath();
   }
-  function drawCoverRounded(ctx,img,dx,dy,dw,dh,s=1){
+  function drawCoverRounded(ctx, img, dx, dy, dw, dh, s=1){
     if(!img||!img.width||!img.height) return;
     const cx=dx+dw/2, cy=dy+dh/2;
     const drawW=dw*s, drawH=dh*s;
@@ -694,41 +692,38 @@ export default function MosaicBackground() {
 
     const { tileW,tileH,cols,rows } = gridRef.current;
 
-   // ======== ЗВУК ПРИ ВХОДЕ В НОВЫЙ ТАЙЛ (только X) ========
-const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH);
-const hoveredId=(mc>=0 && mr>=0) ? (mr*cols + mc) : -1;
-if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
-  const pan = cols>1 ? ((mc/(cols-1))*2 - 1) : 0;
-  const prevCol = prevHoverColRef.current>=0 ? prevHoverColRef.current : mc;
-  const dirX = Math.max(-1,Math.min(1, mc - prevCol));
-  prevHoverColRef.current = mc;
+    // ======== ЗВУК ПРИ ВХОДЕ В НОВЫЙ ТАЙЛ (с круговой тишиной по плашке) ========
+    const mc=Math.floor(mouseRef.current.x/tileW), mr=Math.floor(mouseRef.current.y/tileH);
+    const hoveredId=(mc>=0 && mr>=0) ? (mr*cols + mc) : -1;
+    if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
+      const pan = cols>1 ? ((mc/(cols-1))*2 - 1) : 0;
+      const prevCol = prevHoverColRef.current>=0 ? prevHoverColRef.current : mc;
+      const dirX = Math.max(-1,Math.min(1, mc - prevCol));
+      prevHoverColRef.current = mc;
 
-  const v = rows>1 ? (1 - mr/(rows-1)) : 0.5;
-  const prevRow = prevHoverRowRef.current>=0 ? prevHoverRowRef.current : mr;
-  const dirY = Math.max(-1, Math.min(1, mr - prevRow));
-  prevHoverRowRef.current = mr;
+      const v = rows>1 ? (1 - mr/(rows-1)) : 0.5;
+      const prevRow = prevHoverRowRef.current>=0 ? prevHoverRowRef.current : mr;
+      const dirY = Math.max(-1, Math.min(1, mr - prevRow));
+      prevHoverRowRef.current = mr;
 
-  const tx=(hoveredId%cols)*tileW + tileW/2;
-  // const ty=Math.floor(hoveredId/cols)*tileH + tileH/2; // больше не нужен для громкости
+      const tx=(hoveredId%cols)*tileW + tileW/2;
+      const dx=Math.abs(mouseRef.current.x - tx)/(tileW/2);
+      const baseStrength=1 - 0.6*Math.min(1, dx); // ТОЛЬКО X внутри тайла
 
-  // НОРМАЛИЗОВАННОЕ отклонение только по X (0 в центре тайла → 1 на краях тайла)
-  const dx=Math.abs(mouseRef.current.x - tx)/(tileW/2);
-  const dxClamped = Math.min(1, dx);
+      // ВАЖНО: для аттенюатора нужны client-координаты
+      const canvasRect = canvasRef.current.getBoundingClientRect();
+      const clientX = canvasRect.left + mouseRef.current.x;
+      const clientY = canvasRect.top  + mouseRef.current.y;
 
-  // ГРОМКОСТЬ ТЕПЕРЬ ТОЛЬКО ОТ X (вертикаль не влияет)
-  const baseStrength = 1 - 0.6*dxClamped;
+      const audioMul = audioMulAtPointClient(clientX, clientY); // 0 внутри круга по плашке, перо к 1
+      const strength = baseStrength * audioMul;
 
-  // Аттенюация по горизонтальной центральной зоне экрана (20% mute + перья)
-  const audioMul = audioMulAtX(mouseRef.current.x);
-  const strength = baseStrength * audioMul;
-
-  if (strength > 0.001) {
-    try { playDirectionalAir(strength, pan, dirX, v, dirY); } catch {}
-  }
-
-  prevHoverIdRef.current=hoveredId;
-}
-// ==========================================================
+      if (strength > 0.001) {
+        try { playDirectionalAir(strength, pan, dirX, v, dirY); } catch {}
+      }
+      prevHoverIdRef.current=hoveredId;
+    }
+    // ===========================================================================
 
     // автосброс зума (десктоп)
     if (!isMobile && clickedTileIdRef.current >= 0) {
@@ -737,15 +732,13 @@ if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
       const distRing = (hoveredId >= 0)
         ? Math.max(Math.abs(mc - c0), Math.abs(mr - r0))
         : Infinity;
-      if (distRing > CLEAR_RING_DESKTOP) {
-        clickedTileIdRef.current = -1;
-      }
+      if (distRing > CLEAR_RING_DESKTOP) clickedTileIdRef.current = -1;
     }
 
     const HOVER_MUL = isMobile ? HOVER_BOOST_MOBILE : HOVER_BOOST;
     const overlayActive = isMobile ? isOverlayActive(t) : false;
 
-    // плавный масштаб и подмена по расписанию
+    // масштаб/замены
     const order=new Array(tiles.length);
     for(let i=0;i<tiles.length;i++){
       const tile=tiles[i];
@@ -760,17 +753,15 @@ if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
 
       if(tile.frozen) target*=CLICK_MULT;
 
-      // Мягкий возврат масштаба на мобилке, когда палец отпущен и оверлея нет
       if (isMobile && !pointerActiveRef.current && !overlayActive) {
         tile.scale += (1 - tile.scale) * LERP_RETURN;
       } else {
         tile.scale += (target - tile.scale) * LERP;
       }
 
-      // подмена по расписанию (останавливаем для активного оверлей-тайла)
       if(t>=tile.nextChange){
         if (overlayActive && overlayRef.current.id === tile.id) {
-          tile.nextChange = t + 1e8; // заморозить
+          tile.nextChange = t + 1e8;
         } else {
           const tag = tile.targetTag || phaseRef.current;
           if(tag==="mobile" || tag==="desktop"){
@@ -795,22 +786,22 @@ if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
     }
     order.sort((a,b)=>b.ring - a.ring);
 
-    // фоновая отрисовка (кроме кликнутого, его рисуем позже поверх)
+    // фон
     for(const o of order){
       const tile=tiles[o.idx]; if(!tile.img) continue;
-      const dx=tile.c*tileW, dy=tile.r*tileH;
+      const dx2=tile.c*tileW, dy2=tile.r*tileH;
       if(o.idx===clickedTileIdRef.current) continue;
       if(tile.fading){
         const p=Math.min(1,(t - tile.fadeStart)/FADE_MS);
-        if(tile.prevImg){ ctx.globalAlpha=1-p; drawCoverRounded(ctx,tile.prevImg,dx,dy,tileW,tileH,tile.scale); }
-        ctx.globalAlpha=p; drawCoverRounded(ctx,tile.img,dx,dy,tileW,tileH,tile.scale); ctx.globalAlpha=1;
+        if(tile.prevImg){ ctx.globalAlpha=1-p; drawCoverRounded(ctx,tile.prevImg,dx2,dy2,tileW,tileH,tile.scale); }
+        ctx.globalAlpha=p; drawCoverRounded(ctx,tile.img,dx2,dy2,tileW,tileH,tile.scale); ctx.globalAlpha=1;
         if(p>=1){ tile.fading=false; }
       } else {
-        drawCoverRounded(ctx,tile.img,dx,dy,tileW,tileH,tile.scale);
+        drawCoverRounded(ctx,tile.img,dx2,dy2,tileW,tileH,tile.scale);
       }
     }
 
-    // клик-зум / моб. оверлей
+    // оверлей
     const ct=clickedTileIdRef.current;
     if(ct>=0){
       const tile=tiles[ct]; if(tile && tile.img){
@@ -872,7 +863,7 @@ if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
       }
     }
 
-    // случайная жизнь — после desktop-фазы
+    // случайная жизнь
     if(allowRandomRef.current && !doingWaveRef.current && t>=waveRef.current.nextWaveAt){
       const oc=randInt(0,cols-1), or=randInt(0,rows-1);
       const start=t;
@@ -899,7 +890,7 @@ if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
     return mr*cols+mc;
   };
 
-  /* ===== ГЛОБАЛЬНЫЕ слушатели (важно: канвас pointer-events:none) ===== */
+  /* ===== ГЛОБАЛЬНЫЕ слушатели ===== */
   useEffect(() => {
     const onMove = (e) => updateMouse(e.clientX, e.clientY);
 
@@ -937,7 +928,7 @@ if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
         const dx = e.clientX - touchStartRef.current.x;
         const dy = e.clientY - touchStartRef.current.y;
         if (!dragFlagRef.current && Math.hypot(dx,dy) > TAP_SLOP) {
-          dragFlagRef.current = true; // это скролл — overlay закрыть
+          dragFlagRef.current = true;
           clickedTileIdRef.current = -1;
           overlayRef.current = { id:-1, holdUntil:0, fadeStart:0, alpha:0 };
         }
@@ -964,7 +955,6 @@ if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
             };
           }
         }
-        // убираем hover после отпускания
         mouseRef.current = { x: -1e6, y: -1e6 };
       }
       pointerActiveRef.current=false;
@@ -997,7 +987,7 @@ if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
     };
   }, [isMobile]);
 
-  /* ===== РЕНДЕР КАНВАСА (без обработчиков, не перехватывает клики) ===== */
+  /* ===== РЕНДЕР КАНВАСА ===== */
   return (
     <canvas
       ref={canvasRef}
@@ -1007,12 +997,10 @@ if(hoveredId!==prevHoverIdRef.current && hoveredId>=0){
   );
 }
 
-/* ===========================================================
-   МОБИЛЬНАЯ ВЕРСИЯ — быстрые правки тут:
-=========================================================== */
-export const MOSAIC_MOBILE_BREAKPOINT = MOBILE_BREAKPOINT; // 768
-export const MOSAIC_MOBILE_COLS = 8; // менять при необходимости
-export const MOSAIC_MOBILE_DIR = MOBILE_DIR; // "/rustam-site/assents/mobile/"
-export const MOSAIC_MOBILE_HOVER = HOVER_BOOST_MOBILE; // 1.10
-export const MOSAIC_CLICK_MULT    = CLICK_MULT;        // 2.0
-export const MOSAIC_MOBILE_ZOOM_RATIO = MOBILE_ZOOM_W_RATIO; // 0.95
+/* ===== Экспорт быстрых настроек ===== */
+export const MOSAIC_MOBILE_BREAKPOINT = MOBILE_BREAKPOINT;
+export const MOSAIC_MOBILE_COLS = 8;
+export const MOSAIC_MOBILE_DIR = MOBILE_DIR;
+export const MOSAIC_MOBILE_HOVER = HOVER_BOOST_MOBILE;
+export const MOSAIC_CLICK_MULT    = CLICK_MULT;
+export const MOSAIC_MOBILE_ZOOM_RATIO = MOBILE_ZOOM_W_RATIO;
