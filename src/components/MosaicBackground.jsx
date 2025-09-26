@@ -937,14 +937,24 @@ export default function MosaicBackground() {
 
     // мобильные жесты
     const onPD = (e) => {
-      // ⛔ НЕ запускать мозаичный zoom, если клик по важным элементам UI
-if (e.target.closest("button, a, h1, h2, h3, [data-stop-zoom]")) return;
-      updateMouse(e.clientX, e.clientY);
-      pointerActiveRef.current = true;
-      dragFlagRef.current = false;
-      touchStartRef.current = { x:e.clientX, y:e.clientY, t:performance.now(), id: hoveredTileId() };
-      if (!isMobile) onClickWin();
-    };
+  const blocked = e.target.closest("button, a, h1, h2, h3, [data-stop-zoom]");
+  if (blocked) {
+    // Заблокировано: НЕ запускать ни мышку, ни звук, ни прозрачности
+    return;
+  }
+
+  // Всё разрешено:
+  updateMouse(e.clientX, e.clientY);
+  pointerActiveRef.current = true;
+  dragFlagRef.current = false;
+  touchStartRef.current = {
+    x: e.clientX,
+    y: e.clientY,
+    t: performance.now(),
+    id: hoveredTileId()
+  };
+  if (!isMobile) onClickWin();
+};
     const onPM = (e) => {
       updateMouse(e.clientX, e.clientY);
       if (isMobile && pointerActiveRef.current) {
