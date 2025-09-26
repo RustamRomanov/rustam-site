@@ -205,34 +205,70 @@ function useAudio() {
 /* ===== Соц-иконка ===== */
 function IconLink({
   href, whiteSrc, colorSrc, label, onHoverSound, size = 28,
-  forceColor = false,        // NEW: принудительно включить цвет
-  fadeMs = 120               // NEW: длительность плавного перехода
+  forceColor = false,        // принудительно включить цвет
+  fadeMs = 120               // длительность плавного перехода
 }) {
-  const [hover, setHover] = useState(false);
+  const [hover, setHover] = React.useState(false);
+
+  // детектор мобильных (тач)
+  const isMobile = React.useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return ("ontouchstart" in window) || (navigator.maxTouchPoints > 0);
+  }, []);
+
   const enter = () => { setHover(true); onHoverSound?.(); };
   const leave = () => setHover(false);
 
-  const on = hover || forceColor; // активное цветное состояние
+  const on = hover || forceColor;
+
+  // мгновенная навигация ТОЛЬКО на мобилке
+  const handleTouchEnd = (e) => {
+    e.stopPropagation();
+    try {
+      const w = window.open(href, "_blank", "noopener,noreferrer");
+      if (!w) window.location.assign(href);
+    } catch {
+      window.location.assign(href);
+    }
+    e.preventDefault(); // чтобы не было двойного открытия
+  };
 
   return (
-    <a href={href} target="_blank" rel="noreferrer" aria-label={label}
-       onMouseEnter={enter} onMouseLeave={leave}
-       onPointerDown={enter} onPointerUp={leave} onPointerCancel={leave}
-       style={{
-         position:"relative", width:size, height:size, display:"inline-flex",
-         alignItems:"center", justifyContent:"center",
-         transform: hover ? "scale(1.3)" : "scale(1)", transition:"transform 140ms ease",
-       }}>
-      <img src={whiteSrc} alt={label}
-           style={{
-             position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"contain",
-             opacity: on ? 0 : 1, transition:`opacity ${fadeMs}ms ease`
-           }}/>
-      <img src={colorSrc} alt={label}
-           style={{
-             position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"contain",
-             opacity: on ? 1 : 0, transition:`opacity ${fadeMs}ms ease`
-           }}/>
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={label}
+      onMouseEnter={enter}
+      onMouseLeave={leave}
+      onPointerDown={enter}
+      onPointerUp={leave}
+      onPointerCancel={leave}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
+      onClickCapture={isMobile ? (e)=>e.stopPropagation() : undefined}
+      style={{
+        position:"relative", width:size, height:size, display:"inline-flex",
+        alignItems:"center", justifyContent:"center",
+        transform: hover ? "scale(1.3)" : "scale(1)", transition:"transform 140ms ease",
+        cursor:"pointer", touchAction:"manipulation"
+      }}
+    >
+      <img
+        src={whiteSrc}
+        alt={label}
+        style={{
+          position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"contain",
+          opacity: on ? 0 : 1, transition:`opacity ${fadeMs}ms ease`
+        }}
+      />
+      <img
+        src={colorSrc}
+        alt={label}
+        style={{
+          position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"contain",
+          opacity: on ? 1 : 0, transition:`opacity ${fadeMs}ms ease`
+        }}
+      />
     </a>
   );
 }
@@ -1469,120 +1505,17 @@ const plateStyle = {
         </div>
       </div>
 
-   {/* ===== Соц-иконки (Mobile) — пульс только на мобилке ===== */}
-<div
-  style={{
-    position: "fixed",
-    left: "50%",
-    transform: "translateX(-50%)",
-    bottom: `calc(12px + env(safe-area-inset-bottom, 0px))`,
-    display: "flex",
-    justifyContent: "center",
-    gap: 20,
-    zIndex: 2147483601
-  }}
->
-  {/* Instagram */}
-  <a
-    href="https://instagram.com/rustamromanov.ru"
-    target="_blank"
-    rel="noreferrer"
-    aria-label="Instagram"
-    style={{
-      position: "relative",
-      width: 37,
-      height: 37,
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center"
-    }}
-  >
-    {/* белый слой */}
-    <img
-      src="/rustam-site/assents/icons/instagram-white.svg?v=3"
-      alt="Instagram"
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        objectFit: "contain"
-      }}
-    />
-    {/* цветной слой — пульсит на мобилке */}
-    <img
-      src="/rustam-site/assents/icons/instagram-color.svg?v=3"
-      alt="Instagram"
-      className="m-soc-color"
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        objectFit: "contain",
-        opacity: 0
-      }}
-    />
-  </a>
-
-  {/* Telegram */}
-  <a
-    href="https://t.me/rustamromanov"
-    target="_blank"
-    rel="noreferrer"
-    aria-label="Telegram"
-    style={{
-      position: "relative",
-      width: 37,
-      height: 37,
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center"
-    }}
-  >
-    <img
-      src="/rustam-site/assents/icons/telegram-white.svg?v=3"
-      alt="Telegram"
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        objectFit: "contain"
-      }}
-    />
-    <img
-      src="/rustam-site/assents/icons/telegram-color.svg?v=3"
-      alt="Telegram"
-      className="m-soc-color"
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        objectFit: "contain",
-        opacity: 0
-      }}
-    />
-  </a>
-
-  {/* CSS: пульс только на устройствах с тачём (мобилки/планшеты) */}
-  <style>{`
-    @media (pointer: coarse) and (hover: none) {
-      .m-soc-color {
-        animation: mSocPulse 500ms ease-in-out infinite;
-      }
-    }
-    @keyframes mSocPulse {
-      0%   { opacity: 0;   transform: scale(1);    }
-      8%   { opacity: 1;   transform: scale(1.06); }
-      18%  { opacity: 1;   transform: scale(1.08); }
-      28%  { opacity: 0;   transform: scale(1);    }
-      100% { opacity: 0;   transform: scale(1);    }
-    }
-  `}</style>
-</div>
-
+      {/* Соц-иконки */}
+      <div style={{ position: "fixed", left: "50%", transform: "translateX(-50%)",
+                    bottom: `calc(12px + env(safe-area-inset-bottom, 0px))`,
+                    display: "flex", justifyContent: "center", gap: 20, zIndex: 2147483601 }}>
+        <IconLink href="https://instagram.com/rustamromanov.ru" label="Instagram"
+          whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
+          colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3" onHoverSound={playDot} size={37} />
+        <IconLink href="https://t.me/rustamromanov" label="Telegram"
+          whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
+          colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3" onHoverSound={playDot} size={37} />
+      </div>
 
       {/* Оверлеи */}
     <VideoOverlayMobile
