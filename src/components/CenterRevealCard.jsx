@@ -1469,17 +1469,39 @@ const plateStyle = {
         </div>
       </div>
 
-      {/* Соц-иконки */}
-      <div style={{ position: "fixed", left: "50%", transform: "translateX(-50%)",
-                    bottom: `calc(12px + env(safe-area-inset-bottom, 0px))`,
-                    display: "flex", justifyContent: "center", gap: 20, zIndex: 2147483601 }}>
-        <IconLink href="https://instagram.com/rustamromanov.ru" label="Instagram"
-          whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
-          colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3" onHoverSound={playDot} size={37} />
-        <IconLink href="https://t.me/rustamromanov" label="Telegram"
-          whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
-          colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3" onHoverSound={playDot} size={37} />
-      </div>
+   /* ===== Соц-иконки (Mobile) ===== */
+<div
+  style={{
+    position: "fixed",
+    left: "50%",
+    transform: "translateX(-50%)",
+    bottom: `calc(12px + env(safe-area-inset-bottom, 0px))`,
+    display: "flex",
+    justifyContent: "center",
+    gap: 20,
+    zIndex: 2147483601
+  }}
+>
+  <IconLink
+    href="https://instagram.com/rustamromanov.ru"
+    label="Instagram"
+    whiteSrc="/rustam-site/assents/icons/instagram-white.svg?v=3"
+    colorSrc="/rustam-site/assents/icons/instagram-color.svg?v=3"
+    onHoverSound={playDot}
+    size={37}
+    pulse   // <<< включили пульс раз в 3 сек
+  />
+  <IconLink
+    href="https://t.me/rustamromanov"
+    label="Telegram"
+    whiteSrc="/rustam-site/assents/icons/telegram-white.svg?v=3"
+    colorSrc="/rustam-site/assents/icons/telegram-color.svg?v=3"
+    onHoverSound={playDot}
+    size={37}
+    pulse   // <<< включили пульс раз в 3 сек
+  />
+</div>
+
 
       {/* Оверлеи */}
     <VideoOverlayMobile
